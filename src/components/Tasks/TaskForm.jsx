@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 const TaskForm = ({ onTaskCreate }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [url, setUrl] = useState('');
   const [dueDate, setDueDate] = useState('');
 
   const handleSubmit = (e) => {
@@ -17,6 +18,7 @@ const TaskForm = ({ onTaskCreate }) => {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: title.trim(),
       description: description.trim(),
+      url: url.trim() || null,
       dueDate: dueDate || null,
       status: 'not-started',
       createdAt: new Date().toISOString(),
@@ -28,6 +30,7 @@ const TaskForm = ({ onTaskCreate }) => {
     // Clear form
     setTitle('');
     setDescription('');
+    setUrl('');
     setDueDate('');
   };
 
@@ -62,6 +65,20 @@ const TaskForm = ({ onTaskCreate }) => {
             placeholder="Enter task description (optional)"
             rows={3}
             className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none"
+          />
+        </div>
+
+        {/* URL Input */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2">
+            Related Link
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com (optional)"
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
           />
         </div>
 

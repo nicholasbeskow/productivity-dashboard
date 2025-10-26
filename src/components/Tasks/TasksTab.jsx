@@ -5,6 +5,7 @@ import TaskList from './TaskList';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -17,12 +18,15 @@ const TasksTab = () => {
         setTasks([]);
       }
     }
+    setIsInitialized(true);
   }, []);
 
-  // Save tasks to localStorage whenever they change
+  // Save tasks to localStorage whenever they change (after initial load)
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (isInitialized) {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, isInitialized]);
 
   const handleTaskCreate = (newTask) => {
     setTasks([newTask, ...tasks]);
