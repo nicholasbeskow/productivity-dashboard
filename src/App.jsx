@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
-import CanvasTab from './components/Canvas/CanvasTab';
+import TasksTab from './components/Tasks/TasksTab';
 import StatsTab from './components/Stats/StatsTab';
 import SettingsTab from './components/Settings/SettingsTab';
 
@@ -13,8 +13,8 @@ function App() {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard key="dashboard" />;
-      case 'canvas':
-        return <CanvasTab key="canvas" />;
+      case 'tasks':
+        return <TasksTab key="tasks" />;
       case 'stats':
         return <StatsTab key="stats" />;
       case 'settings':
