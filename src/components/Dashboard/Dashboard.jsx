@@ -142,7 +142,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: isJustCompleted ? { delay: 1.5, duration: 0.3 } : { duration: 0.2 },
+        opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
@@ -174,7 +174,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
                   scale: 0,
                 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut", delay: i * 0.05 }}
+                transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
                 className="absolute top-2 left-8 pointer-events-none"
                 style={{
                   width: 6,
@@ -188,7 +188,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 1] }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.4 }}
               className="absolute top-1 left-6 pointer-events-none"
             >
               <Sparkles className="text-green-glow" size={20} />
@@ -398,7 +398,7 @@ const Dashboard = ({ setActiveTab }) => {
       // Trigger celebration animation
       setJustCompletedId(taskId);
 
-      // After animation, delete task and save to completedTasks (reduced delay for smoother reordering)
+      // After animation, delete task and save to completedTasks (snappy 700ms timing)
       setTimeout(() => {
         const completedTask = { ...task, status: 'complete', completedAt: new Date().toISOString() };
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
@@ -410,7 +410,7 @@ const Dashboard = ({ setActiveTab }) => {
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
         window.dispatchEvent(new Event('storage'));
         setJustCompletedId(null);
-      }, 1300);
+      }, 700);
     }
 
     const updatedTasks = tasks.map(t => {
