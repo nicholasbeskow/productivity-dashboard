@@ -23,6 +23,7 @@ const TaskForm = ({ onTaskCreate }) => {
       status: 'not-started',
       createdAt: new Date().toISOString(),
       completedAt: null,
+      customPriority: 0, // Will be set by parent component based on due date
     };
 
     onTaskCreate(newTask);

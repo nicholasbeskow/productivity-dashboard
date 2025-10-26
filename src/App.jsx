@@ -12,7 +12,7 @@ function App() {
   const renderTab = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard key="dashboard" />;
+        return <Dashboard key="dashboard" setActiveTab={setActiveTab} />;
       case 'tasks':
         return <TasksTab key="tasks" />;
       case 'stats':
@@ -20,7 +20,7 @@ function App() {
       case 'settings':
         return <SettingsTab key="settings" />;
       default:
-        return <Dashboard key="dashboard" />;
+        return <Dashboard key="dashboard" setActiveTab={setActiveTab} />;
     }
   };
 
