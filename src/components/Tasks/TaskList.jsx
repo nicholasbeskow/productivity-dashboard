@@ -98,27 +98,13 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       {!isEditing && (
         <motion.button
           onClick={() => onStartEdit(task)}
-          className={`absolute p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all ${
-            taskIsOverdue ? 'top-3 right-20' : 'top-3 right-3'
-          }`}
+          className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Edit task"
         >
           <Pencil size={14} />
         </motion.button>
-      )}
-
-      {/* Overdue Badge */}
-      {taskIsOverdue && !isEditing && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1"
-        >
-          <AlertCircle size={12} />
-          OVERDUE
-        </motion.div>
       )}
 
       {/* Confetti Effect */}
@@ -295,14 +281,22 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
 
           {/* Task Content */}
           <div className="flex-1 min-w-0">
-            <motion.h3
-              className={`text-lg font-semibold mb-1 transition-all duration-300 ${
-                task.status === 'complete' ? 'text-text-secondary line-through' : 'text-text-primary'
-              }`}
-              animate={{ opacity: task.status === 'complete' ? 0.6 : 1 }}
-            >
-              {task.title}
-            </motion.h3>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <motion.h3
+                className={`text-lg font-semibold transition-all duration-300 ${
+                  task.status === 'complete' ? 'text-text-secondary line-through' : 'text-text-primary'
+                }`}
+                animate={{ opacity: task.status === 'complete' ? 0.6 : 1 }}
+              >
+                {task.title}
+              </motion.h3>
+              {taskIsOverdue && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 flex-shrink-0">
+                  <AlertCircle size={10} />
+                  OVERDUE
+                </span>
+              )}
+            </div>
 
             {task.description && (
               <p className="text-text-secondary text-sm mb-2">{task.description}</p>

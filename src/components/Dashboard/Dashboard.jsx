@@ -147,15 +147,23 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
 
           {/* Task Info */}
           <div className="flex-1 min-w-0">
-            <p className={`font-medium truncate ${
-              task.status === 'complete'
-                ? 'text-text-secondary line-through'
-                : 'text-text-primary'
-            }`}>
-              {task.title}
-            </p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className={`font-medium truncate ${
+                task.status === 'complete'
+                  ? 'text-text-secondary line-through'
+                  : 'text-text-primary'
+              }`}>
+                {task.title}
+              </p>
+              {taskIsOverdue && (
+                <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5 flex-shrink-0">
+                  <AlertCircle size={8} />
+                  OVERDUE
+                </span>
+              )}
+            </div>
             {task.dueDate && (
-              <p className={`text-xs flex items-center gap-1 mt-0.5 ${
+              <p className={`text-xs flex items-center gap-1 ${
                 taskIsOverdue ? 'text-red-500 font-semibold' : 'text-text-tertiary'
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
@@ -163,15 +171,6 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
               </p>
             )}
           </div>
-        </div>
-
-        {/* Status & Expand */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {taskIsOverdue && (
-            <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-semibold">
-              OVERDUE
-            </span>
-          )}
         </div>
       </div>
     </motion.div>
@@ -296,7 +295,7 @@ const Dashboard = ({ setActiveTab }) => {
       // Trigger celebration animation
       setJustCompletedId(taskId);
 
-      // After animation, delete task and save to completedTasks
+      // After animation, delete task and save to completedTasks (reduced delay for smoother reordering)
       setTimeout(() => {
         const completedTask = { ...task, status: 'complete', completedAt: new Date().toISOString() };
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
@@ -308,7 +307,7 @@ const Dashboard = ({ setActiveTab }) => {
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
         window.dispatchEvent(new Event('storage'));
         setJustCompletedId(null);
-      }, 1500);
+      }, 1300);
     }
 
     const updatedTasks = tasks.map(t => {
@@ -561,10 +560,10 @@ const Dashboard = ({ setActiveTab }) => {
                     /* Task List View */
                     <motion.div
                       key="task-list"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
                     >
                       <div className="space-y-2">
                         <AnimatePresence mode="popLayout">
@@ -599,10 +598,10 @@ const Dashboard = ({ setActiveTab }) => {
                     /* Detail View */
                     <motion.div
                       key="detail-view"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
                     >
                       {(() => {
                         const detailTask = tasks.find(t => t.id === detailViewTaskId);
