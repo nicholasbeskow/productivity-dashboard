@@ -3,7 +3,7 @@ import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDrag, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -140,23 +140,22 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
 
   return (
     <motion.div
-      layout
+      layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
         opacity: isJustCompleted ? [1, 1, 0] : 1,
         y: 0,
-        scale: isJustCompleted ? [1, 1.02, 1] : draggedTask?.id === task.id ? 1.05 : 1,
+        scale: draggedTask?.id === task.id ? 1.05 : 1,
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: isJustCompleted ? { delay: 1.2, duration: 0.3 } : { duration: 0.2 },
+        opacity: isJustCompleted ? { delay: 1.5, duration: 0.3 } : { duration: 0.2 },
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
       draggable={!isEditing}
       onDragStart={(e) => !isEditing && onDragStart(e, task)}
-      onDrag={(e) => !isEditing && onDrag(e)}
       onDragOver={(e) => !isEditing && onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => !isEditing && onDrop(e, task)}
@@ -447,64 +446,72 @@ const TaskList = ({ tasks, setTasks }) => {
   // Refs for auto-scroll functionality
   const scrollIntervalRef = useRef(null);
   const isScrollingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
-  // Clean up scroll interval on unmount or when dragging stops
+  // Auto-scroll while dragging near viewport edges
   useEffect(() => {
+    const handleDragOver = (e) => {
+      if (!isDraggingRef.current) return;
+
+      const edgeThreshold = 50; // pixels from edge to trigger scroll
+      const scrollSpeed = 8; // pixels per frame
+      const viewportHeight = window.innerHeight;
+
+      // Find the scrollable container (the one with overflow-y-auto)
+      const scrollContainer = document.querySelector('.overflow-y-auto');
+      if (!scrollContainer) return;
+
+      // Check if near top edge
+      if (e.clientY < edgeThreshold) {
+        if (!isScrollingRef.current) {
+          isScrollingRef.current = true;
+          const scroll = () => {
+            if (isDraggingRef.current && e.clientY < edgeThreshold) {
+              scrollContainer.scrollBy({ top: -scrollSpeed, behavior: 'auto' });
+              scrollIntervalRef.current = requestAnimationFrame(scroll);
+            } else {
+              isScrollingRef.current = false;
+            }
+          };
+          scroll();
+        }
+      }
+      // Check if near bottom edge
+      else if (e.clientY > viewportHeight - edgeThreshold) {
+        if (!isScrollingRef.current) {
+          isScrollingRef.current = true;
+          const scroll = () => {
+            if (isDraggingRef.current && e.clientY > viewportHeight - edgeThreshold) {
+              scrollContainer.scrollBy({ top: scrollSpeed, behavior: 'auto' });
+              scrollIntervalRef.current = requestAnimationFrame(scroll);
+            } else {
+              isScrollingRef.current = false;
+            }
+          };
+          scroll();
+        }
+      }
+      // Not near any edge - stop scrolling
+      else {
+        if (scrollIntervalRef.current) {
+          cancelAnimationFrame(scrollIntervalRef.current);
+          scrollIntervalRef.current = null;
+          isScrollingRef.current = false;
+        }
+      }
+    };
+
+    // Add window-level dragover listener
+    window.addEventListener('dragover', handleDragOver);
+
     return () => {
+      window.removeEventListener('dragover', handleDragOver);
       if (scrollIntervalRef.current) {
         cancelAnimationFrame(scrollIntervalRef.current);
         scrollIntervalRef.current = null;
       }
     };
   }, []);
-
-  // Auto-scroll while dragging near edges
-  const handleDrag = (e) => {
-    // Ignore if clientY is 0 (happens on drag end)
-    if (e.clientY === 0) {
-      if (scrollIntervalRef.current) {
-        cancelAnimationFrame(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-        isScrollingRef.current = false;
-      }
-      return;
-    }
-
-    const edgeThreshold = 50; // pixels from edge to trigger scroll
-    const scrollSpeed = 5; // pixels per frame
-    const viewportHeight = window.innerHeight;
-
-    // Check if near top edge
-    if (e.clientY < edgeThreshold) {
-      if (!isScrollingRef.current) {
-        isScrollingRef.current = true;
-        const scroll = () => {
-          window.scrollBy({ top: -scrollSpeed, behavior: 'auto' });
-          scrollIntervalRef.current = requestAnimationFrame(scroll);
-        };
-        scroll();
-      }
-    }
-    // Check if near bottom edge
-    else if (e.clientY > viewportHeight - edgeThreshold) {
-      if (!isScrollingRef.current) {
-        isScrollingRef.current = true;
-        const scroll = () => {
-          window.scrollBy({ top: scrollSpeed, behavior: 'auto' });
-          scrollIntervalRef.current = requestAnimationFrame(scroll);
-        };
-        scroll();
-      }
-    }
-    // Not near any edge - stop scrolling
-    else {
-      if (scrollIntervalRef.current) {
-        cancelAnimationFrame(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-        isScrollingRef.current = false;
-      }
-    }
-  };
 
   const handleStatusChange = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
@@ -549,6 +556,7 @@ const TaskList = ({ tasks, setTasks }) => {
 
   const handleDragStart = (e, task) => {
     setDraggedTask(task);
+    isDraggingRef.current = true;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.id);
   };
@@ -564,6 +572,7 @@ const TaskList = ({ tasks, setTasks }) => {
   const handleDragEnd = () => {
     setDraggedTask(null);
     setDragOverTask(null);
+    isDraggingRef.current = false;
 
     // Stop auto-scrolling
     if (scrollIntervalRef.current) {
@@ -753,7 +762,6 @@ const TaskList = ({ tasks, setTasks }) => {
               draggedTask={draggedTask}
               dragOverTask={dragOverTask}
               onDragStart={handleDragStart}
-              onDrag={handleDrag}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onDragEnd={handleDragEnd}

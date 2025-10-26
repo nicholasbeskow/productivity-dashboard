@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 
 // Memoized task card component for performance
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -132,17 +132,17 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
 
   return (
     <motion.div
-      layout
+      layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
         opacity: isJustCompleted ? [1, 1, 0] : 1,
         y: 0,
-        scale: isJustCompleted ? [1, 1.02, 1] : draggedTask?.id === task.id ? 1.05 : 1,
+        scale: draggedTask?.id === task.id ? 1.05 : 1,
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: isJustCompleted ? { delay: 1.2, duration: 0.3 } : { duration: 0.2 },
+        opacity: isJustCompleted ? { delay: 1.5, duration: 0.3 } : { duration: 0.2 },
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
@@ -244,6 +244,20 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
             )}
           </div>
         </div>
+
+        {/* Edit Button */}
+        <motion.button
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartEdit(task);
+          }}
+          className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          title="Edit task"
+        >
+          <Pencil size={14} />
+        </motion.button>
       </div>
     </motion.div>
   );
@@ -536,6 +550,11 @@ const Dashboard = ({ setActiveTab }) => {
     handleCancelEdit();
   };
 
+  const handleStartEditFromCard = (task) => {
+    setDetailViewTaskId(task.id);
+    handleStartEdit(task);
+  };
+
   // Sort and limit tasks for dashboard - show top 5
   const displayTasks = tasks
     .sort((a, b) => {
@@ -711,6 +730,7 @@ const Dashboard = ({ setActiveTab }) => {
                               justCompletedId={justCompletedId}
                               onViewDetails={setDetailViewTaskId}
                               onStatusChange={handleStatusChange}
+                              onStartEdit={handleStartEditFromCard}
                               draggedTask={draggedTask}
                               dragOverTask={dragOverTask}
                               onDragStart={handleDragStart}
