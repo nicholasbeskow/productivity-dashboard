@@ -2,14 +2,23 @@ import { Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const SettingsTab = () => {
+  const [userName, setUserName] = useState('');
   const [semesterStartDate, setSemesterStartDate] = useState('');
   const [semesterEndDate, setSemesterEndDate] = useState('');
 
   useEffect(() => {
-    // Load dates from localStorage on mount
+    // Load data from localStorage on mount
+    setUserName(localStorage.getItem('userName') || '');
     setSemesterStartDate(localStorage.getItem('semesterStartDate') || '2025-08-25');
     setSemesterEndDate(localStorage.getItem('semesterEndDate') || '2025-12-11');
   }, []);
+
+  const handleUserNameChange = (e) => {
+    const newName = e.target.value;
+    setUserName(newName);
+    localStorage.setItem('userName', newName);
+    window.dispatchEvent(new Event('userNameChanged'));
+  };
 
   const handleStartDateChange = (e) => {
     const newDate = e.target.value;
@@ -42,6 +51,28 @@ const SettingsTab = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Personal Information */}
+          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">
+              Personal Information
+            </h3>
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={userName}
+                onChange={handleUserNameChange}
+                placeholder="Enter your name"
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+              />
+              <p className="text-xs text-text-tertiary mt-2">
+                This will personalize your dashboard welcome message
+              </p>
+            </div>
+          </div>
+
           {/* Canvas Settings Placeholder */}
           <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
