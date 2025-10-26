@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
-    // Parse date as local date without timezone conversion
+    // Parse dates at noon to avoid timezone shift issues
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T00:00:00');
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
     return dueDate < now;
   };
 
@@ -49,7 +49,8 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    // Parse date at noon local time to avoid timezone shift
+    const date = new Date(dateString + 'T12:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
@@ -94,10 +95,12 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
     >
       {/* Edit Button */}
-      {!isEditing && !taskIsOverdue && (
+      {!isEditing && (
         <motion.button
           onClick={() => onStartEdit(task)}
-          className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+          className={`absolute p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all ${
+            taskIsOverdue ? 'top-3 right-20' : 'top-3 right-3'
+          }`}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Edit task"
@@ -432,15 +435,23 @@ const TaskList = ({ tasks, setTasks }) => {
     const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
     const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
 
+    console.log('[TaskList] Drag from index', draggedIndex, 'to', dropIndex);
+
     const newTasks = [...tasks];
     const [removed] = newTasks.splice(draggedIndex, 1);
     newTasks.splice(dropIndex, 0, removed);
 
-    // Update customPriority based on new order
+    // Update customPriority based on new order - ALL tasks get new priority
     const updatedTasks = newTasks.map((task, index) => ({
       ...task,
       customPriority: newTasks.length - index, // Higher number = higher priority
     }));
+
+    console.log('[TaskList] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
+
+    // Save immediately to localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    console.log('[TaskList] Saved to localStorage');
 
     setTasks(updatedTasks);
     handleDragEnd();

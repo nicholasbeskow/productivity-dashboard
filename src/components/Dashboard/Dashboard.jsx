@@ -7,8 +7,10 @@ import CircularProgress from './CircularProgress';
 const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onStatusChange, onOpenUrl, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
+    // Parse dates at noon to avoid timezone shift issues
     const now = new Date();
-    const dueDate = new Date(task.dueDate);
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
     return dueDate < now;
   };
 
@@ -39,7 +41,8 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    // Parse date at noon local time to avoid timezone shift
+    const date = new Date(dateString + 'T12:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -322,8 +325,10 @@ const Dashboard = ({ setActiveTab }) => {
 
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
+    // Parse dates at noon to avoid timezone shift issues
     const now = new Date();
-    const dueDate = new Date(task.dueDate);
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
     return dueDate < now;
   };
 
@@ -417,18 +422,23 @@ const Dashboard = ({ setActiveTab }) => {
     const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
     const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
 
+    console.log('[Dashboard] Drag from index', draggedIndex, 'to', dropIndex);
+
     const newTasks = [...tasks];
     const [removed] = newTasks.splice(draggedIndex, 1);
     newTasks.splice(dropIndex, 0, removed);
 
-    // Update customPriority based on new order
+    // Update customPriority based on new order - ALL tasks get new priority
     const updatedTasks = newTasks.map((task, index) => ({
       ...task,
       customPriority: newTasks.length - index, // Higher number = higher priority
     }));
 
+    console.log('[Dashboard] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
+
     setTasks(updatedTasks);
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    console.log('[Dashboard] Saved to localStorage');
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
   };
@@ -612,12 +622,14 @@ const Dashboard = ({ setActiveTab }) => {
                     </AnimatePresence>
                   </div>
 
-                  <button
+                  <motion.button
+                    layout
                     onClick={() => setActiveTab && setActiveTab('tasks')}
                     className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-bg-tertiary transition-all"
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   >
                     View All Tasks →
-                  </button>
+                  </motion.button>
                 </>
               )}
             </div>

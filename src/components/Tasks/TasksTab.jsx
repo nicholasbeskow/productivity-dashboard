@@ -36,8 +36,10 @@ const TasksTab = () => {
 
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
+    // Parse dates at noon to avoid timezone shift issues
     const now = new Date();
-    const dueDate = new Date(task.dueDate);
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
     return dueDate < now;
   };
 
