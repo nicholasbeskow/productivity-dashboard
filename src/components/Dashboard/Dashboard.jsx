@@ -1,10 +1,10 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 
 // Memoized task card component for performance
-const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onStatusChange, onOpenUrl }) => {
+const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onStatusChange, onOpenUrl, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
     const now = new Date();
@@ -62,7 +62,7 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
       animate={{
         opacity: isJustCompleted ? [1, 1, 0] : 1,
         y: 0,
-        scale: isJustCompleted ? [1, 1.02, 1] : 1,
+        scale: isJustCompleted ? [1, 1.02, 1] : draggedTask?.id === task.id ? 1.05 : 1,
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
@@ -71,11 +71,18 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
-        taskIsOverdue ? 'border-red-500/50' : 'border-bg-primary hover:border-green-glow/30'
-      } ${(task.description || task.url) ? 'cursor-pointer hover:bg-bg-tertiary/80' : ''}`}
+      draggable
+      onDragStart={(e) => onDragStart(e, task)}
+      onDragOver={(e) => onDragOver(e, task)}
+      onDragEnd={onDragEnd}
+      onDrop={(e) => onDrop(e, task)}
+      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all cursor-move ${glowClass} ${
+        taskIsOverdue ? 'border-red-500/50' :
+        dragOverTask?.id === task.id ? 'border-green-glow' :
+        'border-bg-primary hover:border-green-glow/30'
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      onClick={() => (task.description || task.url) && onToggleExpand(task.id)}
+      onClick={() => (task.description || task.url) && !draggedTask && onToggleExpand(task.id)}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -117,6 +124,11 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
 
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Drag Handle */}
+          <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+            <GripVertical size={16} />
+          </div>
+
           {/* Checkbox */}
           <motion.button
             onClick={(e) => {
@@ -215,6 +227,8 @@ const Dashboard = ({ setActiveTab }) => {
   const [tasks, setTasks] = useState([]);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [justCompletedId, setJustCompletedId] = useState(null);
+  const [draggedTask, setDraggedTask] = useState(null);
+  const [dragOverTask, setDragOverTask] = useState(null);
 
   useEffect(() => {
     const calculateProgress = () => {
@@ -369,6 +383,54 @@ const Dashboard = ({ setActiveTab }) => {
     } else {
       window.open(url, '_blank');
     }
+  };
+
+  const handleDragStart = (e, task) => {
+    setDraggedTask(task);
+    setExpandedTaskId(null); // Collapse expanded task when dragging starts
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  };
+
+  const handleDragOver = (e, task) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTask && task.id !== draggedTask.id) {
+      setDragOverTask(task);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+    setDragOverTask(null);
+  };
+
+  const handleDrop = (e, dropTask) => {
+    e.preventDefault();
+
+    if (!draggedTask || draggedTask.id === dropTask.id) {
+      handleDragEnd();
+      return;
+    }
+
+    // Reorder tasks
+    const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
+    const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
+
+    const newTasks = [...tasks];
+    const [removed] = newTasks.splice(draggedIndex, 1);
+    newTasks.splice(dropIndex, 0, removed);
+
+    // Update customPriority based on new order
+    const updatedTasks = newTasks.map((task, index) => ({
+      ...task,
+      customPriority: newTasks.length - index, // Higher number = higher priority
+    }));
+
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    window.dispatchEvent(new Event('storage'));
+    handleDragEnd();
   };
 
   // Sort and limit tasks for dashboard - show top 5
@@ -539,6 +601,12 @@ const Dashboard = ({ setActiveTab }) => {
                           onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
                           onStatusChange={handleStatusChange}
                           onOpenUrl={handleOpenUrl}
+                          draggedTask={draggedTask}
+                          dragOverTask={dragOverTask}
+                          onDragStart={handleDragStart}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                          onDragEnd={handleDragEnd}
                         />
                       ))}
                     </AnimatePresence>
