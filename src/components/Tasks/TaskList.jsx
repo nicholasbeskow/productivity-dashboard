@@ -1,16 +1,24 @@
-import { useState, memo } from 'react';
+import { useState, memo, useRef, useEffect } from 'react';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDrag, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
-    // Parse dates at noon to avoid timezone shift issues
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
+
+    // If task has a time, check date + time; otherwise just date
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      // No time - check date only (at noon to avoid timezone shift)
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      return dueDate < now;
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -45,6 +53,70 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       default:
         return 'task-glow-not-started';
     }
+  };
+
+  // Helper: Convert 24-hour time to 12-hour AM/PM
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Helper: Get time remaining in hours
+  const getTimeRemaining = (dateString, timeString) => {
+    if (!dateString || !timeString) return null;
+    const taskDateTime = new Date(`${dateString}T${timeString}`);
+    const now = new Date();
+    const diffMs = taskDateTime - now;
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    return diffHours;
+  };
+
+  // Smart date/time display
+  const formatDateTimeDisplay = (dateString, timeString) => {
+    if (!dateString) return '';
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const taskDate = new Date(dateString + 'T12:00:00');
+    taskDate.setHours(0, 0, 0, 0);
+
+    const diffTime = taskDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Format the date part
+    let dateDisplay;
+    if (diffDays === 0) {
+      dateDisplay = 'Today';
+    } else if (diffDays === 1) {
+      dateDisplay = 'Tomorrow';
+    } else if (diffDays < 0) {
+      // Overdue - show full date
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      // Future - show full date
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+
+    // Add time if present
+    if (timeString) {
+      const time12 = formatTime12Hour(timeString);
+
+      // For today's tasks, show countdown if not overdue
+      if (diffDays === 0 && !taskIsOverdue) {
+        const hoursRemaining = getTimeRemaining(dateString, timeString);
+        if (hoursRemaining !== null && hoursRemaining > 0) {
+          return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
+        }
+      }
+
+      return `${dateDisplay} » ${time12}`;
+    }
+
+    return dateDisplay;
   };
 
   const formatDate = (dateString) => {
@@ -84,6 +156,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       }}
       draggable={!isEditing}
       onDragStart={(e) => !isEditing && onDragStart(e, task)}
+      onDrag={(e) => !isEditing && onDrag(e)}
       onDragOver={(e) => !isEditing && onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => !isEditing && onDrop(e, task)}
@@ -331,7 +404,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
               {task.dueDate && (
                 <span className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-bold' : ''}`}>
                   {taskIsOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
-                  Due: {formatDate(task.dueDate)}
+                  {formatDateTimeDisplay(task.dueDate, task.time)}
                 </span>
               )}
               <motion.span
@@ -370,6 +443,68 @@ const TaskList = ({ tasks, setTasks }) => {
     time: '',
     status: 'not-started'
   });
+
+  // Refs for auto-scroll functionality
+  const scrollIntervalRef = useRef(null);
+  const isScrollingRef = useRef(false);
+
+  // Clean up scroll interval on unmount or when dragging stops
+  useEffect(() => {
+    return () => {
+      if (scrollIntervalRef.current) {
+        cancelAnimationFrame(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Auto-scroll while dragging near edges
+  const handleDrag = (e) => {
+    // Ignore if clientY is 0 (happens on drag end)
+    if (e.clientY === 0) {
+      if (scrollIntervalRef.current) {
+        cancelAnimationFrame(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+        isScrollingRef.current = false;
+      }
+      return;
+    }
+
+    const edgeThreshold = 50; // pixels from edge to trigger scroll
+    const scrollSpeed = 5; // pixels per frame
+    const viewportHeight = window.innerHeight;
+
+    // Check if near top edge
+    if (e.clientY < edgeThreshold) {
+      if (!isScrollingRef.current) {
+        isScrollingRef.current = true;
+        const scroll = () => {
+          window.scrollBy({ top: -scrollSpeed, behavior: 'auto' });
+          scrollIntervalRef.current = requestAnimationFrame(scroll);
+        };
+        scroll();
+      }
+    }
+    // Check if near bottom edge
+    else if (e.clientY > viewportHeight - edgeThreshold) {
+      if (!isScrollingRef.current) {
+        isScrollingRef.current = true;
+        const scroll = () => {
+          window.scrollBy({ top: scrollSpeed, behavior: 'auto' });
+          scrollIntervalRef.current = requestAnimationFrame(scroll);
+        };
+        scroll();
+      }
+    }
+    // Not near any edge - stop scrolling
+    else {
+      if (scrollIntervalRef.current) {
+        cancelAnimationFrame(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+        isScrollingRef.current = false;
+      }
+    }
+  };
 
   const handleStatusChange = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
@@ -429,6 +564,13 @@ const TaskList = ({ tasks, setTasks }) => {
   const handleDragEnd = () => {
     setDraggedTask(null);
     setDragOverTask(null);
+
+    // Stop auto-scrolling
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+      isScrollingRef.current = false;
+    }
   };
 
   const handleDrop = (e, dropTask) => {
@@ -611,6 +753,7 @@ const TaskList = ({ tasks, setTasks }) => {
               draggedTask={draggedTask}
               dragOverTask={dragOverTask}
               onDragStart={handleDragStart}
+              onDrag={handleDrag}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onDragEnd={handleDragEnd}

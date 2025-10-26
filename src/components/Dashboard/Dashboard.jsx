@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 
@@ -7,11 +7,19 @@ import CircularProgress from './CircularProgress';
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
-    // Parse dates at noon to avoid timezone shift issues
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
+
+    // If task has a time, check date + time; otherwise just date
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      // No time - check date only (at noon to avoid timezone shift)
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      return dueDate < now;
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -37,6 +45,70 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
       default:
         return 'task-glow-not-started';
     }
+  };
+
+  // Helper: Convert 24-hour time to 12-hour AM/PM
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Helper: Get time remaining in hours
+  const getTimeRemaining = (dateString, timeString) => {
+    if (!dateString || !timeString) return null;
+    const taskDateTime = new Date(`${dateString}T${timeString}`);
+    const now = new Date();
+    const diffMs = taskDateTime - now;
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    return diffHours;
+  };
+
+  // Smart date/time display
+  const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
+    if (!dateString) return '';
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const taskDate = new Date(dateString + 'T12:00:00');
+    taskDate.setHours(0, 0, 0, 0);
+
+    const diffTime = taskDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Format the date part
+    let dateDisplay;
+    if (diffDays === 0) {
+      dateDisplay = 'Today';
+    } else if (diffDays === 1) {
+      dateDisplay = 'Tomorrow';
+    } else if (diffDays < 0) {
+      // Overdue - show full date
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      // Future - show full date
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+
+    // Add time if present
+    if (timeString) {
+      const time12 = formatTime12Hour(timeString);
+
+      // For today's tasks, show countdown if not overdue
+      if (diffDays === 0 && !taskIsOverdue) {
+        const hoursRemaining = getTimeRemaining(dateString, timeString);
+        if (hoursRemaining !== null && hoursRemaining > 0) {
+          return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
+        }
+      }
+
+      return `${dateDisplay} » ${time12}`;
+    }
+
+    return dateDisplay;
   };
 
   const formatDate = (dateString) => {
@@ -167,7 +239,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, d
                 taskIsOverdue ? 'text-red-500 font-semibold' : 'text-text-tertiary'
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
-                {formatDate(task.dueDate)}
+                {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
               </p>
             )}
           </div>
@@ -188,6 +260,15 @@ const Dashboard = ({ setActiveTab }) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverTask, setDragOverTask] = useState(null);
+  const [isEditingDetail, setIsEditingDetail] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    url: '',
+    dueDate: '',
+    time: '',
+    status: 'not-started'
+  });
 
   useEffect(() => {
     const calculateProgress = () => {
@@ -281,11 +362,19 @@ const Dashboard = ({ setActiveTab }) => {
 
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
-    // Parse dates at noon to avoid timezone shift issues
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
+
+    // If task has a time, check date + time; otherwise just date
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      // No time - check date only (at noon to avoid timezone shift)
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      return dueDate < now;
+    }
   };
 
   const handleStatusChange = (taskId) => {
@@ -397,6 +486,54 @@ const Dashboard = ({ setActiveTab }) => {
     console.log('[Dashboard] Saved to localStorage');
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
+  };
+
+  const handleStartEdit = (task) => {
+    setIsEditingDetail(true);
+    setEditForm({
+      title: task.title,
+      description: task.description || '',
+      url: task.url || '',
+      dueDate: task.dueDate || '',
+      time: task.time || '',
+      status: task.status
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingDetail(false);
+    setEditForm({
+      title: '',
+      description: '',
+      url: '',
+      dueDate: '',
+      time: '',
+      status: 'not-started'
+    });
+  };
+
+  const handleSaveEdit = (taskId) => {
+    if (!editForm.title.trim()) return;
+
+    const updatedTasks = tasks.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          title: editForm.title.trim(),
+          description: editForm.description.trim(),
+          url: editForm.url.trim() || null,
+          dueDate: editForm.dueDate || null,
+          time: editForm.time || null,
+          status: editForm.status
+        };
+      }
+      return task;
+    });
+
+    setTasks(updatedTasks);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    window.dispatchEvent(new Event('storage'));
+    handleCancelEdit();
   };
 
   // Sort and limit tasks for dashboard - show top 5
@@ -614,96 +751,261 @@ const Dashboard = ({ setActiveTab }) => {
                           return dueDate < now;
                         })() : false;
 
-                        const formatDate = (dateString) => {
+                        const formatDetailDateTime = (dateString, timeString) => {
                           if (!dateString) return '';
-                          const date = new Date(dateString + 'T12:00:00');
-                          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const taskDate = new Date(dateString + 'T12:00:00');
+                          taskDate.setHours(0, 0, 0, 0);
+
+                          const diffTime = taskDate - now;
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                          let dateDisplay;
+                          if (diffDays === 0) {
+                            dateDisplay = 'Today';
+                          } else if (diffDays === 1) {
+                            dateDisplay = 'Tomorrow';
+                          } else {
+                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                          }
+
+                          if (timeString) {
+                            const [hours, minutes] = timeString.split(':');
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                            const time12 = `${hour12}:${minutes} ${ampm}`;
+
+                            if (diffDays === 0 && !taskIsOverdue) {
+                              const taskDateTime = new Date(`${dateString}T${timeString}`);
+                              const nowFull = new Date();
+                              const diffMs = taskDateTime - nowFull;
+                              const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+                              if (diffHours > 0) {
+                                return `${dateDisplay} » in ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'}`;
+                              }
+                            }
+
+                            return `${dateDisplay} » ${time12}`;
+                          }
+
+                          return dateDisplay;
                         };
 
                         return (
                           <div className="space-y-4">
-                            {/* Header with Back Button */}
-                            <div className="flex items-center gap-3">
-                              <button
-                                onClick={() => setDetailViewTaskId(null)}
-                                className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors group"
-                              >
-                                <ArrowLeft size={20} className="text-text-tertiary group-hover:text-green-glow transition-colors" />
-                              </button>
-                              <h4 className="text-lg font-semibold text-text-primary">Task Details</h4>
-                            </div>
-
-                            {/* Task Details Card */}
-                            <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
-                              {/* Title */}
-                              <div>
-                                <h3 className="text-xl font-bold text-text-primary mb-2">
-                                  {detailTask.title}
-                                </h3>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`px-2 py-1 rounded text-xs ${
-                                    detailTask.status === 'complete'
-                                      ? 'bg-green-muted text-green-glow'
-                                      : detailTask.status === 'in-progress'
-                                      ? 'bg-yellow-500/10 text-yellow-500'
-                                      : 'bg-bg-secondary text-text-tertiary'
-                                  }`}>
-                                    {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
-                                  </span>
-                                  {taskIsOverdue && (
-                                    <span className="px-2 py-1 rounded text-xs bg-red-500 text-white font-semibold">
-                                      OVERDUE
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Due Date */}
-                              {detailTask.dueDate && (
-                                <div>
-                                  <p className="text-sm text-text-tertiary mb-1">Due Date</p>
-                                  <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-text-primary'}`}>
-                                    {formatDate(detailTask.dueDate)}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Description */}
-                              {detailTask.description && (
-                                <div>
-                                  <p className="text-sm text-text-tertiary mb-1">Description</p>
-                                  <p className="text-sm text-text-secondary whitespace-pre-wrap">
-                                    {detailTask.description}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* URL */}
-                              {detailTask.url && (
-                                <div>
-                                  <p className="text-sm text-text-tertiary mb-2">Related Link</p>
-                                  <button
-                                    onClick={() => handleOpenUrl(detailTask.url)}
-                                    className="inline-flex items-center gap-2 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
-                                  >
-                                    <ExternalLink size={16} className="group-hover:scale-110 transition-transform" />
-                                    <span className="underline">Open Link</span>
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Actions */}
-                              <div className="pt-2 border-t border-bg-primary">
+                            {/* Header with Back Button and Edit Button */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
                                 <button
                                   onClick={() => {
                                     setDetailViewTaskId(null);
-                                    handleStatusChange(detailTask.id);
+                                    setIsEditingDetail(false);
                                   }}
-                                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all"
+                                  className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors group"
                                 >
-                                  {detailTask.status === 'not-started' ? 'Start Task' : detailTask.status === 'in-progress' ? 'Complete Task' : 'Mark as Not Started'}
+                                  <ArrowLeft size={20} className="text-text-tertiary group-hover:text-green-glow transition-colors" />
                                 </button>
+                                <h4 className="text-lg font-semibold text-text-primary">
+                                  {isEditingDetail ? 'Edit Task' : 'Task Details'}
+                                </h4>
                               </div>
+                              {!isEditingDetail && (
+                                <button
+                                  onClick={() => handleStartEdit(detailTask)}
+                                  className="p-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                                  title="Edit task"
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Task Details Card or Edit Form */}
+                            <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
+                              {isEditingDetail ? (
+                                /* Edit Form */
+                                <>
+                                  {/* Title Input */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      Task Title <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editForm.title}
+                                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                      placeholder="Enter task title"
+                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                      autoFocus
+                                    />
+                                  </div>
+
+                                  {/* Description Textarea */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      Description
+                                    </label>
+                                    <textarea
+                                      value={editForm.description}
+                                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                      placeholder="Enter task description (optional)"
+                                      rows={3}
+                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* URL Input */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      Related Link
+                                    </label>
+                                    <input
+                                      type="url"
+                                      value={editForm.url}
+                                      onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                                      placeholder="https://example.com"
+                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                    />
+                                  </div>
+
+                                  {/* Due Date and Time Row */}
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm text-text-secondary mb-2">
+                                        Due Date
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={editForm.dueDate}
+                                        onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm text-text-secondary mb-2">
+                                        Time (optional)
+                                      </label>
+                                      <input
+                                        type="time"
+                                        value={editForm.time}
+                                        onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Status Select */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      Status
+                                    </label>
+                                    <select
+                                      value={editForm.status}
+                                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                    >
+                                      <option value="not-started">Not Started</option>
+                                      <option value="in-progress">In Progress</option>
+                                      <option value="complete">Complete</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex gap-3 pt-2">
+                                    <button
+                                      onClick={() => handleSaveEdit(detailTask.id)}
+                                      disabled={!editForm.title.trim()}
+                                      className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                    >
+                                      <Save size={16} />
+                                      Save Changes
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEdit}
+                                      className="px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                    >
+                                      <X size={16} />
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                /* Detail View */
+                                <>
+                                  {/* Title */}
+                                  <div>
+                                    <h3 className="text-xl font-bold text-text-primary mb-2">
+                                      {detailTask.title}
+                                    </h3>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className={`px-2 py-1 rounded text-xs ${
+                                        detailTask.status === 'complete'
+                                          ? 'bg-green-muted text-green-glow'
+                                          : detailTask.status === 'in-progress'
+                                          ? 'bg-yellow-500/10 text-yellow-500'
+                                          : 'bg-bg-secondary text-text-tertiary'
+                                      }`}>
+                                        {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
+                                      </span>
+                                      {taskIsOverdue && (
+                                        <span className="px-2 py-1 rounded text-xs bg-red-500 text-white font-semibold">
+                                          OVERDUE
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Due Date */}
+                                  {detailTask.dueDate && (
+                                    <div>
+                                      <p className="text-sm text-text-tertiary mb-1">Due Date{detailTask.time && ' & Time'}</p>
+                                      <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-text-primary'}`}>
+                                        {formatDetailDateTime(detailTask.dueDate, detailTask.time)}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Description */}
+                                  {detailTask.description && (
+                                    <div>
+                                      <p className="text-sm text-text-tertiary mb-1">Description</p>
+                                      <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                                        {detailTask.description}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* URL */}
+                                  {detailTask.url && (
+                                    <div>
+                                      <p className="text-sm text-text-tertiary mb-2">Related Link</p>
+                                      <button
+                                        onClick={() => handleOpenUrl(detailTask.url)}
+                                        className="inline-flex items-center gap-2 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
+                                      >
+                                        <ExternalLink size={16} className="group-hover:scale-110 transition-transform" />
+                                        <span className="underline">Open Link</span>
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Actions */}
+                                  <div className="pt-2 border-t border-bg-primary">
+                                    <button
+                                      onClick={() => {
+                                        setDetailViewTaskId(null);
+                                        handleStatusChange(detailTask.id);
+                                      }}
+                                      className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all"
+                                    >
+                                      {detailTask.status === 'not-started' ? 'Start Task' : detailTask.status === 'in-progress' ? 'Complete Task' : 'Mark as Not Started'}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                         );

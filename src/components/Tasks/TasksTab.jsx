@@ -36,11 +36,19 @@ const TasksTab = () => {
 
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
-    // Parse dates at noon to avoid timezone shift issues
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
+
+    // If task has a time, check date + time; otherwise just date
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      // No time - check date only (at noon to avoid timezone shift)
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      return dueDate < now;
+    }
   };
 
   // Smart sorting: overdue first, then by due date, then by custom priority
@@ -70,10 +78,25 @@ const TasksTab = () => {
         return (b.customPriority ?? 0) - (a.customPriority ?? 0);
       }
 
-      // Neither has custom priority: sort by due date
+      // Neither has custom priority: sort by due date (and time if present)
       if (a.dueDate && !b.dueDate) return -1;
       if (!a.dueDate && b.dueDate) return 1;
       if (a.dueDate && b.dueDate) {
+        // Same date check
+        if (a.dueDate === b.dueDate) {
+          // Same day: tasks with times come before tasks without times
+          if (a.time && !b.time) return -1;
+          if (!a.time && b.time) return 1;
+
+          // Both have times: sort by time (earlier first)
+          if (a.time && b.time) {
+            const aDateTime = new Date(`${a.dueDate}T${a.time}`);
+            const bDateTime = new Date(`${b.dueDate}T${b.time}`);
+            return aDateTime - bDateTime;
+          }
+        }
+
+        // Different dates: sort by date
         return new Date(a.dueDate) - new Date(b.dueDate);
       }
 
