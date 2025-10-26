@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, ChevronDown, Sparkles, ExternalLink } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 
@@ -71,11 +71,11 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all cursor-pointer ${glowClass} ${
+      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' : 'border-bg-primary hover:border-green-glow/30'
-      }`}
+      } ${(task.description || task.url) ? 'cursor-pointer hover:bg-bg-tertiary/80' : ''}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      onClick={() => onToggleExpand(task.id)}
+      onClick={() => (task.description || task.url) && onToggleExpand(task.id)}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -157,14 +157,6 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
               OVERDUE
             </span>
           )}
-          {(task.description || task.url) && (
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            >
-              <ChevronDown size={16} className="text-text-tertiary" />
-            </motion.div>
-          )}
         </div>
       </div>
 
@@ -176,8 +168,8 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{
-              height: { type: 'spring', stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
+              duration: 0.25,
+              ease: "easeOut"
             }}
             className="overflow-hidden"
             style={{ willChange: 'height, opacity', transform: 'translateZ(0)' }}
@@ -186,7 +178,7 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
               className="mt-3 pt-3 border-t border-bg-primary space-y-2"
             >
               {task.description && (
@@ -217,6 +209,7 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
 TaskCard.displayName = 'TaskCard';
 
 const Dashboard = ({ setActiveTab }) => {
+  const [userName, setUserName] = useState('');
   const [daysRemaining, setDaysRemaining] = useState(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [tasks, setTasks] = useState([]);
@@ -264,6 +257,25 @@ const Dashboard = ({ setActiveTab }) => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('semesterDatesChanged', handleStorageChange);
+    };
+  }, []);
+
+  // Load and listen for user name changes
+  useEffect(() => {
+    const loadUserName = () => {
+      setUserName(localStorage.getItem('userName') || '');
+    };
+
+    loadUserName();
+
+    const handleUserNameChange = () => {
+      loadUserName();
+    };
+
+    window.addEventListener('userNameChanged', handleUserNameChange);
+
+    return () => {
+      window.removeEventListener('userNameChanged', handleUserNameChange);
     };
   }, []);
 
@@ -392,6 +404,19 @@ const Dashboard = ({ setActiveTab }) => {
     })
     .slice(0, 5); // Show up to 5 tasks
 
+  // Format user name - capitalize first letter of each word
+  const formatUserName = (name) => {
+    if (!name || name.trim() === '') return '';
+    return name
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const formattedName = formatUserName(userName);
+  const welcomeMessage = formattedName ? `Welcome Back, ${formattedName}! 👋` : 'Welcome Back! 👋';
+
   return (
     <>
       <style>
@@ -460,10 +485,10 @@ const Dashboard = ({ setActiveTab }) => {
       <div className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
-          <div className="mb-8 mt-12 flex items-start justify-between">
-            <div className="flex-1">
+          <div className="mb-8 flex items-start justify-between">
+            <div className="flex-1 mt-12">
               <h2 className="text-3xl font-bold text-text-primary mb-2">
-                Welcome Back! 👋
+                {welcomeMessage}
               </h2>
               <p className="text-text-secondary">
                 {new Date().toLocaleDateString('en-US', {

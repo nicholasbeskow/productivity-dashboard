@@ -6,8 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
+    // Parse date as local date without timezone conversion
     const now = new Date();
-    const dueDate = new Date(task.dueDate);
+    now.setHours(0, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T00:00:00');
     return dueDate < now;
   };
 
