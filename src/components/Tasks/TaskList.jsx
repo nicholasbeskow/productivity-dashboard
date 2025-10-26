@@ -55,6 +55,14 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
+  // Determine checkbox class based on status
+  const getCheckboxClass = () => {
+    if (taskIsOverdue) return 'checkbox-overdue';
+    if (task.status === 'complete') return 'checkbox-complete';
+    if (task.status === 'in-progress') return 'checkbox-in-progress';
+    return 'checkbox-not-started';
+  };
+
   return (
     <motion.div
       layout
@@ -64,11 +72,12 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
         y: 0,
         scale: isJustCompleted ? [1, 1.02, 1] : draggedTask?.id === task.id ? 1.05 : 1,
       }}
-      exit={{ opacity: 0, scale: 0.9, height: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
-        layout: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+        layout: { type: 'spring', stiffness: 300, damping: 30 },
         opacity: isJustCompleted ? { delay: 1.2, duration: 0.3 } : { duration: 0.2 },
-        scale: { duration: 0.4, ease: "easeInOut" }
+        scale: { duration: 0.4, ease: "easeInOut" },
+        exit: { duration: 0.3 }
       }}
       draggable
       onDragStart={(e) => onDragStart(e, task)}
@@ -141,7 +150,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
         {/* Status Button */}
         <motion.button
           onClick={() => onStatusChange(task.id)}
-          className="mt-1 relative flex-shrink-0"
+          className={`mt-1 relative flex-shrink-0 ${getCheckboxClass()}`}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           title={`Click to change status (currently: ${getStatusLabel(task.status)})`}
@@ -342,21 +351,21 @@ const TaskList = ({ tasks, setTasks }) => {
       <style>
         {`
           .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(100, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(100, 150, 255, 0.45);
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 15px rgba(255, 200, 100, 0.4);
+            box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 20px rgba(255, 200, 100, 0.55);
+            box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
           }
 
           .task-glow-complete {
@@ -369,12 +378,36 @@ const TaskList = ({ tasks, setTasks }) => {
           }
 
           .task-glow-overdue {
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            box-shadow: 0 0 25px rgba(255, 50, 50, 0.6);
+            box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
+          }
+
+          /* Checkbox hover effects */
+          .checkbox-not-started:hover svg {
+            stroke: rgb(100, 200, 255);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-in-progress:hover svg {
+            stroke: rgb(255, 200, 50);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-overdue:hover svg {
+            stroke: rgb(255, 50, 50);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-complete:hover svg {
+            stroke: rgb(61, 214, 140);
+            transition: stroke 200ms ease-in-out;
           }
         `}
       </style>

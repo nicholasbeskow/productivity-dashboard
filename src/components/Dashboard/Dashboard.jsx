@@ -47,6 +47,14 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
+  // Determine checkbox class based on status
+  const getCheckboxClass = () => {
+    if (taskIsOverdue) return 'checkbox-overdue';
+    if (task.status === 'complete') return 'checkbox-complete';
+    if (task.status === 'in-progress') return 'checkbox-in-progress';
+    return 'checkbox-not-started';
+  };
+
   return (
     <motion.div
       layout
@@ -56,11 +64,12 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
         y: 0,
         scale: isJustCompleted ? [1, 1.02, 1] : 1,
       }}
-      exit={{ opacity: 0, scale: 0.9, height: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
-        layout: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+        layout: { type: 'spring', stiffness: 300, damping: 30 },
         opacity: isJustCompleted ? { delay: 1.2, duration: 0.3 } : { duration: 0.2 },
-        scale: { duration: 0.4, ease: "easeInOut" }
+        scale: { duration: 0.4, ease: "easeInOut" },
+        exit: { duration: 0.3 }
       }}
       className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all cursor-pointer ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' : 'border-bg-primary hover:border-green-glow/30'
@@ -114,7 +123,7 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
               e.stopPropagation();
               onStatusChange(task.id);
             }}
-            className="flex-shrink-0"
+            className={`flex-shrink-0 ${getCheckboxClass()}`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -160,17 +169,26 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
       </div>
 
       {/* Expandable Content */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {isExpanded && (task.description || task.url) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            transition={{
+              height: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 }
+            }}
             className="overflow-hidden"
-            style={{ willChange: 'height, opacity' }}
+            style={{ willChange: 'height, opacity', transform: 'translateZ(0)' }}
           >
-            <div className="mt-3 pt-3 border-t border-bg-primary space-y-2">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 pt-3 border-t border-bg-primary space-y-2"
+            >
               {task.description && (
                 <p className="text-sm text-text-secondary">
                   {task.description}
@@ -188,7 +206,7 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
                   <span className="underline">Open Link</span>
                 </button>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -379,21 +397,21 @@ const Dashboard = ({ setActiveTab }) => {
       <style>
         {`
           .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(100, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(100, 150, 255, 0.45);
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 15px rgba(255, 200, 100, 0.4);
+            box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 20px rgba(255, 200, 100, 0.55);
+            box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
           }
 
           .task-glow-complete {
@@ -406,19 +424,43 @@ const Dashboard = ({ setActiveTab }) => {
           }
 
           .task-glow-overdue {
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            box-shadow: 0 0 25px rgba(255, 50, 50, 0.6);
+            box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
+          }
+
+          /* Checkbox hover effects */
+          .checkbox-not-started:hover svg {
+            stroke: rgb(100, 200, 255);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-in-progress:hover svg {
+            stroke: rgb(255, 200, 50);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-overdue:hover svg {
+            stroke: rgb(255, 50, 50);
+            stroke-width: 2.5;
+            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
+          }
+
+          .checkbox-complete:hover svg {
+            stroke: rgb(61, 214, 140);
+            transition: stroke 200ms ease-in-out;
           }
         `}
       </style>
       <div className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
-          <div className="mb-8 flex items-start justify-between">
+          <div className="mb-8 mt-12 flex items-start justify-between">
             <div className="flex-1">
               <h2 className="text-3xl font-bold text-text-primary mb-2">
                 Welcome Back! 👋
