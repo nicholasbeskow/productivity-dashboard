@@ -182,20 +182,22 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             />
           </div>
 
-          {/* URL and Due Date Row */}
+          {/* URL Input */}
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              Related Link
+            </label>
+            <input
+              type="url"
+              value={editForm.url}
+              onChange={(e) => onEditFormChange({ ...editForm, url: e.target.value })}
+              placeholder="https://example.com"
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+            />
+          </div>
+
+          {/* Due Date and Time Row */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">
-                Related Link
-              </label>
-              <input
-                type="url"
-                value={editForm.url}
-                onChange={(e) => onEditFormChange({ ...editForm, url: e.target.value })}
-                placeholder="https://example.com"
-                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-              />
-            </div>
             <div>
               <label className="block text-sm text-text-secondary mb-2">
                 Due Date
@@ -204,6 +206,17 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                 type="date"
                 value={editForm.dueDate}
                 onChange={(e) => onEditFormChange({ ...editForm, dueDate: e.target.value })}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Time (optional)
+              </label>
+              <input
+                type="time"
+                value={editForm.time}
+                onChange={(e) => onEditFormChange({ ...editForm, time: e.target.value })}
                 className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
               />
             </div>
@@ -354,6 +367,7 @@ const TaskList = ({ tasks, setTasks }) => {
     description: '',
     url: '',
     dueDate: '',
+    time: '',
     status: 'not-started'
   });
 
@@ -475,6 +489,7 @@ const TaskList = ({ tasks, setTasks }) => {
       description: task.description || '',
       url: task.url || '',
       dueDate: task.dueDate || '',
+      time: task.time || '',
       status: task.status
     });
   };
@@ -486,6 +501,7 @@ const TaskList = ({ tasks, setTasks }) => {
       description: '',
       url: '',
       dueDate: '',
+      time: '',
       status: 'not-started'
     });
   };
@@ -501,6 +517,7 @@ const TaskList = ({ tasks, setTasks }) => {
           description: editForm.description.trim(),
           url: editForm.url.trim() || null,
           dueDate: editForm.dueDate || null,
+          time: editForm.time || null,
           status: editForm.status
         };
       }

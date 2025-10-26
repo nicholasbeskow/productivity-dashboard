@@ -6,6 +6,7 @@ const TaskForm = ({ onTaskCreate }) => {
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [time, setTime] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,6 +21,7 @@ const TaskForm = ({ onTaskCreate }) => {
       description: description.trim(),
       url: url.trim() || null,
       dueDate: dueDate || null,
+      time: time || null,
       status: 'not-started',
       createdAt: new Date().toISOString(),
       completedAt: null,
@@ -33,6 +35,7 @@ const TaskForm = ({ onTaskCreate }) => {
     setDescription('');
     setUrl('');
     setDueDate('');
+    setTime('');
   };
 
   return (
@@ -83,17 +86,30 @@ const TaskForm = ({ onTaskCreate }) => {
           />
         </div>
 
-        {/* Due Date Input */}
-        <div>
-          <label className="block text-sm text-text-secondary mb-2">
-            Due Date
-          </label>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-          />
+        {/* Due Date and Time Row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              Due Date
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              Time (optional)
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            />
+          </div>
         </div>
 
         {/* Submit Button */}
