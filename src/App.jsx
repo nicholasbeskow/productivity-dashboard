@@ -32,15 +32,11 @@ function App() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.4, 0, 0.2, 1], // cubic-bezier for smooth easing
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             className="h-full"
-            style={{ willChange: 'transform, opacity', transform: 'translateZ(0)' }}
           >
             {renderTab()}
           </motion.div>

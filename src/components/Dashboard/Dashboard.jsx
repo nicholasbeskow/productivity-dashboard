@@ -2,7 +2,6 @@ import { useState, useEffect, memo } from 'react';
 import { Check, Circle, Clock, AlertCircle, ChevronDown, Sparkles, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
-import QuoteWidget from './QuoteWidget';
 
 // Memoized task card component for performance
 const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onStatusChange, onOpenUrl }) => {
@@ -379,33 +378,27 @@ const Dashboard = ({ setActiveTab }) => {
     <>
       <style>
         {`
-          @keyframes pulse-red-glow {
-            0%, 100% {
-              box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
-            }
-            50% {
-              box-shadow: 0 0 35px rgba(255, 50, 50, 0.7);
-            }
-          }
-
           .task-glow-not-started {
-            box-shadow: 0 0 12px rgba(255, 100, 100, 0.25);
+            box-shadow: 0 0 15px rgba(100, 150, 255, 0.3);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 18px rgba(255, 100, 100, 0.4);
+            box-shadow: 0 0 20px rgba(100, 150, 255, 0.45);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 18px rgba(255, 200, 100, 0.4);
+            box-shadow: 0 0 15px rgba(255, 200, 100, 0.4);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 24px rgba(255, 200, 100, 0.6);
+            box-shadow: 0 0 20px rgba(255, 200, 100, 0.55);
           }
 
           .task-glow-complete {
             box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-complete:hover {
@@ -413,12 +406,12 @@ const Dashboard = ({ setActiveTab }) => {
           }
 
           .task-glow-overdue {
-            animation: pulse-red-glow 2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            animation: pulse-red-glow 2s ease-in-out infinite;
-            box-shadow: 0 0 40px rgba(255, 50, 50, 0.8) !important;
+            box-shadow: 0 0 25px rgba(255, 50, 50, 0.6);
           }
         `}
       </style>
@@ -430,7 +423,7 @@ const Dashboard = ({ setActiveTab }) => {
               <h2 className="text-3xl font-bold text-text-primary mb-2">
                 Welcome Back! 👋
               </h2>
-              <p className="text-text-secondary mb-4">
+              <p className="text-text-secondary">
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -438,7 +431,6 @@ const Dashboard = ({ setActiveTab }) => {
                   day: 'numeric'
                 })}
               </p>
-              <QuoteWidget />
             </div>
 
             {daysRemaining !== null && (

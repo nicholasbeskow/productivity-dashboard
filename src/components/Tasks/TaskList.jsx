@@ -341,46 +341,40 @@ const TaskList = ({ tasks, setTasks }) => {
     <>
       <style>
         {`
-          @keyframes pulse-red-glow {
-            0%, 100% {
-              box-shadow: 0 0 25px rgba(255, 50, 50, 0.5);
-            }
-            50% {
-              box-shadow: 0 0 40px rgba(255, 50, 50, 0.8);
-            }
-          }
-
           .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(255, 100, 100, 0.3);
+            box-shadow: 0 0 15px rgba(100, 150, 255, 0.3);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(255, 100, 100, 0.45);
+            box-shadow: 0 0 20px rgba(100, 150, 255, 0.45);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 20px rgba(255, 200, 100, 0.45);
+            box-shadow: 0 0 15px rgba(255, 200, 100, 0.4);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 25px rgba(255, 200, 100, 0.65);
+            box-shadow: 0 0 20px rgba(255, 200, 100, 0.55);
           }
 
           .task-glow-complete {
-            box-shadow: 0 0 15px rgba(61, 214, 140, 0.3);
+            box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-complete:hover {
-            box-shadow: 0 0 20px rgba(61, 214, 140, 0.45);
+            box-shadow: 0 0 18px rgba(61, 214, 140, 0.4);
           }
 
           .task-glow-overdue {
-            animation: pulse-red-glow 2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.4);
+            transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            animation: pulse-red-glow 2s ease-in-out infinite;
-            box-shadow: 0 0 45px rgba(255, 50, 50, 0.9) !important;
+            box-shadow: 0 0 25px rgba(255, 50, 50, 0.6);
           }
         `}
       </style>
