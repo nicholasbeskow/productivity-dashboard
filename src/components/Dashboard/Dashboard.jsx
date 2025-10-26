@@ -1,10 +1,10 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 
 // Memoized task card component for performance
-const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onStatusChange, onOpenUrl, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
     // Parse dates at noon to avoid timezone shift issues
@@ -79,13 +79,13 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
       onDragOver={(e) => onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => onDrop(e, task)}
-      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all cursor-move ${glowClass} ${
+      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
         'border-bg-primary hover:border-green-glow/30'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:bg-bg-tertiary/80' : 'cursor-move'}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      onClick={() => (task.description || task.url) && !draggedTask && onToggleExpand(task.id)}
+      onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -174,49 +174,6 @@ const TaskCard = memo(({ task, isExpanded, justCompletedId, onToggleExpand, onSt
           )}
         </div>
       </div>
-
-      {/* Expandable Content */}
-      <AnimatePresence>
-        {isExpanded && (task.description || task.url) && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{
-              duration: 0.25,
-              ease: "easeOut"
-            }}
-            className="overflow-hidden"
-            style={{ willChange: 'height, opacity', transform: 'translateZ(0)' }}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="mt-3 pt-3 border-t border-bg-primary space-y-2"
-            >
-              {task.description && (
-                <p className="text-sm text-text-secondary">
-                  {task.description}
-                </p>
-              )}
-              {task.url && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenUrl(task.url);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
-                >
-                  <ExternalLink size={14} className="group-hover:scale-110 transition-transform" />
-                  <span className="underline">Open Link</span>
-                </button>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 });
@@ -228,7 +185,7 @@ const Dashboard = ({ setActiveTab }) => {
   const [daysRemaining, setDaysRemaining] = useState(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [tasks, setTasks] = useState([]);
-  const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [detailViewTaskId, setDetailViewTaskId] = useState(null);
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverTask, setDragOverTask] = useState(null);
@@ -392,7 +349,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleDragStart = (e, task) => {
     setDraggedTask(task);
-    setExpandedTaskId(null); // Collapse expanded task when dragging starts
+    setDetailViewTaskId(null); // Close detail view when dragging starts
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.id);
   };
@@ -599,38 +556,162 @@ const Dashboard = ({ setActiveTab }) => {
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {displayTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          isExpanded={expandedTaskId === task.id}
-                          justCompletedId={justCompletedId}
-                          onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
-                          onStatusChange={handleStatusChange}
-                          onOpenUrl={handleOpenUrl}
-                          draggedTask={draggedTask}
-                          dragOverTask={dragOverTask}
-                          onDragStart={handleDragStart}
-                          onDragOver={handleDragOver}
-                          onDrop={handleDrop}
-                          onDragEnd={handleDragEnd}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </div>
+                <AnimatePresence mode="wait">
+                  {!detailViewTaskId ? (
+                    /* Task List View */
+                    <motion.div
+                      key="task-list"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
+                      <div className="space-y-2">
+                        <AnimatePresence mode="popLayout">
+                          {displayTasks.map((task) => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              justCompletedId={justCompletedId}
+                              onViewDetails={setDetailViewTaskId}
+                              onStatusChange={handleStatusChange}
+                              draggedTask={draggedTask}
+                              dragOverTask={dragOverTask}
+                              onDragStart={handleDragStart}
+                              onDragOver={handleDragOver}
+                              onDrop={handleDrop}
+                              onDragEnd={handleDragEnd}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
 
-                  <motion.button
-                    layout
-                    onClick={() => setActiveTab && setActiveTab('tasks')}
-                    className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-bg-tertiary transition-all"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  >
-                    View All Tasks →
-                  </motion.button>
-                </>
+                      <motion.button
+                        layout
+                        onClick={() => setActiveTab && setActiveTab('tasks')}
+                        className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-bg-tertiary transition-all"
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      >
+                        View All Tasks →
+                      </motion.button>
+                    </motion.div>
+                  ) : (
+                    /* Detail View */
+                    <motion.div
+                      key="detail-view"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                    >
+                      {(() => {
+                        const detailTask = tasks.find(t => t.id === detailViewTaskId);
+                        if (!detailTask) return null;
+
+                        const taskIsOverdue = (detailTask.dueDate && detailTask.status !== 'complete') ? (() => {
+                          const now = new Date();
+                          now.setHours(12, 0, 0, 0);
+                          const dueDate = new Date(detailTask.dueDate + 'T12:00:00');
+                          return dueDate < now;
+                        })() : false;
+
+                        const formatDate = (dateString) => {
+                          if (!dateString) return '';
+                          const date = new Date(dateString + 'T12:00:00');
+                          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        };
+
+                        return (
+                          <div className="space-y-4">
+                            {/* Header with Back Button */}
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => setDetailViewTaskId(null)}
+                                className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors group"
+                              >
+                                <ArrowLeft size={20} className="text-text-tertiary group-hover:text-green-glow transition-colors" />
+                              </button>
+                              <h4 className="text-lg font-semibold text-text-primary">Task Details</h4>
+                            </div>
+
+                            {/* Task Details Card */}
+                            <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
+                              {/* Title */}
+                              <div>
+                                <h3 className="text-xl font-bold text-text-primary mb-2">
+                                  {detailTask.title}
+                                </h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-2 py-1 rounded text-xs ${
+                                    detailTask.status === 'complete'
+                                      ? 'bg-green-muted text-green-glow'
+                                      : detailTask.status === 'in-progress'
+                                      ? 'bg-yellow-500/10 text-yellow-500'
+                                      : 'bg-bg-secondary text-text-tertiary'
+                                  }`}>
+                                    {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
+                                  </span>
+                                  {taskIsOverdue && (
+                                    <span className="px-2 py-1 rounded text-xs bg-red-500 text-white font-semibold">
+                                      OVERDUE
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Due Date */}
+                              {detailTask.dueDate && (
+                                <div>
+                                  <p className="text-sm text-text-tertiary mb-1">Due Date</p>
+                                  <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-text-primary'}`}>
+                                    {formatDate(detailTask.dueDate)}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Description */}
+                              {detailTask.description && (
+                                <div>
+                                  <p className="text-sm text-text-tertiary mb-1">Description</p>
+                                  <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                                    {detailTask.description}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* URL */}
+                              {detailTask.url && (
+                                <div>
+                                  <p className="text-sm text-text-tertiary mb-2">Related Link</p>
+                                  <button
+                                    onClick={() => handleOpenUrl(detailTask.url)}
+                                    className="inline-flex items-center gap-2 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
+                                  >
+                                    <ExternalLink size={16} className="group-hover:scale-110 transition-transform" />
+                                    <span className="underline">Open Link</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Actions */}
+                              <div className="pt-2 border-t border-bg-primary">
+                                <button
+                                  onClick={() => {
+                                    setDetailViewTaskId(null);
+                                    handleStatusChange(detailTask.id);
+                                  }}
+                                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all"
+                                >
+                                  {detailTask.status === 'not-started' ? 'Start Task' : detailTask.status === 'in-progress' ? 'Complete Task' : 'Mark as Not Started'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
             </div>
 
