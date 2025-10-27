@@ -2,6 +2,7 @@ import { CheckSquare } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
+import backupManager from '../../utils/backupManager';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
@@ -32,6 +33,9 @@ const TasksTab = () => {
   useEffect(() => {
     if (isInitialized) {
       localStorage.setItem('tasks', JSON.stringify(tasks));
+
+      // Backup after save
+      backupManager.saveAutoBackup();
     }
   }, [tasks, isInitialized]);
 

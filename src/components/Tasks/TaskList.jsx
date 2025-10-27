@@ -1,6 +1,7 @@
 import { useState, memo, useRef, useEffect } from 'react';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
@@ -570,6 +571,9 @@ const TaskList = ({ tasks, setTasks }) => {
             const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
             localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
+            // Backup after save
+            backupManager.saveAutoBackup();
+
             // Remove from active tasks
             setTasks(prev => prev.filter(t => t.id !== taskId));
           }, 700);
@@ -644,6 +648,9 @@ const TaskList = ({ tasks, setTasks }) => {
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
     console.log('[TaskList] Saved to localStorage');
 
+    // Backup after save
+    backupManager.saveAutoBackup();
+
     setTasks(updatedTasks);
     handleDragEnd();
   };
@@ -717,6 +724,9 @@ const TaskList = ({ tasks, setTasks }) => {
 
     // Save full array to localStorage first
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Backup after save
+    backupManager.saveAutoBackup();
 
     // Then update parent state with full array (parent will filter for display)
     setTasks(updatedTasks);

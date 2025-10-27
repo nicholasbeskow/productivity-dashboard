@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import TasksTab from './components/Tasks/TasksTab';
 import StatsTab from './components/Stats/StatsTab';
 import SettingsTab from './components/Settings/SettingsTab';
+import backupManager from './utils/backupManager';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -58,6 +59,15 @@ function App() {
         console.error('Error migrating completed tasks:', error);
       }
     }
+  }, []);
+
+  // Start backup system: automatic snapshots every 5 minutes
+  useEffect(() => {
+    backupManager.startSnapshotTimer();
+
+    return () => {
+      backupManager.stopSnapshotTimer();
+    };
   }, []);
 
   const renderTab = () => {

@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
+import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
@@ -422,6 +423,10 @@ const Dashboard = ({ setActiveTab }) => {
         const updatedTasks = tasks.filter(t => t.id !== taskId);
         setTasks(updatedTasks);
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+        // Backup after save
+        backupManager.saveAutoBackup();
+
         window.dispatchEvent(new Event('storage'));
         setJustCompletedId(null);
       }, 700);
@@ -445,6 +450,10 @@ const Dashboard = ({ setActiveTab }) => {
     setTasks(updatedTasks);
     if (task && task.status !== 'in-progress') {
       localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+      // Backup after save
+      backupManager.saveAutoBackup();
+
       window.dispatchEvent(new Event('storage'));
     }
   };
@@ -512,6 +521,10 @@ const Dashboard = ({ setActiveTab }) => {
     setTasks(updatedTasks);
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
     console.log('[Dashboard] Saved to localStorage');
+
+    // Backup after save
+    backupManager.saveAutoBackup();
+
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
   };
@@ -567,6 +580,9 @@ const Dashboard = ({ setActiveTab }) => {
 
     // Save full array to localStorage
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Backup after save
+    backupManager.saveAutoBackup();
 
     // Update state with full array
     setTasks(updatedTasks);
