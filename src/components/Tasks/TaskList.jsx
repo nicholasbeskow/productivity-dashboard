@@ -150,7 +150,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: isJustCompleted ? { delay: 1.5, duration: 0.3 } : { duration: 0.2 },
+        opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
@@ -194,11 +194,11 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                   scale: 0,
                 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut", delay: i * 0.05 }}
-                className="absolute top-4 left-12 pointer-events-none"
+                transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
+                className="absolute top-2 left-10 pointer-events-none"
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 6,
+                  height: 6,
                   borderRadius: '50%',
                   background: i % 3 === 0 ? '#3dd68c' : i % 3 === 1 ? '#2aba73' : '#4fe39f',
                   willChange: 'transform, opacity',
@@ -208,10 +208,10 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 1] }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.4 }}
               className="absolute top-2 left-10 pointer-events-none"
             >
-              <Sparkles className="text-green-glow" size={24} />
+              <Sparkles className="text-green-glow" size={20} />
             </motion.div>
           </>
         )}
@@ -291,6 +291,37 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                 onChange={(e) => onEditFormChange({ ...editForm, time: e.target.value })}
                 className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
               />
+            </div>
+          </div>
+
+          {/* Task Type Toggle */}
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              Task Type
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onEditFormChange({ ...editForm, taskType: 'academic' })}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  editForm.taskType === 'academic'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                📚 Academic
+              </button>
+              <button
+                type="button"
+                onClick={() => onEditFormChange({ ...editForm, taskType: 'personal' })}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  editForm.taskType === 'personal'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                🏠 Personal
+              </button>
             </div>
           </div>
 
@@ -440,7 +471,8 @@ const TaskList = ({ tasks, setTasks }) => {
     url: '',
     dueDate: '',
     time: '',
-    status: 'not-started'
+    status: 'not-started',
+    taskType: 'academic'
   });
 
   // Refs for auto-scroll functionality
@@ -529,7 +561,7 @@ const TaskList = ({ tasks, setTasks }) => {
           // Trigger celebration animation
           setJustCompletedId(taskId);
 
-          // After animation, delete task and save to completedTasks
+          // After animation, delete task and save to completedTasks (snappy 700ms timing)
           setTimeout(() => {
             setJustCompletedId(null);
 
@@ -540,7 +572,7 @@ const TaskList = ({ tasks, setTasks }) => {
 
             // Remove from active tasks
             setTasks(prev => prev.filter(t => t.id !== taskId));
-          }, 1500);
+          }, 700);
         } else {
           newStatus = 'not-started';
           completedAt = null;
@@ -641,7 +673,8 @@ const TaskList = ({ tasks, setTasks }) => {
       url: task.url || '',
       dueDate: task.dueDate || '',
       time: task.time || '',
-      status: task.status
+      status: task.status,
+      taskType: task.taskType || 'academic'
     });
   };
 
@@ -653,7 +686,8 @@ const TaskList = ({ tasks, setTasks }) => {
       url: '',
       dueDate: '',
       time: '',
-      status: 'not-started'
+      status: 'not-started',
+      taskType: 'academic'
     });
   };
 
@@ -669,7 +703,8 @@ const TaskList = ({ tasks, setTasks }) => {
           url: editForm.url.trim() || null,
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
-          status: editForm.status
+          status: editForm.status,
+          taskType: editForm.taskType
         };
       }
       return task;

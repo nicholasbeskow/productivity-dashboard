@@ -719,15 +719,13 @@ const Dashboard = ({ setActiveTab }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Task List */}
             <div className="lg:col-span-2 bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-              <h3 className="text-xl font-semibold text-text-primary mb-4">
-                Today's Tasks
-              </h3>
+              {/* Header with Filter Buttons */}
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <h3 className="text-xl font-semibold text-text-primary">
+                  Today's Tasks
+                </h3>
 
-              {/* Task Filter */}
-              <div className="mb-4">
-                <label className="block text-sm text-text-secondary mb-2">
-                  Show:
-                </label>
+                {/* Task Filter */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleFilterChange('all')}
