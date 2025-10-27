@@ -545,7 +545,11 @@ const Dashboard = ({ setActiveTab }) => {
   const handleSaveEdit = (taskId) => {
     if (!editForm.title.trim()) return;
 
-    const updatedTasks = tasks.map(task => {
+    // BULLETPROOF FIX: Always read from localStorage to ensure we have the full array
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    const updatedTasks = fullTasksArray.map(task => {
       if (task.id === taskId) {
         return {
           ...task,
@@ -561,8 +565,12 @@ const Dashboard = ({ setActiveTab }) => {
       return task;
     });
 
-    setTasks(updatedTasks);
+    // Save full array to localStorage
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Update state with full array
+    setTasks(updatedTasks);
+
     window.dispatchEvent(new Event('storage'));
     handleCancelEdit();
   };

@@ -694,7 +694,12 @@ const TaskList = ({ tasks, setTasks }) => {
   const handleSaveEdit = (taskId) => {
     if (!editForm.title.trim()) return;
 
-    const updatedTasks = tasks.map(task => {
+    // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
+    // Don't map over 'tasks' prop as it may be filtered
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    const updatedTasks = fullTasksArray.map(task => {
       if (task.id === taskId) {
         return {
           ...task,
@@ -710,6 +715,10 @@ const TaskList = ({ tasks, setTasks }) => {
       return task;
     });
 
+    // Save full array to localStorage first
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Then update parent state with full array (parent will filter for display)
     setTasks(updatedTasks);
     handleCancelEdit();
   };
