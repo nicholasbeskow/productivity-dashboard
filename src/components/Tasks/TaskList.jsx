@@ -1,12 +1,13 @@
 import { useState, memo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState('bottom');
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, menuTaskId, onMenuToggle }) => {
+  const menuButtonRef = useRef(null);
+  const menuOpen = menuTaskId === task.id;
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -169,26 +170,14 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
     >
-      {/* 3-Dot Menu */}
+      {/* 3-Dot Menu Button */}
       {!isEditing && (
         <div className="absolute top-3 right-3">
           <motion.button
+            ref={menuButtonRef}
             onClick={(e) => {
               e.stopPropagation();
-
-              // Calculate if menu should open upward or downward
-              const buttonRect = e.currentTarget.getBoundingClientRect();
-              const spaceBelow = window.innerHeight - buttonRect.bottom;
-              const spaceAbove = buttonRect.top;
-
-              // If less than 200px below, open upward
-              if (spaceBelow < 200 && spaceAbove > 200) {
-                setMenuPosition('top');
-              } else {
-                setMenuPosition('bottom');
-              }
-
-              setMenuOpen(!menuOpen);
+              onMenuToggle(task.id, menuButtonRef.current);
             }}
             className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
@@ -197,63 +186,6 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
           >
             <MoreVertical size={14} />
           </motion.button>
-
-          {/* Dropdown Menu */}
-          <AnimatePresence>
-            {menuOpen && (
-              <>
-                {/* Backdrop - FIXED: Much higher z-index to prevent menu cut-off */}
-                <div
-                  className="fixed inset-0 z-[100]"
-                  onClick={() => setMenuOpen(false)}
-                />
-
-                {/* Menu - position dynamically - FIXED: Much higher z-index */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
-                  transition={{ duration: 0.15 }}
-                  className={`absolute right-0 ${menuPosition === 'top' ? 'bottom-10' : 'top-10'} z-[101] w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden`}
-                >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onStartEdit(task);
-                    }}
-                    className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-                  >
-                    <Pencil size={14} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onDuplicate(task.id);
-                    }}
-                    className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-                  >
-                    <Copy size={14} />
-                    Duplicate
-                  </button>
-                  <div className="border-t border-bg-primary" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onDelete(task.id);
-                    }}
-                    className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-                  >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
         </div>
       )}
 
@@ -553,6 +485,11 @@ const TaskList = ({ tasks, setTasks }) => {
     taskType: 'academic'
   });
 
+  // Menu state - track which task has menu open and button position
+  const [menuTaskId, setMenuTaskId] = useState(null);
+  const [menuButtonRect, setMenuButtonRect] = useState(null);
+  const [menuPosition, setMenuPosition] = useState('bottom');
+
   // Refs for auto-scroll functionality
   const scrollIntervalRef = useRef(null);
   const isScrollingRef = useRef(false);
@@ -611,17 +548,26 @@ const TaskList = ({ tasks, setTasks }) => {
       }
     };
 
+    // Close menu when scrolling
+    const handleScroll = () => {
+      if (menuTaskId) {
+        handleCloseMenu();
+      }
+    };
+
     // Add window-level dragover listener
     window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('scroll', handleScroll, true); // Use capture to catch all scroll events
 
     return () => {
       window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('scroll', handleScroll, true);
       if (scrollIntervalRef.current) {
         cancelAnimationFrame(scrollIntervalRef.current);
         scrollIntervalRef.current = null;
       }
     };
-  }, []);
+  }, [menuTaskId]);
 
   const handleStatusChange = (taskId) => {
     // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
@@ -784,6 +730,11 @@ const TaskList = ({ tasks, setTasks }) => {
     }
   };
 
+  const handleCloseMenu = () => {
+    setMenuTaskId(null);
+    setMenuButtonRect(null);
+  };
+
   const handleStartEdit = (task) => {
     setEditingTaskId(task.id);
     setEditForm({
@@ -795,6 +746,7 @@ const TaskList = ({ tasks, setTasks }) => {
       status: task.status,
       taskType: task.taskType || 'academic'
     });
+    handleCloseMenu(); // Close menu when editing starts
   };
 
   const handleCancelEdit = () => {
@@ -908,6 +860,29 @@ const TaskList = ({ tasks, setTasks }) => {
     setTasks(updatedTasks);
   };
 
+  const handleMenuToggle = (taskId, buttonElement) => {
+    if (menuTaskId === taskId) {
+      // Close menu if clicking the same button
+      handleCloseMenu();
+    } else {
+      // Open menu for this task
+      const rect = buttonElement.getBoundingClientRect();
+      setMenuButtonRect(rect);
+      setMenuTaskId(taskId);
+
+      // Calculate if menu should open upward or downward
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // If less than 200px below, open upward
+      if (spaceBelow < 200 && spaceAbove > 200) {
+        setMenuPosition('top');
+      } else {
+        setMenuPosition('bottom');
+      }
+    }
+  };
+
   if (tasks.length === 0) {
     return (
       <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
@@ -1004,10 +979,77 @@ const TaskList = ({ tasks, setTasks }) => {
               onEditFormChange={setEditForm}
               onDuplicate={handleDuplicate}
               onDelete={handleDelete}
+              menuTaskId={menuTaskId}
+              onMenuToggle={handleMenuToggle}
             />
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Portal-based dropdown menu - renders outside DOM hierarchy */}
+      {menuTaskId && menuButtonRect && createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-[100]"
+            onClick={handleCloseMenu}
+          />
+
+          {/* Menu positioned absolutely based on button rect */}
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
+              transition={{ duration: 0.15 }}
+              className="fixed z-[101] w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
+              style={{
+                left: `${menuButtonRect.right - 192}px`, // 192px = w-48
+                top: menuPosition === 'top'
+                  ? `${menuButtonRect.top - 140}px` // Position above button
+                  : `${menuButtonRect.bottom + 8}px`, // Position below button
+              }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseMenu();
+                  const task = tasks.find(t => t.id === menuTaskId);
+                  if (task) handleStartEdit(task);
+                }}
+                className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+              >
+                <Pencil size={14} />
+                Edit
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseMenu();
+                  handleDuplicate(menuTaskId);
+                }}
+                className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+              >
+                <Copy size={14} />
+                Duplicate
+              </button>
+              <div className="border-t border-bg-primary" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseMenu();
+                  handleDelete(menuTaskId);
+                }}
+                className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </motion.div>
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
     </>
   );
 };
