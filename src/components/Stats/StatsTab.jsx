@@ -552,10 +552,12 @@ const StatsTab = () => {
 
   // Calculate stats for selected time period
   const calculatePeriodStats = () => {
+    // FIXED: Use end of day instead of noon to include all tasks completed today
+    const now = new Date();
     const today = new Date();
-    today.setHours(12, 0, 0, 0);
+    today.setHours(23, 59, 59, 999); // End of day
 
-    let startDate = new Date(today);
+    let startDate = new Date(now);
     let periodName = '';
     let averagePeriod = 'day';
 
@@ -566,20 +568,20 @@ const StatsTab = () => {
       averagePeriod = 'hour';
     } else if (timePeriod === 'Week') {
       // Last 7 days
-      startDate.setDate(today.getDate() - 6);
+      startDate.setDate(now.getDate() - 6);
       startDate.setHours(0, 0, 0, 0);
       periodName = 'Last 7 Days';
       averagePeriod = 'day';
     } else if (timePeriod === 'Month') {
       // Last 30 days
-      startDate.setDate(today.getDate() - 29);
+      startDate.setDate(now.getDate() - 29);
       startDate.setHours(0, 0, 0, 0);
       periodName = 'Last 30 Days';
       averagePeriod = 'day';
     } else if (timePeriod === 'Semester') {
       const semesterStartStr = localStorage.getItem('semesterStartDate');
       if (semesterStartStr) {
-        startDate = new Date(semesterStartStr + 'T12:00:00');
+        startDate = new Date(semesterStartStr + 'T00:00:00');
       }
       periodName = 'This Semester';
       averagePeriod = 'day';
@@ -604,10 +606,11 @@ const StatsTab = () => {
     // Calculate average based on period
     let periodAverage = 0;
     if (timePeriod === 'Day') {
-      // For day view, show average per hour (doesn't make much sense, so just show total)
+      // For day view, show total tasks completed today
       periodAverage = periodTotal;
     } else {
-      const totalDays = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)));
+      // Use 'now' for accurate day count calculation (not end of day)
+      const totalDays = Math.max(1, Math.ceil((now - startDate) / (1000 * 60 * 60 * 24)));
       periodAverage = (periodTotal / totalDays).toFixed(1);
     }
 
