@@ -202,19 +202,19 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
           <AnimatePresence>
             {menuOpen && (
               <>
-                {/* Backdrop */}
+                {/* Backdrop - FIXED: Much higher z-index to prevent menu cut-off */}
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-[100]"
                   onClick={() => setMenuOpen(false)}
                 />
 
-                {/* Menu - position dynamically */}
+                {/* Menu - position dynamically - FIXED: Much higher z-index */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
                   transition={{ duration: 0.15 }}
-                  className={`absolute right-0 ${menuPosition === 'top' ? 'bottom-10' : 'top-10'} z-20 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden`}
+                  className={`absolute right-0 ${menuPosition === 'top' ? 'bottom-10' : 'top-10'} z-[101] w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden`}
                 >
                   <button
                     onClick={(e) => {
@@ -651,8 +651,19 @@ const TaskList = ({ tasks, setTasks }) => {
             // Backup after save
             backupManager.saveAutoBackup();
 
-            // Remove from active tasks
-            setTasks(prev => prev.filter(t => t.id !== taskId));
+            // DIAGNOSTIC LOGGING - Checking task removal
+            console.log('=== TASK REMOVAL DEBUG (700ms after completion) ===');
+            console.log('About to remove task ID:', taskId);
+
+            // Remove from active tasks - BUG IS HERE!
+            setTasks(prev => {
+              console.log('Tasks in setTasks prev:', prev.length);
+              const filtered = prev.filter(t => t.id !== taskId);
+              console.log('After filtering out completed task:', filtered.length);
+              console.log('Full localStorage tasks:', JSON.parse(localStorage.getItem('tasks') || '[]').length);
+              console.log('=================================================');
+              return filtered;
+            });
           }, 700);
         } else {
           newStatus = 'not-started';
@@ -663,6 +674,13 @@ const TaskList = ({ tasks, setTasks }) => {
       }
       return task;
     });
+
+    // DIAGNOSTIC LOGGING - Checking for data loss bug
+    console.log('=== TASK STATUS CHANGE DEBUG ===');
+    console.log('Tasks in component state:', tasks.length);
+    console.log('Updated tasks being set:', updatedTasks.length);
+    console.log('Full localStorage before change:', JSON.parse(localStorage.getItem('tasks') || '[]').length);
+    console.log('================================');
 
     setTasks(updatedTasks);
   };
