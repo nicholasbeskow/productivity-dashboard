@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 import backupManager from '../../utils/backupManager';
@@ -555,6 +555,36 @@ const Dashboard = ({ setActiveTab }) => {
     });
   };
 
+  const handleDeleteTask = (taskId) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this task? This cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    // Read from localStorage to get full array
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    // Remove the task
+    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+    // Save to localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Backup after save
+    backupManager.saveAutoBackup();
+
+    // Update state
+    setTasks(updatedTasks);
+
+    // Close detail view
+    setDetailViewTaskId(null);
+    setIsEditingDetail(false);
+
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const handleSaveEdit = (taskId) => {
     if (!editForm.title.trim()) return;
 
@@ -1049,21 +1079,32 @@ const Dashboard = ({ setActiveTab }) => {
                                   </div>
 
                                   {/* Action Buttons */}
-                                  <div className="flex gap-3 pt-2">
+                                  <div className="space-y-3 pt-2">
+                                    <div className="flex gap-3">
+                                      <button
+                                        onClick={() => handleSaveEdit(detailTask.id)}
+                                        disabled={!editForm.title.trim()}
+                                        className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      >
+                                        <Save size={16} />
+                                        Save Changes
+                                      </button>
+                                      <button
+                                        onClick={handleCancelEdit}
+                                        className="px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      >
+                                        <X size={16} />
+                                        Cancel
+                                      </button>
+                                    </div>
+
+                                    {/* Delete Button */}
                                     <button
-                                      onClick={() => handleSaveEdit(detailTask.id)}
-                                      disabled={!editForm.title.trim()}
-                                      className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      onClick={() => handleDeleteTask(detailTask.id)}
+                                      className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
-                                      <Save size={16} />
-                                      Save Changes
-                                    </button>
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                                    >
-                                      <X size={16} />
-                                      Cancel
+                                      <Trash2 size={16} />
+                                      Delete Task
                                     </button>
                                   </div>
                                 </>
