@@ -270,6 +270,7 @@ const Dashboard = ({ setActiveTab }) => {
   const [daysRemaining, setDaysRemaining] = useState(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [tasks, setTasks] = useState([]);
+  const [taskFilter, setTaskFilter] = useState('all');
   const [detailViewTaskId, setDetailViewTaskId] = useState(null);
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
@@ -281,7 +282,8 @@ const Dashboard = ({ setActiveTab }) => {
     url: '',
     dueDate: '',
     time: '',
-    status: 'not-started'
+    status: 'not-started',
+    taskType: 'academic'
   });
 
   useEffect(() => {
@@ -373,6 +375,18 @@ const Dashboard = ({ setActiveTab }) => {
       window.removeEventListener('storage', handleTasksChange);
     };
   }, []);
+
+  // Load task filter from localStorage
+  useEffect(() => {
+    const savedFilter = localStorage.getItem('taskFilter') || 'all';
+    setTaskFilter(savedFilter);
+  }, []);
+
+  const handleFilterChange = (filter) => {
+    setTaskFilter(filter);
+    localStorage.setItem('taskFilter', filter);
+    window.dispatchEvent(new Event('taskFilterChanged'));
+  };
 
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
@@ -510,7 +524,8 @@ const Dashboard = ({ setActiveTab }) => {
       url: task.url || '',
       dueDate: task.dueDate || '',
       time: task.time || '',
-      status: task.status
+      status: task.status,
+      taskType: task.taskType || 'academic'
     });
   };
 
@@ -522,7 +537,8 @@ const Dashboard = ({ setActiveTab }) => {
       url: '',
       dueDate: '',
       time: '',
-      status: 'not-started'
+      status: 'not-started',
+      taskType: 'academic'
     });
   };
 
@@ -538,7 +554,8 @@ const Dashboard = ({ setActiveTab }) => {
           url: editForm.url.trim() || null,
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
-          status: editForm.status
+          status: editForm.status,
+          taskType: editForm.taskType
         };
       }
       return task;
@@ -557,6 +574,12 @@ const Dashboard = ({ setActiveTab }) => {
 
   // Sort and limit tasks for dashboard - show top 5
   const displayTasks = tasks
+    .filter(task => {
+      if (taskFilter === 'all') return true;
+      if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
+      if (taskFilter === 'personal') return task.taskType === 'personal';
+      return true;
+    })
     .sort((a, b) => {
       const aOverdue = isOverdue(a);
       const bOverdue = isOverdue(b);
@@ -699,6 +722,45 @@ const Dashboard = ({ setActiveTab }) => {
               <h3 className="text-xl font-semibold text-text-primary mb-4">
                 Today's Tasks
               </h3>
+
+              {/* Task Filter */}
+              <div className="mb-4">
+                <label className="block text-sm text-text-secondary mb-2">
+                  Show:
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleFilterChange('all')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      taskFilter === 'all'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => handleFilterChange('academic')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      taskFilter === 'academic'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    }`}
+                  >
+                    Academic
+                  </button>
+                  <button
+                    onClick={() => handleFilterChange('personal')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      taskFilter === 'personal'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    }`}
+                  >
+                    Personal
+                  </button>
+                </div>
+              </div>
 
               {displayTasks.length === 0 ? (
                 <div className="text-center py-8">
@@ -914,6 +976,37 @@ const Dashboard = ({ setActiveTab }) => {
                                         onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
                                         className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
                                       />
+                                    </div>
+                                  </div>
+
+                                  {/* Task Type Toggle */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      Task Type
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditForm({ ...editForm, taskType: 'academic' })}
+                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                          editForm.taskType === 'academic'
+                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                                        }`}
+                                      >
+                                        📚 Academic
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditForm({ ...editForm, taskType: 'personal' })}
+                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                          editForm.taskType === 'personal'
+                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                                        }`}
+                                      >
+                                        🏠 Personal
+                                      </button>
                                     </div>
                                   </div>
 

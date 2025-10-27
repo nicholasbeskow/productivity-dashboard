@@ -7,6 +7,7 @@ const TaskForm = ({ onTaskCreate }) => {
   const [url, setUrl] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [time, setTime] = useState('');
+  const [taskType, setTaskType] = useState('academic');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -23,6 +24,7 @@ const TaskForm = ({ onTaskCreate }) => {
       dueDate: dueDate || null,
       time: time || null,
       status: 'not-started',
+      taskType: taskType,
       createdAt: new Date().toISOString(),
       completedAt: null,
       customPriority: 0, // Will be set by parent component based on due date
@@ -36,6 +38,7 @@ const TaskForm = ({ onTaskCreate }) => {
     setUrl('');
     setDueDate('');
     setTime('');
+    setTaskType('academic');
   };
 
   return (
@@ -109,6 +112,37 @@ const TaskForm = ({ onTaskCreate }) => {
               onChange={(e) => setTime(e.target.value)}
               className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             />
+          </div>
+        </div>
+
+        {/* Task Type Toggle */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2">
+            Task Type
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTaskType('academic')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                taskType === 'academic'
+                  ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                  : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+              }`}
+            >
+              📚 Academic
+            </button>
+            <button
+              type="button"
+              onClick={() => setTaskType('personal')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                taskType === 'personal'
+                  ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                  : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+              }`}
+            >
+              🏠 Personal
+            </button>
           </div>
         </div>
 

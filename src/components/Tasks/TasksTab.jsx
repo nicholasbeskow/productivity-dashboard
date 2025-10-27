@@ -5,6 +5,7 @@ import TaskList from './TaskList';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
+  const [taskFilter, setTaskFilter] = useState('all');
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load tasks from localStorage on mount
@@ -34,6 +35,29 @@ const TasksTab = () => {
     }
   }, [tasks, isInitialized]);
 
+  // Load task filter from localStorage and listen for changes
+  useEffect(() => {
+    const savedFilter = localStorage.getItem('taskFilter') || 'all';
+    setTaskFilter(savedFilter);
+
+    const handleFilterChange = () => {
+      const filter = localStorage.getItem('taskFilter') || 'all';
+      setTaskFilter(filter);
+    };
+
+    window.addEventListener('taskFilterChanged', handleFilterChange);
+
+    return () => {
+      window.removeEventListener('taskFilterChanged', handleFilterChange);
+    };
+  }, []);
+
+  const handleFilterChange = (filter) => {
+    setTaskFilter(filter);
+    localStorage.setItem('taskFilter', filter);
+    window.dispatchEvent(new Event('taskFilterChanged'));
+  };
+
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -53,7 +77,14 @@ const TasksTab = () => {
 
   // Smart sorting: overdue first, then by due date, then by custom priority
   const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    return [...tasks]
+      .filter(task => {
+        if (taskFilter === 'all') return true;
+        if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
+        if (taskFilter === 'personal') return task.taskType === 'personal';
+        return true;
+      })
+      .sort((a, b) => {
       const aOverdue = isOverdue(a);
       const bOverdue = isOverdue(b);
 
@@ -103,7 +134,7 @@ const TasksTab = () => {
       // Both have no due date: sort by creation date (newest first)
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-  }, [tasks]);
+  }, [tasks, taskFilter]);
 
   const handleTaskCreate = (newTask) => {
     // Find the right position for the new task based on due date
@@ -166,6 +197,46 @@ const TasksTab = () => {
           {/* Task List */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">Your Tasks</h3>
+
+            {/* Task Filter */}
+            <div className="mb-4">
+              <label className="block text-sm text-text-secondary mb-2">
+                Show:
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleFilterChange('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    taskFilter === 'all'
+                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => handleFilterChange('academic')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    taskFilter === 'academic'
+                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  Academic
+                </button>
+                <button
+                  onClick={() => handleFilterChange('personal')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    taskFilter === 'personal'
+                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  Personal
+                </button>
+              </div>
+            </div>
+
             <TaskList tasks={sortedTasks} setTasks={setTasks} />
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Flame } from 'lucide-react';
+import { BarChart3, Flame, BookOpen, Home } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
 import {
@@ -289,36 +289,69 @@ const StatsTab = () => {
       }
     }
 
-    // Count tasks for each date
-    const data = dates.map(date => {
+    // Count tasks for each date - separate by academic/personal
+    const academicData = dates.map(date => {
       return completedTasks.filter(task => {
         const completedDate = new Date(task.completedAt);
         completedDate.setHours(12, 0, 0, 0);
-        return completedDate.toDateString() === date.toDateString();
+        const isAcademic = (task.taskType || 'academic') === 'academic';
+        return completedDate.toDateString() === date.toDateString() && isAcademic;
+      }).length;
+    });
+
+    const personalData = dates.map(date => {
+      return completedTasks.filter(task => {
+        const completedDate = new Date(task.completedAt);
+        completedDate.setHours(12, 0, 0, 0);
+        const isPersonal = task.taskType === 'personal';
+        return completedDate.toDateString() === date.toDateString() && isPersonal;
       }).length;
     });
 
     return {
       labels,
-      datasets: [{
-        data,
-        borderColor: '#3dd68c',
-        backgroundColor: (context) => {
-          const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-          gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
-          gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
-          return gradient;
+      datasets: [
+        {
+          label: 'Academic',
+          data: academicData,
+          borderColor: '#3dd68c',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
+            gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#3dd68c',
+          pointHoverBorderColor: '#3dd68c',
+          pointHoverBorderWidth: 2,
         },
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#3dd68c',
-        pointHoverBorderColor: '#3dd68c',
-        pointHoverBorderWidth: 2,
-      }]
+        {
+          label: 'Personal',
+          data: personalData,
+          borderColor: '#3b82f6',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: '#3b82f6',
+          pointHoverBorderWidth: 2,
+        }
+      ]
     };
   };
 
@@ -327,15 +360,25 @@ const StatsTab = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        display: true,
+        position: 'top',
+        align: 'end',
+        labels: {
+          color: '#9195a0',
+          usePointStyle: true,
+          pointStyle: 'line',
+          padding: 15,
+          font: {
+            size: 12,
+          },
+        },
       },
       tooltip: {
         backgroundColor: 'rgba(10, 14, 20, 0.95)',
         titleColor: '#9195a0',
-        bodyColor: '#3dd68c',
         padding: 12,
         cornerRadius: 8,
-        displayColors: false,
+        displayColors: true,
         callbacks: {
           title: (context) => {
             const index = context[0].dataIndex;
@@ -344,7 +387,14 @@ const StatsTab = () => {
           },
           label: (context) => {
             const count = context.parsed.y;
-            return `${count} ${count === 1 ? 'task' : 'tasks'}`;
+            const label = context.dataset.label;
+            return `${label}: ${count} ${count === 1 ? 'task' : 'tasks'}`;
+          },
+          labelColor: (context) => {
+            return {
+              borderColor: context.dataset.borderColor,
+              backgroundColor: context.dataset.borderColor,
+            };
           },
         },
       },
@@ -381,6 +431,8 @@ const StatsTab = () => {
   };
 
   const totalCompleted = completedTasks.length;
+  const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
+  const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
   const currentStreak = calculateCurrentStreak();
   const thisWeek = calculateThisWeek();
   const thisMonth = calculateThisMonth();
@@ -403,27 +455,65 @@ const StatsTab = () => {
 
         {/* Stats Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Card 1 - Total Completed (Most Prominent) */}
+          {/* Card 1 - Total Tasks (with breakdown) */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
-            <p className="text-text-secondary text-sm mb-2">Total Completed</p>
+            <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
             <div className="text-5xl font-bold text-green-glow mb-1">
               {totalCompleted}
             </div>
-            <p className="text-text-tertiary text-xs">
-              {totalCompleted === 1 ? 'task' : 'tasks'} completed all time
+            <p className="text-text-secondary text-xs">
+              {academicCount} Academic • {personalCount} Personal
             </p>
           </motion.div>
 
-          {/* Card 2 - Current Streak */}
+          {/* Card 2 - Academic Tasks */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.05 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <BookOpen className="text-green-glow" size={18} />
+              Academic Tasks
+            </p>
+            <div className="text-4xl font-bold text-green-glow mb-1">
+              {academicCount}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {academicCount === 1 ? 'task' : 'tasks'} completed
+            </p>
+          </motion.div>
+
+          {/* Card 3 - Personal Tasks */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Home className="text-blue-500" size={18} />
+              Personal Tasks
+            </p>
+            <div className="text-4xl font-bold text-blue-500 mb-1">
+              {personalCount}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {personalCount === 1 ? 'task' : 'tasks'} completed
+            </p>
+          </motion.div>
+
+          {/* Card 4 - Current Streak */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
@@ -438,11 +528,11 @@ const StatsTab = () => {
             </p>
           </motion.div>
 
-          {/* Card 3 - This Week */}
+          {/* Card 5 - This Week */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">This Week</p>
@@ -454,11 +544,11 @@ const StatsTab = () => {
             </p>
           </motion.div>
 
-          {/* Card 4 - This Month */}
+          {/* Card 6 - This Month */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">This Month</p>
@@ -470,11 +560,11 @@ const StatsTab = () => {
             </p>
           </motion.div>
 
-          {/* Card 5 - Most Productive Day */}
+          {/* Card 7 - Most Productive Day */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">Most Productive Day</p>
@@ -490,11 +580,11 @@ const StatsTab = () => {
             </p>
           </motion.div>
 
-          {/* Card 6 - Average Tasks Per Day */}
+          {/* Card 8 - Average Tasks Per Day */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.25 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">Daily Average</p>
@@ -509,9 +599,9 @@ const StatsTab = () => {
 
         {/* Line Chart Section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
           className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
         >
           {/* Time Period Selector */}
