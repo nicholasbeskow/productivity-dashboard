@@ -188,8 +188,92 @@ const StatsTab = () => {
 
     let dates = [];
     let labels = [];
+    let hours = [];
 
-    if (timePeriod === 'Week') {
+    if (timePeriod === 'Day') {
+      // Today with hourly breakdown (0-23 hours)
+      const todayStart = new Date(today);
+      todayStart.setHours(0, 0, 0, 0);
+
+      for (let hour = 0; hour < 24; hour++) {
+        hours.push(hour);
+        // Show labels every 2 hours
+        if (hour % 2 === 0) {
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+          labels.push(`${hour12}${ampm}`);
+        } else {
+          labels.push('');
+        }
+      }
+
+      // Count tasks by hour for today - separate by academic/personal
+      const academicData = hours.map(hour => {
+        return completedTasks.filter(task => {
+          const completedDate = new Date(task.completedAt);
+          const isToday = completedDate.toDateString() === today.toDateString();
+          const isAcademic = (task.taskType || 'academic') === 'academic';
+          return isToday && completedDate.getHours() === hour && isAcademic;
+        }).length;
+      });
+
+      const personalData = hours.map(hour => {
+        return completedTasks.filter(task => {
+          const completedDate = new Date(task.completedAt);
+          const isToday = completedDate.toDateString() === today.toDateString();
+          const isPersonal = task.taskType === 'personal';
+          return isToday && completedDate.getHours() === hour && isPersonal;
+        }).length;
+      });
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'Academic',
+            data: academicData,
+            borderColor: '#3dd68c',
+            backgroundColor: (context) => {
+              const ctx = context.chart.ctx;
+              const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+              gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
+              gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
+              return gradient;
+            },
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#3dd68c',
+            pointHoverBackgroundColor: '#3dd68c',
+            pointBorderColor: '#3dd68c',
+            pointHoverBorderColor: '#3dd68c',
+            pointHoverBorderWidth: 2,
+          },
+          {
+            label: 'Personal',
+            data: personalData,
+            borderColor: '#3b82f6',
+            backgroundColor: (context) => {
+              const ctx = context.chart.ctx;
+              const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+              gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+              gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+              return gradient;
+            },
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#3b82f6',
+            pointHoverBackgroundColor: '#3b82f6',
+            pointBorderColor: '#3b82f6',
+            pointHoverBorderColor: '#3b82f6',
+            pointHoverBorderWidth: 2,
+          }
+        ]
+      };
+    } else if (timePeriod === 'Week') {
       // Last 7 days
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       for (let i = 6; i >= 0; i--) {
@@ -439,18 +523,103 @@ const StatsTab = () => {
   const mostProductiveDay = calculateMostProductiveDay();
   const averagePerDay = calculateAveragePerDay();
 
+  // Calculate stats for selected time period
+  const calculatePeriodStats = () => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let startDate = new Date(today);
+    let periodName = '';
+    let averagePeriod = 'day';
+
+    if (timePeriod === 'Day') {
+      // Today only
+      startDate.setHours(0, 0, 0, 0);
+      periodName = 'Today';
+      averagePeriod = 'hour';
+    } else if (timePeriod === 'Week') {
+      // Last 7 days
+      startDate.setDate(today.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+      periodName = 'Last 7 Days';
+      averagePeriod = 'day';
+    } else if (timePeriod === 'Month') {
+      // Last 30 days
+      startDate.setDate(today.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+      periodName = 'Last 30 Days';
+      averagePeriod = 'day';
+    } else if (timePeriod === 'Semester') {
+      const semesterStartStr = localStorage.getItem('semesterStartDate');
+      if (semesterStartStr) {
+        startDate = new Date(semesterStartStr + 'T12:00:00');
+      }
+      periodName = 'This Semester';
+      averagePeriod = 'day';
+    } else if (timePeriod === 'All Time') {
+      if (completedTasks.length > 0) {
+        const firstTaskDate = new Date(Math.min(...completedTasks.map(t => new Date(t.completedAt))));
+        startDate = new Date(firstTaskDate);
+        startDate.setHours(0, 0, 0, 0);
+      }
+      periodName = 'All Time';
+      averagePeriod = 'day';
+    }
+
+    // Count tasks in period
+    const tasksInPeriod = completedTasks.filter(task => {
+      const completedDate = new Date(task.completedAt);
+      return completedDate >= startDate && completedDate <= today;
+    });
+
+    const periodTotal = tasksInPeriod.length;
+
+    // Calculate average based on period
+    let periodAverage = 0;
+    if (timePeriod === 'Day') {
+      // For day view, show average per hour (doesn't make much sense, so just show total)
+      periodAverage = periodTotal;
+    } else {
+      const totalDays = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)));
+      periodAverage = (periodTotal / totalDays).toFixed(1);
+    }
+
+    return { periodName, periodTotal, periodAverage, averagePeriod };
+  };
+
+  const periodStats = calculatePeriodStats();
+
   return (
     <div className="h-full p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-center gap-3">
-            <BarChart3 className="text-green-glow" size={32} />
-            Your Statistics
-          </h2>
-          <p className="text-text-secondary">
-            Track your productivity and progress
-          </p>
+        <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-center gap-3">
+              <BarChart3 className="text-green-glow" size={32} />
+              Your Statistics
+            </h2>
+            <p className="text-text-secondary">
+              Track your productivity and progress
+            </p>
+          </div>
+
+          {/* Time Period Selector */}
+          <div className="flex gap-2 flex-wrap">
+            {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
+              <button
+                key={period}
+                onClick={() => setTimePeriod(period)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  timePeriod === period
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Stats Cards Grid */}
@@ -528,35 +697,39 @@ const StatsTab = () => {
             </p>
           </motion.div>
 
-          {/* Card 5 - This Week */}
+          {/* Card 5 - Period Total (Dynamic) */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+            key={`period-total-${timePeriod}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
           >
-            <p className="text-text-secondary text-sm mb-2">This Week</p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {thisWeek}
+            <p className="text-text-secondary text-sm mb-2">{periodStats.periodName}</p>
+            <div className="text-4xl font-bold text-green-glow mb-1">
+              {periodStats.periodTotal}
             </div>
             <p className="text-text-tertiary text-xs">
-              {thisWeek === 1 ? 'task' : 'tasks'} completed this week
+              {periodStats.periodTotal === 1 ? 'task' : 'tasks'} completed
             </p>
           </motion.div>
 
-          {/* Card 6 - This Month */}
+          {/* Card 6 - Period Average (Dynamic) */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+            key={`period-avg-${timePeriod}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
           >
-            <p className="text-text-secondary text-sm mb-2">This Month</p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {thisMonth}
+            <p className="text-text-secondary text-sm mb-2">
+              {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
+            </p>
+            <div className="text-4xl font-bold text-green-glow mb-1">
+              {periodStats.periodAverage}
             </div>
             <p className="text-text-tertiary text-xs">
-              {thisMonth === 1 ? 'task' : 'tasks'} completed this month
+              {timePeriod === 'Day' ? 'tasks today' : `tasks per ${periodStats.averagePeriod}`}
             </p>
           </motion.div>
 
@@ -604,27 +777,10 @@ const StatsTab = () => {
           transition={{ duration: 0.4, delay: 0.2 }}
           className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
         >
-          {/* Time Period Selector */}
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-text-primary">
-              Completion Trend
-            </h3>
-            <div className="flex gap-2">
-              {['Week', 'Month', 'Semester', 'All Time'].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setTimePeriod(period)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    timePeriod === period
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Chart Title */}
+          <h3 className="text-xl font-semibold text-text-primary mb-6">
+            Completion Trend - {timePeriod}
+          </h3>
 
           {/* Chart Container */}
           <div className="h-[400px]">
