@@ -624,9 +624,14 @@ const TaskList = ({ tasks, setTasks }) => {
   }, []);
 
   const handleStatusChange = (taskId) => {
-    const task = tasks.find(t => t.id === taskId);
+    // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
+    // The 'tasks' prop may be filtered, so we can't use it
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-    const updatedTasks = tasks.map(task => {
+    const task = fullTasksArray.find(t => t.id === taskId);
+
+    const updatedTasks = fullTasksArray.map(task => {
       if (task.id === taskId) {
         let newStatus;
         let completedAt = task.completedAt;
@@ -655,8 +660,7 @@ const TaskList = ({ tasks, setTasks }) => {
             console.log('=== TASK REMOVAL DEBUG (700ms after completion) ===');
             console.log('About to remove task ID:', taskId);
 
-            // FIXED: Read from localStorage to get FULL unfiltered array
-            // Don't use setTasks(prev) as prev may be filtered
+            // Read from localStorage again to get current FULL array
             const storedTasks = localStorage.getItem('tasks');
             const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
@@ -686,11 +690,15 @@ const TaskList = ({ tasks, setTasks }) => {
 
     // DIAGNOSTIC LOGGING - Checking for data loss bug
     console.log('=== TASK STATUS CHANGE DEBUG ===');
-    console.log('Tasks in component state:', tasks.length);
-    console.log('Updated tasks being set:', updatedTasks.length);
-    console.log('Full localStorage before change:', JSON.parse(localStorage.getItem('tasks') || '[]').length);
+    console.log('Tasks prop (may be filtered):', tasks.length);
+    console.log('Full tasks from localStorage:', fullTasksArray.length);
+    console.log('Updated tasks being set to parent:', updatedTasks.length);
     console.log('================================');
 
+    // Save to localStorage first
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Update parent state with FULL array (parent will filter for display)
     setTasks(updatedTasks);
   };
 
