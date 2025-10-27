@@ -2,16 +2,15 @@
  * BackupManager - 4-Layer Backup System
  *
  * Level 1: Auto-save on every change
- * Level 2: Timestamped snapshots every 5 minutes
+ * Level 2: Timestamped snapshots (on launch + daily at midnight)
  * Level 3: Manual export/import
  * Level 4: Emergency recovery UI
  */
 
 class BackupManager {
   constructor() {
-    this.snapshotInterval = null;
+    this.snapshotTimeout = null;
     this.lastSnapshotTime = null;
-    this.SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
   }
 
   /**
@@ -33,7 +32,7 @@ class BackupManager {
       semesterEndDate: localStorage.getItem('semesterEndDate') || '',
       taskFilter: localStorage.getItem('taskFilter') || 'all',
       timestamp: new Date().toISOString(),
-      version: '1.0.0'
+      version: '1.5.0'
     };
   }
 
@@ -107,35 +106,66 @@ class BackupManager {
   }
 
   /**
-   * Start automatic snapshot timer (every 5 minutes)
+   * Setup automatic backup system:
+   * - One backup on app launch (after 2 seconds)
+   * - One backup per day at midnight
    */
-  startSnapshotTimer() {
+  setupAutoBackup() {
     if (!this.isElectron()) return;
 
     // Clear existing timer if any
-    if (this.snapshotInterval) {
-      clearInterval(this.snapshotInterval);
+    if (this.snapshotTimeout) {
+      clearTimeout(this.snapshotTimeout);
     }
 
-    // Save initial snapshot
-    this.saveSnapshot();
+    // Backup on app launch (after 2 seconds)
+    setTimeout(async () => {
+      try {
+        const data = this.getAllData();
+        const { ipcRenderer } = window.require('electron');
+        await ipcRenderer.invoke('backup:save-snapshot', data);
+        console.log('✅ Startup backup created');
+      } catch (error) {
+        console.error('Startup backup error:', error);
+      }
+    }, 2000);
 
-    // Start timer
-    this.snapshotInterval = setInterval(() => {
-      this.saveSnapshot();
-    }, this.SNAPSHOT_INTERVAL_MS);
+    // Schedule daily backup at midnight
+    const scheduleNextBackup = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0); // Midnight
 
-    console.log('[BackupManager] Snapshot timer started (every 5 minutes)');
+      const timeUntilMidnight = tomorrow - now;
+
+      this.snapshotTimeout = setTimeout(async () => {
+        try {
+          const data = this.getAllData();
+          const { ipcRenderer } = window.require('electron');
+          await ipcRenderer.invoke('backup:save-snapshot', data);
+          console.log('✅ Daily backup created');
+
+          // Schedule next backup for tomorrow midnight
+          scheduleNextBackup();
+        } catch (error) {
+          console.error('Daily backup error:', error);
+        }
+      }, timeUntilMidnight);
+    };
+
+    scheduleNextBackup();
+    console.log('[BackupManager] Auto-backup system initialized (launch + daily at midnight)');
   }
 
   /**
-   * Stop automatic snapshot timer
+   * Stop automatic backup system
    */
-  stopSnapshotTimer() {
-    if (this.snapshotInterval) {
-      clearInterval(this.snapshotInterval);
-      this.snapshotInterval = null;
-      console.log('[BackupManager] Snapshot timer stopped');
+  stopAutoBackup() {
+    if (this.snapshotTimeout) {
+      clearTimeout(this.snapshotTimeout);
+      this.snapshotTimeout = null;
+      console.log('[BackupManager] Auto-backup system stopped');
     }
   }
 

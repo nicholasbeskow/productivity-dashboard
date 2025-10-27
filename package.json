@@ -1,6 +1,6 @@
 {
   "name": "productivity-dashboard",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "Personal productivity dashboard for pre-med students",
   "main": "electron/main.js",
   "scripts": {

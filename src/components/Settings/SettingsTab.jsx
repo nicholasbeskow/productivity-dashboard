@@ -1,4 +1,4 @@
-import { Settings, Download, Upload, RefreshCw, Trash2, Clock } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
 
@@ -7,7 +7,7 @@ const SettingsTab = () => {
   const [semesterStartDate, setSemesterStartDate] = useState('');
   const [semesterEndDate, setSemesterEndDate] = useState('');
   const [backups, setBackups] = useState([]);
-  const [backupLoading, setBackupLoading] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState('');
   const [backupMessage, setBackupMessage] = useState(null);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ const SettingsTab = () => {
 
   const loadBackupList = async () => {
     const result = await backupManager.listBackups();
-    if (result.success) {
+    if (result.success && result.backups) {
       setBackups(result.backups);
     }
   };
@@ -32,98 +32,11 @@ const SettingsTab = () => {
     setTimeout(() => setBackupMessage(null), 3000);
   };
 
-  const handleExportBackup = async () => {
-    setBackupLoading(true);
-    const result = await backupManager.exportBackup();
-    setBackupLoading(false);
-
-    if (result.success && !result.canceled) {
-      showMessage('Backup exported successfully!', 'success');
-    } else if (result.canceled) {
-      showMessage('Export canceled', 'info');
-    } else {
-      showMessage(`Export failed: ${result.error}`, 'error');
-    }
-  };
-
-  const handleImportBackup = async () => {
-    setBackupLoading(true);
-    const result = await backupManager.importBackup();
-
-    if (result.success && !result.canceled) {
-      const restored = backupManager.restoreAllData(result.data);
-      setBackupLoading(false);
-
-      if (restored) {
-        showMessage('Backup imported successfully!', 'success');
-        // Reload the page to reflect changes
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        showMessage('Failed to restore backup data', 'error');
-      }
-    } else if (result.canceled) {
-      setBackupLoading(false);
-      showMessage('Import canceled', 'info');
-    } else {
-      setBackupLoading(false);
-      showMessage(`Import failed: ${result.error}`, 'error');
-    }
-  };
-
-  const handleRestoreBackup = async (fileName) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to restore from "${fileName}"? This will replace all current data.`
-    );
-
-    if (!confirmed) return;
-
-    setBackupLoading(true);
-    const result = await backupManager.loadBackup(fileName);
-
-    if (result.success) {
-      const restored = backupManager.restoreAllData(result.data);
-      setBackupLoading(false);
-
-      if (restored) {
-        showMessage('Backup restored successfully!', 'success');
-        // Reload the page to reflect changes
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        showMessage('Failed to restore backup data', 'error');
-      }
-    } else {
-      setBackupLoading(false);
-      showMessage(`Restore failed: ${result.error}`, 'error');
-    }
-  };
-
-  const handleDeleteBackup = async (fileName) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${fileName}"? This cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
-    setBackupLoading(true);
-    const result = await backupManager.deleteBackup(fileName);
-    setBackupLoading(false);
-
-    if (result.success) {
-      showMessage('Backup deleted successfully!', 'success');
-      loadBackupList();
-    } else {
-      showMessage(`Delete failed: ${result.error}`, 'error');
-    }
-  };
-
   const handleUserNameChange = (e) => {
     const newName = e.target.value;
     setUserName(newName);
     localStorage.setItem('userName', newName);
-
-    // Backup after save
     backupManager.saveAutoBackup();
-
     window.dispatchEvent(new Event('userNameChanged'));
   };
 
@@ -131,10 +44,7 @@ const SettingsTab = () => {
     const newDate = e.target.value;
     setSemesterStartDate(newDate);
     localStorage.setItem('semesterStartDate', newDate);
-
-    // Backup after save
     backupManager.saveAutoBackup();
-
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('semesterDatesChanged'));
   };
@@ -143,12 +53,56 @@ const SettingsTab = () => {
     const newDate = e.target.value;
     setSemesterEndDate(newDate);
     localStorage.setItem('semesterEndDate', newDate);
-
-    // Backup after save
     backupManager.saveAutoBackup();
-
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('semesterDatesChanged'));
+  };
+
+  const handleExport = async () => {
+    const result = await backupManager.exportBackup();
+    if (result.success && !result.canceled) {
+      showMessage('Backup exported successfully!', 'success');
+    } else if (!result.canceled) {
+      showMessage(`Export failed: ${result.error}`, 'error');
+    }
+  };
+
+  const handleImport = async () => {
+    const result = await backupManager.importBackup();
+    if (result.success && !result.canceled) {
+      const restored = backupManager.restoreAllData(result.data);
+      if (restored) {
+        showMessage('Backup imported successfully! Reloading...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showMessage('Failed to restore backup data', 'error');
+      }
+    } else if (!result.canceled) {
+      showMessage(`Import failed: ${result.error}`, 'error');
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    if (!selectedBackup) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to restore from "${selectedBackup}"? This will replace all current data.`
+    );
+
+    if (!confirmed) return;
+
+    const result = await backupManager.loadBackup(selectedBackup);
+    if (result.success) {
+      const restored = backupManager.restoreAllData(result.data);
+      if (restored) {
+        showMessage('Backup restored successfully! Reloading...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showMessage('Failed to restore backup data', 'error');
+      }
+    } else {
+      showMessage(`Restore failed: ${result.error}`, 'error');
+    }
   };
 
   return (
@@ -323,10 +277,7 @@ const SettingsTab = () => {
                     );
                     if (confirmed) {
                       localStorage.removeItem('completedTasks');
-
-                      // Backup after change
                       backupManager.saveAutoBackup();
-
                       window.dispatchEvent(new Event('statsReset'));
                       window.dispatchEvent(new Event('storage'));
                     }
@@ -342,10 +293,24 @@ const SettingsTab = () => {
             </div>
           </div>
 
-          {/* Backup & Recovery */}
+          {/* About */}
           <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Backup & Recovery
+              About
+            </h3>
+            <div className="space-y-2 text-sm text-text-secondary">
+              <p><strong className="text-text-primary">Version:</strong> 1.5.0</p>
+              <p><strong className="text-text-primary">Status:</strong> Phase 2: Stats & Backup</p>
+              <p className="text-text-tertiary pt-2">
+                Built with React, Electron, and Tailwind CSS
+              </p>
+            </div>
+          </div>
+
+          {/* Backup & Recovery (MOVED TO BOTTOM) */}
+          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">
+              💾 Backup & Recovery
             </h3>
 
             {/* Message Display */}
@@ -359,144 +324,76 @@ const SettingsTab = () => {
               </div>
             )}
 
-            <div className="space-y-4">
-              {/* Export/Import Buttons */}
+            <div className="space-y-6">
+              {/* Automatic Protection Info */}
               <div>
-                <p className="text-sm text-text-secondary mb-3">
-                  Manually export or import your data
+                <p className="text-text-secondary mb-2">
+                  <strong className="text-text-primary">🛡️ Automatic Protection:</strong>
                 </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleExportBackup}
-                    disabled={backupLoading}
-                    className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold px-6 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                  >
-                    <Download size={16} />
-                    Export Backup
-                  </button>
-                  <button
-                    onClick={handleImportBackup}
-                    disabled={backupLoading}
-                    className="flex-1 bg-bg-tertiary hover:bg-bg-primary disabled:bg-bg-tertiary/50 disabled:cursor-not-allowed text-text-primary font-semibold px-6 py-2 rounded-lg border border-bg-primary hover:border-green-glow/50 transition-all duration-200 flex items-center justify-center gap-2"
-                  >
-                    <Upload size={16} />
-                    Import Backup
-                  </button>
-                </div>
-                <p className="text-xs text-text-tertiary mt-2">
-                  Export saves a copy to your chosen location. Import restores data from a file.
-                </p>
-              </div>
-
-              {/* Automatic Backups Info */}
-              <div className="border-t border-bg-tertiary pt-4">
-                <p className="text-sm text-text-secondary mb-2">
-                  <strong className="text-text-primary">Automatic Protection:</strong>
-                </p>
-                <ul className="text-xs text-text-tertiary space-y-1 ml-4">
-                  <li>• Auto-backup after every change</li>
-                  <li>• Timestamped snapshots every 5 minutes</li>
-                  <li>• Backups stored in: {'{'}userData{'}'}/backups/</li>
+                <ul className="text-text-secondary text-sm space-y-1 ml-4">
+                  <li>• Instant auto-save on every change</li>
+                  <li>• Daily backup at midnight</li>
+                  <li>• Backup on app launch</li>
                 </ul>
+                <p className="text-text-tertiary text-sm mt-3">
+                  📁 Backups stored in: {'{'}userData{'}'}/backups/
+                </p>
               </div>
 
-              {/* Backup History */}
-              {backups.length > 0 && (
-                <div className="border-t border-bg-tertiary pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm text-text-primary font-semibold">
-                      Available Backups ({backups.length})
-                    </p>
-                    <button
-                      onClick={loadBackupList}
-                      disabled={backupLoading}
-                      className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all disabled:opacity-50"
-                      title="Refresh list"
+              {/* Export/Import Buttons */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleExport}
+                  className="px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold"
+                >
+                  📥 Export Data
+                </button>
+
+                <button
+                  onClick={handleImport}
+                  className="px-6 py-3 bg-bg-tertiary text-text-primary rounded-lg hover:bg-opacity-80 transition-all font-semibold border border-bg-primary"
+                >
+                  📤 Import Data
+                </button>
+              </div>
+
+              {/* Restore from Backup Dropdown */}
+              <div className="border-t border-bg-tertiary pt-6">
+                <label className="block text-text-primary font-semibold mb-3">
+                  🕐 Restore from Backup
+                </label>
+
+                {backups.length === 0 ? (
+                  <p className="text-text-secondary text-sm">No backups available yet.</p>
+                ) : (
+                  <>
+                    <select
+                      value={selectedBackup}
+                      onChange={(e) => setSelectedBackup(e.target.value)}
+                      className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3 mb-3 focus:outline-none focus:border-green-glow"
                     >
-                      <RefreshCw size={14} />
+                      <option value="">Select a backup to restore...</option>
+                      {backups.map((backup) => (
+                        <option key={backup.name} value={backup.name}>
+                          {backupManager.formatDate(backup.modified)} - {backupManager.formatFileSize(backup.size)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={handleRestoreBackup}
+                      disabled={!selectedBackup}
+                      className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
+                        selectedBackup
+                          ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                          : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                      }`}
+                    >
+                      Restore Selected Backup
                     </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {backups.map((backup) => (
-                      <div
-                        key={backup.name}
-                        className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary hover:border-green-glow/30 transition-all"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-text-primary font-medium truncate">
-                              {backup.name}
-                            </p>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
-                              <span className="flex items-center gap-1">
-                                <Clock size={10} />
-                                {backupManager.formatDate(backup.modified)}
-                              </span>
-                              <span>{backupManager.formatFileSize(backup.size)}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => handleRestoreBackup(backup.name)}
-                              disabled={backupLoading}
-                              className="p-2 rounded-lg bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary transition-all"
-                              title="Restore this backup"
-                            >
-                              <RefreshCw size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteBackup(backup.name)}
-                              disabled={backupLoading}
-                              className="p-2 rounded-lg bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 disabled:cursor-not-allowed text-white transition-all"
-                              title="Delete this backup"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-xs text-text-tertiary mt-3">
-                    Click the restore icon to recover data from a backup. Auto-backups are overwritten automatically.
-                  </p>
-                </div>
-              )}
-
-              {/* No Backups Message */}
-              {backups.length === 0 && !backupLoading && backupManager.isElectron() && (
-                <div className="border-t border-bg-tertiary pt-4">
-                  <p className="text-sm text-text-tertiary text-center py-4">
-                    No backup files found. Backups will appear here as they're created automatically.
-                  </p>
-                </div>
-              )}
-
-              {/* Web Environment Message */}
-              {!backupManager.isElectron() && (
-                <div className="border-t border-bg-tertiary pt-4">
-                  <p className="text-sm text-text-tertiary">
-                    <strong className="text-text-primary">Note:</strong> Automatic backups and recovery are only available in the desktop app. Use Export/Import for manual backups.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* App Info */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              About
-            </h3>
-            <div className="space-y-2 text-sm text-text-secondary">
-              <p><strong className="text-text-primary">Version:</strong> 1.0.0 (Week 1)</p>
-              <p><strong className="text-text-primary">Status:</strong> Foundation Phase</p>
-              <p className="text-text-tertiary pt-2">
-                Built with React, Electron, and Tailwind CSS
-              </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

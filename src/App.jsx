@@ -61,12 +61,12 @@ function App() {
     }
   }, []);
 
-  // Start backup system: automatic snapshots every 5 minutes
+  // Start backup system: automatic snapshots (on launch + daily at midnight)
   useEffect(() => {
-    backupManager.startSnapshotTimer();
+    backupManager.setupAutoBackup();
 
     return () => {
-      backupManager.stopSnapshotTimer();
+      backupManager.stopAutoBackup();
     };
   }, []);
 

@@ -330,45 +330,58 @@ const StatsTab = () => {
         }
       }
     } else if (timePeriod === 'All Time') {
-      const firstTaskDate = new Date(Math.min(...completedTasks.map(t => new Date(t.completedAt))));
-      firstTaskDate.setHours(12, 0, 0, 0);
+      // Find first and last completion dates
+      const completionDates = completedTasks.map(t => new Date(t.completedAt));
+      const firstTaskDate = new Date(Math.min(...completionDates));
+      const lastTaskDate = new Date(Math.max(...completionDates));
 
-      const totalDays = Math.ceil((today - firstTaskDate) / (1000 * 60 * 60 * 24));
+      firstTaskDate.setHours(0, 0, 0, 0);
+      lastTaskDate.setHours(23, 59, 59, 999);
 
-      if (totalDays < 30) {
-        // Show all days
-        for (let i = 0; i <= totalDays; i++) {
+      const totalDays = Math.ceil((lastTaskDate - firstTaskDate) / (1000 * 60 * 60 * 24)) + 1;
+
+      if (totalDays <= 30) {
+        // Daily view for <= 30 days
+        for (let i = 0; i < totalDays; i++) {
           const date = new Date(firstTaskDate);
-          date.setDate(firstTaskDate.getDate() + i);
+          date.setDate(date.getDate() + i);
           dates.push(date);
-          labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
+
+          // Show label every few days based on range
+          const showLabel = i % Math.ceil(totalDays / 10) === 0 || i === totalDays - 1;
+          labels.push(showLabel ? `${date.getMonth() + 1}/${date.getDate()}` : '');
         }
-      } else if (totalDays < 90) {
-        // Show weekly markers
-        for (let i = 0; i <= totalDays; i++) {
-          const date = new Date(firstTaskDate);
-          date.setDate(firstTaskDate.getDate() + i);
-          dates.push(date);
+      } else if (totalDays <= 90) {
+        // Weekly aggregation for 30-90 days
+        const weeks = Math.ceil(totalDays / 7);
 
-          if (i % 7 === 0 || i === totalDays) {
-            labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
-          } else {
-            labels.push('');
-          }
+        for (let i = 0; i < weeks; i++) {
+          const weekStart = new Date(firstTaskDate);
+          weekStart.setDate(weekStart.getDate() + (i * 7));
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          weekEnd.setHours(23, 59, 59, 999);
+
+          // Store week range for filtering
+          dates.push({ start: weekStart, end: weekEnd, type: 'week' });
+          labels.push(`${weekStart.getMonth() + 1}/${weekStart.getDate()}`);
         }
       } else {
-        // Show monthly markers
-        const interval = Math.ceil(totalDays / 12);
-        for (let i = 0; i <= totalDays; i++) {
-          const date = new Date(firstTaskDate);
-          date.setDate(firstTaskDate.getDate() + i);
-          dates.push(date);
+        // Monthly aggregation for 90+ days
+        const months = Math.ceil(totalDays / 30);
 
-          if (i % interval === 0 || i === totalDays) {
-            labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
-          } else {
-            labels.push('');
-          }
+        for (let i = 0; i < months; i++) {
+          const monthStart = new Date(firstTaskDate);
+          monthStart.setDate(monthStart.getDate() + (i * 30));
+          const monthEnd = new Date(monthStart);
+          monthEnd.setDate(monthEnd.getDate() + 29);
+          monthEnd.setHours(23, 59, 59, 999);
+
+          // Store month range for filtering
+          dates.push({ start: monthStart, end: monthEnd, type: 'month' });
+
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          labels.push(`${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`);
         }
       }
     }
@@ -377,8 +390,15 @@ const StatsTab = () => {
     const academicData = dates.map(date => {
       return completedTasks.filter(task => {
         const completedDate = new Date(task.completedAt);
-        completedDate.setHours(12, 0, 0, 0);
         const isAcademic = (task.taskType || 'academic') === 'academic';
+
+        // Handle range objects (week/month aggregation)
+        if (date.type === 'week' || date.type === 'month') {
+          return completedDate >= date.start && completedDate <= date.end && isAcademic;
+        }
+
+        // Handle regular Date objects (daily view)
+        completedDate.setHours(12, 0, 0, 0);
         return completedDate.toDateString() === date.toDateString() && isAcademic;
       }).length;
     });
@@ -386,8 +406,15 @@ const StatsTab = () => {
     const personalData = dates.map(date => {
       return completedTasks.filter(task => {
         const completedDate = new Date(task.completedAt);
-        completedDate.setHours(12, 0, 0, 0);
         const isPersonal = task.taskType === 'personal';
+
+        // Handle range objects (week/month aggregation)
+        if (date.type === 'week' || date.type === 'month') {
+          return completedDate >= date.start && completedDate <= date.end && isPersonal;
+        }
+
+        // Handle regular Date objects (daily view)
+        completedDate.setHours(12, 0, 0, 0);
         return completedDate.toDateString() === date.toDateString() && isPersonal;
       }).length;
     });
@@ -628,7 +655,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
@@ -644,7 +671,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
@@ -663,7 +690,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
@@ -682,7 +709,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
@@ -700,9 +727,9 @@ const StatsTab = () => {
           {/* Card 5 - Period Total (Dynamic) */}
           <motion.div
             key={`period-total-${timePeriod}`}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
           >
             <p className="text-text-secondary text-sm mb-2">{periodStats.periodName}</p>
@@ -717,9 +744,9 @@ const StatsTab = () => {
           {/* Card 6 - Period Average (Dynamic) */}
           <motion.div
             key={`period-avg-${timePeriod}`}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.05 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
           >
             <p className="text-text-secondary text-sm mb-2">
@@ -737,7 +764,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">Most Productive Day</p>
@@ -757,7 +784,7 @@ const StatsTab = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
             className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
           >
             <p className="text-text-secondary text-sm mb-2">Daily Average</p>
@@ -774,7 +801,7 @@ const StatsTab = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
           className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
         >
           {/* Chart Title */}

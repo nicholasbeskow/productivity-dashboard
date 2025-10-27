@@ -6,6 +6,7 @@ import backupManager from '../../utils/backupManager';
 // Memoized single task card for performance
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState('bottom');
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -174,6 +175,19 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
+
+              // Calculate if menu should open upward or downward
+              const buttonRect = e.currentTarget.getBoundingClientRect();
+              const spaceBelow = window.innerHeight - buttonRect.bottom;
+              const spaceAbove = buttonRect.top;
+
+              // If less than 200px below, open upward
+              if (spaceBelow < 200 && spaceAbove > 200) {
+                setMenuPosition('top');
+              } else {
+                setMenuPosition('bottom');
+              }
+
               setMenuOpen(!menuOpen);
             }}
             className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
@@ -194,13 +208,13 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                   onClick={() => setMenuOpen(false)}
                 />
 
-                {/* Menu */}
+                {/* Menu - position dynamically */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  initial={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  exit={{ opacity: 0, scale: 0.95, y: menuPosition === 'top' ? 10 : -10 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-10 z-20 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
+                  className={`absolute right-0 ${menuPosition === 'top' ? 'bottom-10' : 'top-10'} z-20 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden`}
                 >
                   <button
                     onClick={(e) => {
