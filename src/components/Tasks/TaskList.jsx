@@ -1,10 +1,11 @@
 import { useState, memo, useRef, useEffect } from 'react';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -167,17 +168,79 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
     >
-      {/* Edit Button */}
+      {/* 3-Dot Menu */}
       {!isEditing && (
-        <motion.button
-          onClick={() => onStartEdit(task)}
-          className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          title="Edit task"
-        >
-          <Pencil size={14} />
-        </motion.button>
+        <div className="absolute top-3 right-3">
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
+            }}
+            className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="More options"
+          >
+            <MoreVertical size={14} />
+          </motion.button>
+
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setMenuOpen(false)}
+                />
+
+                {/* Menu */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-10 z-20 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      onStartEdit(task);
+                    }}
+                    className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+                  >
+                    <Pencil size={14} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      onDuplicate(task.id);
+                    }}
+                    className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+                  >
+                    <Copy size={14} />
+                    Duplicate
+                  </button>
+                  <div className="border-t border-bg-primary" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      onDelete(task.id);
+                    }}
+                    className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       )}
 
       {/* Confetti Effect */}
@@ -733,6 +796,69 @@ const TaskList = ({ tasks, setTasks }) => {
     handleCancelEdit();
   };
 
+  const handleDuplicate = (taskId) => {
+    const taskToDuplicate = tasks.find(t => t.id === taskId);
+    if (!taskToDuplicate) return;
+
+    // Create duplicate with new ID and reset status
+    const duplicatedTask = {
+      ...taskToDuplicate,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'not-started',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      title: `${taskToDuplicate.title} (Copy)`
+    };
+
+    // Read from localStorage to get full array
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    // Add duplicated task after the original
+    const originalIndex = fullTasksArray.findIndex(t => t.id === taskId);
+    const updatedTasks = [...fullTasksArray];
+    updatedTasks.splice(originalIndex + 1, 0, duplicatedTask);
+
+    // Recalculate priorities
+    const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
+      ...task,
+      customPriority: updatedTasks.length - index,
+    }));
+
+    // Save to localStorage
+    localStorage.setItem('tasks', JSON.stringify(tasksWithUpdatedPriorities));
+
+    // Backup after save
+    backupManager.saveAutoBackup();
+
+    // Update parent state
+    setTasks(tasksWithUpdatedPriorities);
+  };
+
+  const handleDelete = (taskId) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this task? This cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    // Read from localStorage to get full array
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    // Remove the task
+    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+    // Save to localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+    // Backup after save
+    backupManager.saveAutoBackup();
+
+    // Update parent state
+    setTasks(updatedTasks);
+  };
+
   if (tasks.length === 0) {
     return (
       <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
@@ -827,6 +953,8 @@ const TaskList = ({ tasks, setTasks }) => {
               onSaveEdit={handleSaveEdit}
               onCancelEdit={handleCancelEdit}
               onEditFormChange={setEditForm}
+              onDuplicate={handleDuplicate}
+              onDelete={handleDelete}
             />
           ))}
         </AnimatePresence>
