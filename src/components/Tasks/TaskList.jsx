@@ -655,15 +655,24 @@ const TaskList = ({ tasks, setTasks }) => {
             console.log('=== TASK REMOVAL DEBUG (700ms after completion) ===');
             console.log('About to remove task ID:', taskId);
 
-            // Remove from active tasks - BUG IS HERE!
-            setTasks(prev => {
-              console.log('Tasks in setTasks prev:', prev.length);
-              const filtered = prev.filter(t => t.id !== taskId);
-              console.log('After filtering out completed task:', filtered.length);
-              console.log('Full localStorage tasks:', JSON.parse(localStorage.getItem('tasks') || '[]').length);
-              console.log('=================================================');
-              return filtered;
-            });
+            // FIXED: Read from localStorage to get FULL unfiltered array
+            // Don't use setTasks(prev) as prev may be filtered
+            const storedTasks = localStorage.getItem('tasks');
+            const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+            console.log('Full tasks array from localStorage:', fullTasksArray.length);
+
+            // Remove from FULL array
+            const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+            console.log('After filtering out completed task:', updatedTasks.length);
+            console.log('=================================================');
+
+            // Save to localStorage
+            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+            // Update parent state with FULL array (parent will filter for display)
+            setTasks(updatedTasks);
           }, 700);
         } else {
           newStatus = 'not-started';
