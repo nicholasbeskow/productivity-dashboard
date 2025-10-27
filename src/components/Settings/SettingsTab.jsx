@@ -191,6 +191,38 @@ const SettingsTab = () => {
             </p>
           </div>
 
+          {/* Statistics Settings */}
+          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">
+              Statistics
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-text-secondary mb-3">
+                  Permanently delete all task completion history
+                </p>
+                <button
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      'Are you sure? This will permanently delete all completion history. Active tasks will not be affected.'
+                    );
+                    if (confirmed) {
+                      localStorage.removeItem('completedTasks');
+                      window.dispatchEvent(new Event('statsReset'));
+                      window.dispatchEvent(new Event('storage'));
+                    }
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200"
+                >
+                  Reset All Statistics
+                </button>
+                <p className="text-xs text-text-tertiary mt-2">
+                  This cannot be undone
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* App Info */}
           <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
