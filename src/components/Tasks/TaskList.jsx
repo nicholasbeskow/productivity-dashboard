@@ -830,7 +830,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
   const handleMenuToggle = (task, buttonRect) => {
     // Calculate menu position
-    const top = buttonRect.bottom + 12;
+    const top = buttonRect.bottom + 8;
     const left = buttonRect.right - 192; // 192px = w-48
 
     setMenuPosition({ top, left });
@@ -944,10 +944,10 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       {openMenuTaskId && createPortal(
         <AnimatePresence>
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -5 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -5 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             className="fixed z-30 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
             style={{
               position: 'absolute',
