@@ -566,82 +566,66 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   }, [openMenuTaskId, setOpenMenuTaskId]);
 
   const handleStatusChange = (taskId) => {
-    // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
-    // The 'tasks' prop may be filtered, so we can't use it
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    // 1. Get the FULL list from localStorage
+    const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    const taskIndex = allTasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return; // Task not found
 
-    const task = fullTasksArray.find(t => t.id === taskId);
+    const task = allTasks[taskIndex];
 
-    const updatedTasks = fullTasksArray.map(task => {
-      if (task.id === taskId) {
-        let newStatus;
-        let completedAt = task.completedAt;
+    let newStatus;
+    let completedAt = task.completedAt;
 
-        if (task.status === 'not-started') {
-          newStatus = 'in-progress';
-        } else if (task.status === 'in-progress') {
-          newStatus = 'complete';
-          completedAt = new Date().toISOString();
-          // Trigger celebration animation
-          setJustCompletedId(taskId);
+    if (task.status === 'not-started') newStatus = 'in-progress';
+    else if (task.status === 'in-progress') {
+      newStatus = 'complete';
+      completedAt = new Date().toISOString();
+    } else {
+      newStatus = 'not-started';
+      completedAt = null;
+    }
 
-          // After animation, delete task and save to completedTasks (snappy 700ms timing)
-          setTimeout(() => {
-            setJustCompletedId(null);
+    if (newStatus === 'complete') {
+      // --- COMPLETION LOGIC ---
+      setJustCompletedId(taskId); // Trigger animation
 
-            // Save to completedTasks in localStorage
-            const completedTask = { ...task, status: 'complete', completedAt };
-            const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-            localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
+      setTimeout(() => {
+        setJustCompletedId(null);
 
-            // Backup after save
-            backupManager.saveAutoBackup();
+        // Find the completed task again from a fresh read
+        const freshAllTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+        const taskToComplete = freshAllTasks.find(t => t.id === taskId);
 
-            // DIAGNOSTIC LOGGING - Checking task removal
-            console.log('=== TASK REMOVAL DEBUG (700ms after completion) ===');
-            console.log('About to remove task ID:', taskId);
+        if (!taskToComplete) return; // Safety check
 
-            // Read from localStorage again to get current FULL array
-            const storedTasks = localStorage.getItem('tasks');
-            const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+        const completedTask = { ...taskToComplete, status: 'complete', completedAt };
 
-            console.log('Full tasks array from localStorage:', fullTasksArray.length);
+        // Add to completedTasks
+        const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+        localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
-            // Remove from FULL array
-            const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+        // Remove from active tasks
+        const activeTasks = freshAllTasks.filter(t => t.id !== taskId);
+        localStorage.setItem('tasks', JSON.stringify(activeTasks));
 
-            console.log('After filtering out completed task:', updatedTasks.length);
-            console.log('=================================================');
+        backupManager.saveAutoBackup();
+        setTasks(activeTasks); // Update UI
+      }, 700); // Wait for animation
+    } else {
+      // --- 'IN-PROGRESS' or 'NOT-STARTED' LOGIC ---
 
-            // Save to localStorage
-            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+      // Update the task in the full array
+      const updatedAllTasks = allTasks.map(t =>
+        t.id === taskId ? { ...t, status: newStatus, completedAt } : t
+      );
 
-            // Update parent state with FULL array (parent will filter for display)
-            setTasks(updatedTasks);
-          }, 700);
-        } else {
-          newStatus = 'not-started';
-          completedAt = null;
-        }
-
-        return { ...task, status: newStatus, completedAt };
-      }
-      return task;
-    });
-
-    // DIAGNOSTIC LOGGING - Checking for data loss bug
-    console.log('=== TASK STATUS CHANGE DEBUG ===');
-    console.log('Tasks prop (may be filtered):', tasks.length);
-    console.log('Full tasks from localStorage:', fullTasksArray.length);
-    console.log('Updated tasks being set to parent:', updatedTasks.length);
-    console.log('================================');
-
-    // Save to localStorage first
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-    // Update parent state with FULL array (parent will filter for display)
-    setTasks(updatedTasks);
+      // 2. Save FULL list back to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
+      // 3. Trigger backup
+      backupManager.saveAutoBackup();
+      // 4. Update UI
+      setTasks(updatedAllTasks);
+    }
   };
 
   const handleDragStart = (e, task) => {
@@ -789,42 +773,35 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleDuplicate = (taskId) => {
-    const taskToDuplicate = tasks.find(t => t.id === taskId);
+    // 1. Read FULL list from localStorage
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    const taskToDuplicate = fullTasksArray.find(t => t.id === taskId);
     if (!taskToDuplicate) return;
 
-    // Create duplicate with new ID and reset status
     const duplicatedTask = {
       ...taskToDuplicate,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       status: 'not-started',
       completedAt: null,
       createdAt: new Date().toISOString(),
-      title: `${taskToDuplicate.title} (Copy)`
+      title: `${taskToDuplicate.title} (Copy)`,
+      customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5 // Place it just below
     };
 
-    // Read from localStorage to get full array
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-
-    // Add duplicated task after the original
+    // 2. Modify FULL list - add duplicated task after the original
     const originalIndex = fullTasksArray.findIndex(t => t.id === taskId);
     const updatedTasks = [...fullTasksArray];
     updatedTasks.splice(originalIndex + 1, 0, duplicatedTask);
 
-    // Recalculate priorities
-    const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
-      ...task,
-      customPriority: updatedTasks.length - index,
-    }));
-
-    // Save to localStorage
-    localStorage.setItem('tasks', JSON.stringify(tasksWithUpdatedPriorities));
-
-    // Backup after save
+    // 3. Save FULL list to localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    // 4. Trigger backup
     backupManager.saveAutoBackup();
 
-    // Update parent state
-    setTasks(tasksWithUpdatedPriorities);
+    // 5. Update UI
+    setTasks(updatedTasks);
   };
 
   const handleDelete = (taskId) => {
