@@ -10,7 +10,6 @@ const PomodoroTimer = () => {
   // Timer state
   const [mode, setMode] = useState('idle'); // 'work', 'break', 'longBreak', 'idle'
   const [isActive, setIsActive] = useState(false);
-  const [cycles, setCycles] = useState(1);
 
   // Durations (in seconds)
   const [workDuration, setWorkDuration] = useState(() => {
@@ -24,7 +23,6 @@ const PomodoroTimer = () => {
   });
 
   const longBreakDuration = 15 * 60; // 15 minutes
-  const cyclesBeforeLongBreak = 4;
 
   // Time left in current session
   const [timeLeft, setTimeLeft] = useState(workDuration);
@@ -80,8 +78,8 @@ const PomodoroTimer = () => {
       setWorkDuration(newWorkDuration);
       setBreakDuration(newBreakDuration);
 
-      // If timer is idle, update timeLeft to reflect new duration
-      if (mode === 'idle') {
+      // If timer is idle and not active, update timeLeft to reflect new duration
+      if (!isActive && mode === 'idle') {
         setTimeLeft(newWorkDuration);
       }
     };
@@ -93,7 +91,7 @@ const PomodoroTimer = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('pomodoroSettingsChanged', handleStorageChange);
     };
-  }, [mode]);
+  }, [isActive, mode]);
 
   // Timer countdown logic
   useEffect(() => {
@@ -202,7 +200,7 @@ const PomodoroTimer = () => {
 
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-5xl font-bold text-text-primary mb-2 font-mono">
+            <div className="text-4xl font-bold text-text-primary mb-2 font-sans">
               {formatTime(timeLeft)}
             </div>
             <div
@@ -211,11 +209,6 @@ const PomodoroTimer = () => {
             >
               {getModeLabel()}
             </div>
-            {mode === 'work' && (
-              <div className="text-xs text-text-tertiary mt-1">
-                Cycle {cycles} of {cyclesBeforeLongBreak}
-              </div>
-            )}
           </div>
         </div>
       </div>
