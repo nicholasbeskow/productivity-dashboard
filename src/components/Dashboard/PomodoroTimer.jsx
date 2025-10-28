@@ -10,6 +10,8 @@ const PomodoroTimer = () => {
   // Timer state
   const [mode, setMode] = useState('idle'); // 'work', 'break', 'longBreak', 'idle'
   const [isActive, setIsActive] = useState(false);
+  const [currentCycle, setCurrentCycle] = useState(1);
+  const [cyclesBeforeLongBreak] = useState(4);
 
   // Durations (in seconds)
   const [workDuration, setWorkDuration] = useState(() => {
@@ -22,7 +24,10 @@ const PomodoroTimer = () => {
     return stored ? parseInt(stored) * 60 : 10 * 60; // Convert minutes to seconds
   });
 
-  const longBreakDuration = 15 * 60; // 15 minutes
+  const [longBreakDuration, setLongBreakDuration] = useState(() => {
+    const stored = localStorage.getItem('pomodoroLongBreakDuration');
+    return stored ? parseInt(stored) * 60 : 15 * 60; // Convert minutes to seconds
+  });
 
   // Time left in current session
   const [timeLeft, setTimeLeft] = useState(workDuration);
@@ -69,14 +74,85 @@ const PomodoroTimer = () => {
     }
   };
 
+  // Send desktop notification
+  const sendNotification = (title, body) => {
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('timer:send-notification', { title, body });
+      } catch (error) {
+        console.error('Error sending notification:', error);
+      }
+    }
+  };
+
+  // Mode switching logic (reusable)
+  const switchToNextMode = () => {
+    let nextMode;
+    let nextDuration;
+    let shouldAutoStart = false;
+    let notificationTitle = '';
+    let notificationBody = '';
+
+    if (mode === 'work') {
+      // Work session completed
+      notificationTitle = 'Work Complete!';
+      notificationBody = 'Time for a break!';
+
+      // Check if it's time for a long break
+      if (currentCycle >= cyclesBeforeLongBreak) {
+        nextMode = 'longBreak';
+        nextDuration = longBreakDuration;
+      } else {
+        nextMode = 'break';
+        nextDuration = breakDuration;
+      }
+
+      setCurrentCycle(prev => prev + 1);
+      shouldAutoStart = true; // Auto-start breaks
+    } else if (mode === 'break') {
+      // Short break completed
+      notificationTitle = 'Break Over!';
+      notificationBody = 'Ready for the next session?';
+      nextMode = 'work';
+      nextDuration = workDuration;
+      shouldAutoStart = false; // Manual start for work
+    } else if (mode === 'longBreak') {
+      // Long break completed
+      notificationTitle = 'Long Break Over!';
+      notificationBody = 'Ready to get back to work?';
+      nextMode = 'work';
+      nextDuration = workDuration;
+      setCurrentCycle(1); // Reset cycle count
+      shouldAutoStart = false; // Manual start for work
+    } else {
+      // Idle state (shouldn't normally happen)
+      nextMode = 'work';
+      nextDuration = workDuration;
+      shouldAutoStart = false;
+    }
+
+    // Send notification
+    if (notificationTitle) {
+      sendNotification(notificationTitle, notificationBody);
+    }
+
+    // Update state
+    setMode(nextMode);
+    setTimeLeft(nextDuration);
+    setIsActive(shouldAutoStart);
+  };
+
   // Listen for localStorage changes (from Settings)
   useEffect(() => {
     const handleStorageChange = () => {
       const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
       const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
+      const newLongBreakDuration = parseInt(localStorage.getItem('pomodoroLongBreakDuration') || '15') * 60;
 
       setWorkDuration(newWorkDuration);
       setBreakDuration(newBreakDuration);
+      setLongBreakDuration(newLongBreakDuration);
 
       // If timer is idle and not active, update timeLeft to reflect new duration
       if (!isActive && mode === 'idle') {
@@ -101,9 +177,12 @@ const PomodoroTimer = () => {
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            // Timer reached 0
+            // Timer reached 0 - switch to next mode
             setIsActive(false);
-            // Mode switching and notifications will be added in next part
+            // Use setTimeout to ensure state updates complete
+            setTimeout(() => {
+              switchToNextMode();
+            }, 100);
             return 0;
           }
           return prev - 1;
@@ -114,7 +193,7 @@ const PomodoroTimer = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, mode, currentCycle, cyclesBeforeLongBreak, workDuration, breakDuration, longBreakDuration]);
 
   // Start/Pause handler
   const handleStartPause = () => {
@@ -129,17 +208,18 @@ const PomodoroTimer = () => {
     }
   };
 
-  // Reset handler
+  // Reset handler - always reset to work mode
   const handleReset = () => {
     setIsActive(false);
-    setTimeLeft(getTotalDuration());
+    setMode('work');
+    setTimeLeft(workDuration);
+    setCurrentCycle(1);
   };
 
-  // Skip handler
+  // Skip handler - immediately switch to next mode
   const handleSkip = () => {
     setIsActive(false);
-    setTimeLeft(0);
-    // Mode switching will be handled in next part
+    switchToNextMode();
   };
 
   // Calculate progress percentage (for circular progress)
