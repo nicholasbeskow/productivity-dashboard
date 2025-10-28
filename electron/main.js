@@ -298,4 +298,16 @@ ipcMain.handle('shell:open-path', async (event, filePath) => {
   }
 });
 
+// Show file in system's file explorer/finder
+ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
+  try {
+    // This function is synchronous and throws on error.
+    shell.showItemInFolder(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to show item in folder ${filePath}:`, error);
+    return { success: false, error: error.message || 'Failed to show item in folder' };
+  }
+});
+
 module.exports = { sendNotification };

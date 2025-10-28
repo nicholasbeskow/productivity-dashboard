@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 import backupManager from '../../utils/backupManager';
@@ -620,6 +620,19 @@ const Dashboard = ({ setActiveTab }) => {
     }
   };
 
+  const handleShowInFolder = async (filePath) => {
+    if (!window.require) return; // Electron only
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:show-item-in-folder', filePath);
+      if (!result.success) {
+        console.error('Failed to show item in folder:', result.error);
+      }
+    } catch (error) {
+      console.error('Error invoking shell:show-item-in-folder:', error);
+    }
+  };
+
   const handleDeleteTask = (taskId) => {
     const confirmed = window.confirm(
       'Are you sure you want to delete this task? This cannot be undone.'
@@ -1177,6 +1190,14 @@ const Dashboard = ({ setActiveTab }) => {
                                               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                                                 <button
                                                   type="button"
+                                                  onClick={() => handleShowInFolder(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Show in Folder"
+                                                >
+                                                  <Folder size={14} className="text-green-glow" />
+                                                </button>
+                                                <button
+                                                  type="button"
                                                   onClick={() => handleOpenFile(filePath)}
                                                   className="p-1 hover:bg-green-glow/20 rounded transition-colors"
                                                   title="Open file"
@@ -1307,14 +1328,24 @@ const Dashboard = ({ setActiveTab }) => {
                                                   {fileName}
                                                 </span>
                                               </div>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleOpenFile(filePath)}
-                                                className="p-1 hover:bg-green-glow/20 rounded transition-colors flex-shrink-0"
-                                                title="Open file"
-                                              >
-                                                <ExternalLink size={14} className="text-green-glow" />
-                                              </button>
+                                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleShowInFolder(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Show in Folder"
+                                                >
+                                                  <Folder size={14} className="text-green-glow" />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenFile(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Open file"
+                                                >
+                                                  <ExternalLink size={14} className="text-green-glow" />
+                                                </button>
+                                              </div>
                                             </div>
                                           );
                                         })}

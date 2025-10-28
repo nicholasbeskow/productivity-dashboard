@@ -1,6 +1,6 @@
 import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
@@ -170,6 +170,19 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       }
     } catch (error) {
       console.error('Error opening file:', error);
+    }
+  };
+
+  const handleShowInFolder = async (filePath) => {
+    if (!window.require) return; // Electron only
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:show-item-in-folder', filePath);
+      if (!result.success) {
+        console.error('Failed to show item in folder:', result.error);
+      }
+    } catch (error) {
+      console.error('Error invoking shell:show-item-in-folder:', error);
     }
   };
 
@@ -413,6 +426,14 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                         </span>
                       </div>
                       <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleShowInFolder(filePath)}
+                          className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                          title="Show in Folder"
+                        >
+                          <Folder size={14} className="text-green-glow" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleEditOpenFile(filePath)}
