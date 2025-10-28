@@ -834,7 +834,16 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     const left = buttonRect.right - 192; // 192px = w-48
 
     setMenuPosition({ top, left });
-    setOpenMenuTaskId(task.id);
+
+    // Toggle: close if same task, open if different task
+    if (openMenuTaskId === task.id) {
+      // Case 1: Clicked the same button. Close it.
+      setOpenMenuTaskId(null);
+    } else {
+      // Case 2: Clicked a new button. Open it.
+      // This also handles the case where no menu was open.
+      setOpenMenuTaskId(task.id);
+    }
   };
 
   if (tasks.length === 0) {
