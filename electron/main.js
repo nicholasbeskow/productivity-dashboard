@@ -82,7 +82,19 @@ ipcMain.handle('backup:save-auto', async (event, data) => {
   try {
     const backupsDir = getBackupsDir();
     const filePath = path.join(backupsDir, 'auto-backup.json');
+    const previousPath = path.join(backupsDir, 'auto-save-previous.json'); // Path for the older backup
 
+    // Step 1: Check if the current auto-backup exists
+    if (fs.existsSync(filePath)) {
+      // Step 2: If 'auto-save-previous.json' already exists, delete it
+      if (fs.existsSync(previousPath)) {
+        fs.unlinkSync(previousPath);
+      }
+      // Step 3: Rename 'auto-backup.json' to 'auto-save-previous.json'
+      fs.renameSync(filePath, previousPath);
+    }
+
+    // Step 4: Write the new 'auto-backup.json' file
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 
     return { success: true, path: filePath };
@@ -100,6 +112,23 @@ ipcMain.handle('backup:save-snapshot', async (event, data) => {
     const filePath = path.join(backupsDir, `snapshot-${timestamp}.json`);
 
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+    // --- Cleanup Logic: Keep only the 10 most recent snapshots ---
+    // Get all snapshot files, sort them by name (newest first)
+    const allSnapshots = fs.readdirSync(backupsDir)
+      .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
+      .sort() // Sorts alphabetically, which works for ISO timestamps (oldest to newest)
+      .reverse(); // Reverse to get newest first
+
+    // If we have more than 10, delete the oldest ones
+    if (allSnapshots.length > 10) {
+      const filesToDelete = allSnapshots.slice(10); // Get all files *after* the 10th one
+      console.log(`[Backup] Cleaning up ${filesToDelete.length} old snapshots.`);
+      for (const file of filesToDelete) {
+        fs.unlinkSync(path.join(backupsDir, file));
+      }
+    }
+    // --- End of Cleanup Logic ---
 
     return { success: true, path: filePath, timestamp };
   } catch (error) {
