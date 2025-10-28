@@ -1,29 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { motion } from 'framer-motion';
+import useTimerStore from '../../stores/timerStore';
 
 // Color constants for different modes
 const WORK_COLOR = '#f97316'; // orange-500
 const BREAK_COLOR = '#facc15'; // yellow-400
 
 const PomodoroTimer = () => {
-  // Timer state
-  const [mode, setMode] = useState('idle'); // 'work', 'break', 'idle'
-  const [isActive, setIsActive] = useState(false);
-
-  // Durations (in seconds)
-  const [workDuration, setWorkDuration] = useState(() => {
-    const stored = localStorage.getItem('pomodoroWorkDuration');
-    return stored ? parseInt(stored) * 60 : 50 * 60; // Convert minutes to seconds
-  });
-
-  const [breakDuration, setBreakDuration] = useState(() => {
-    const stored = localStorage.getItem('pomodoroBreakDuration');
-    return stored ? parseInt(stored) * 60 : 10 * 60; // Convert minutes to seconds
-  });
-
-  // Time left in current session
-  const [timeLeft, setTimeLeft] = useState(workDuration);
+  // Get state and actions from Zustand store
+  const {
+    mode,
+    timeLeft,
+    isActive,
+    workDuration,
+    breakDuration,
+    tick,
+    setIsActive,
+    setDurations,
+    setTimeLeft,
+    resetTimer,
+    toggleTimer,
+    switchToNextMode,
+    startWork
+  } = useTimerStore();
 
   // Helper function to format seconds as MM:SS
   const formatTime = (seconds) => {
@@ -75,44 +75,13 @@ const PomodoroTimer = () => {
     }
   };
 
-  // Mode switching logic (reusable)
-  const switchToNextMode = () => {
-    let nextMode;
-    let nextDuration;
-    let shouldAutoStart = false;
-    let notificationTitle = '';
-    let notificationBody = '';
-
-    if (mode === 'work') {
-      // Work session completed - always go to break
-      notificationTitle = 'Work Complete!';
-      notificationBody = 'Time for a break!';
-      nextMode = 'break';
-      nextDuration = breakDuration;
-      shouldAutoStart = true; // Auto-start breaks
-    } else if (mode === 'break') {
-      // Break completed - always go to work
-      notificationTitle = 'Break Over!';
-      notificationBody = 'Ready for the next session?';
-      nextMode = 'work';
-      nextDuration = workDuration;
-      shouldAutoStart = false; // Manual start for work
-    } else {
-      // Idle state (shouldn't normally happen during timer)
-      nextMode = 'work';
-      nextDuration = workDuration;
-      shouldAutoStart = false;
+  // Helper to send notification based on completed mode
+  const sendCompletionNotification = (completedMode) => {
+    if (completedMode === 'work') {
+      sendNotification('Work Complete!', 'Time for a break!');
+    } else if (completedMode === 'break') {
+      sendNotification('Break Over!', 'Ready for the next session?');
     }
-
-    // Send notification
-    if (notificationTitle) {
-      sendNotification(notificationTitle, notificationBody);
-    }
-
-    // Update state
-    setMode(nextMode);
-    setTimeLeft(nextDuration);
-    setIsActive(shouldAutoStart);
   };
 
   // Listen for localStorage changes (from Settings)
@@ -121,8 +90,7 @@ const PomodoroTimer = () => {
       const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
       const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
 
-      setWorkDuration(newWorkDuration);
-      setBreakDuration(newBreakDuration);
+      setDurations({ work: newWorkDuration, break: newBreakDuration });
 
       // If timer is idle and not active, update timeLeft to reflect new duration
       if (!isActive && mode === 'idle') {
@@ -137,7 +105,7 @@ const PomodoroTimer = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('pomodoroSettingsChanged', handleStorageChange);
     };
-  }, [isActive, mode]);
+  }, [isActive, mode, setDurations, setTimeLeft]);
 
   // Timer countdown logic
   useEffect(() => {
@@ -145,50 +113,53 @@ const PomodoroTimer = () => {
 
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            // Timer reached 0 - switch to next mode
-            setIsActive(false);
-            // Use setTimeout to ensure state updates complete
-            setTimeout(() => {
-              switchToNextMode();
-            }, 100);
-            return 0;
-          }
-          return prev - 1;
-        });
+        const currentTime = useTimerStore.getState().timeLeft;
+
+        if (currentTime <= 1) {
+          // Timer reached 0 - switch to next mode
+          const currentMode = useTimerStore.getState().mode;
+          setIsActive(false);
+
+          // Use setTimeout to ensure state updates complete
+          setTimeout(() => {
+            sendCompletionNotification(currentMode);
+            switchToNextMode();
+          }, 100);
+        } else {
+          tick();
+        }
       }, 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft, mode, workDuration, breakDuration]);
+  }, [isActive, timeLeft, tick, setIsActive, switchToNextMode]);
 
   // Start/Pause handler
   const handleStartPause = () => {
     if (mode === 'idle') {
       // Start first work session
-      setMode('work');
-      setTimeLeft(workDuration);
-      setIsActive(true);
+      startWork();
     } else {
       // Toggle pause
-      setIsActive(!isActive);
+      toggleTimer();
     }
   };
 
   // Reset handler - return to idle state
   const handleReset = () => {
-    setIsActive(false);
-    setMode('idle');
-    setTimeLeft(workDuration);
+    resetTimer();
   };
 
   // Skip handler - immediately switch to next mode
   const handleSkip = () => {
+    const currentMode = mode;
     setIsActive(false);
-    switchToNextMode();
+    setTimeout(() => {
+      sendCompletionNotification(currentMode);
+      switchToNextMode();
+    }, 100);
   };
 
   // Calculate progress percentage (for circular progress)
