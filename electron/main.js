@@ -310,4 +310,17 @@ ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
   }
 });
 
+// ============================================
+// POMODORO TIMER IPC HANDLERS
+// ============================================
+
+// Send desktop notification for timer events
+ipcMain.on('timer:send-notification', (event, { title, body }) => {
+  if (Notification.isSupported()) {
+    sendNotification(title, body);
+  } else {
+    console.warn('Notifications not supported on this system.');
+  }
+});
+
 module.exports = { sendNotification };
