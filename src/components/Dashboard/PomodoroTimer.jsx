@@ -8,10 +8,8 @@ const BREAK_COLOR = '#facc15'; // yellow-400
 
 const PomodoroTimer = () => {
   // Timer state
-  const [mode, setMode] = useState('idle'); // 'work', 'break', 'longBreak', 'idle'
+  const [mode, setMode] = useState('idle'); // 'work', 'break', 'idle'
   const [isActive, setIsActive] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState(1);
-  const [cyclesBeforeLongBreak] = useState(4);
 
   // Durations (in seconds)
   const [workDuration, setWorkDuration] = useState(() => {
@@ -22,11 +20,6 @@ const PomodoroTimer = () => {
   const [breakDuration, setBreakDuration] = useState(() => {
     const stored = localStorage.getItem('pomodoroBreakDuration');
     return stored ? parseInt(stored) * 60 : 10 * 60; // Convert minutes to seconds
-  });
-
-  const [longBreakDuration, setLongBreakDuration] = useState(() => {
-    const stored = localStorage.getItem('pomodoroLongBreakDuration');
-    return stored ? parseInt(stored) * 60 : 15 * 60; // Convert minutes to seconds
   });
 
   // Time left in current session
@@ -46,8 +39,6 @@ const PomodoroTimer = () => {
         return workDuration;
       case 'break':
         return breakDuration;
-      case 'longBreak':
-        return longBreakDuration;
       default:
         return workDuration; // idle defaults to work duration
     }
@@ -56,7 +47,7 @@ const PomodoroTimer = () => {
   // Get current color based on mode
   const getCurrentColor = () => {
     if (mode === 'work') return WORK_COLOR;
-    if (mode === 'break' || mode === 'longBreak') return BREAK_COLOR;
+    if (mode === 'break') return BREAK_COLOR;
     return '#64748b'; // gray for idle
   };
 
@@ -67,8 +58,6 @@ const PomodoroTimer = () => {
         return 'Work';
       case 'break':
         return 'Break';
-      case 'longBreak':
-        return 'Long Break';
       default:
         return 'Idle';
     }
@@ -95,38 +84,21 @@ const PomodoroTimer = () => {
     let notificationBody = '';
 
     if (mode === 'work') {
-      // Work session completed
+      // Work session completed - always go to break
       notificationTitle = 'Work Complete!';
       notificationBody = 'Time for a break!';
-
-      // Check if it's time for a long break
-      if (currentCycle >= cyclesBeforeLongBreak) {
-        nextMode = 'longBreak';
-        nextDuration = longBreakDuration;
-      } else {
-        nextMode = 'break';
-        nextDuration = breakDuration;
-      }
-
-      setCurrentCycle(prev => prev + 1);
+      nextMode = 'break';
+      nextDuration = breakDuration;
       shouldAutoStart = true; // Auto-start breaks
     } else if (mode === 'break') {
-      // Short break completed
+      // Break completed - always go to work
       notificationTitle = 'Break Over!';
       notificationBody = 'Ready for the next session?';
       nextMode = 'work';
       nextDuration = workDuration;
       shouldAutoStart = false; // Manual start for work
-    } else if (mode === 'longBreak') {
-      // Long break completed
-      notificationTitle = 'Long Break Over!';
-      notificationBody = 'Ready to get back to work?';
-      nextMode = 'work';
-      nextDuration = workDuration;
-      setCurrentCycle(1); // Reset cycle count
-      shouldAutoStart = false; // Manual start for work
     } else {
-      // Idle state (shouldn't normally happen)
+      // Idle state (shouldn't normally happen during timer)
       nextMode = 'work';
       nextDuration = workDuration;
       shouldAutoStart = false;
@@ -148,11 +120,9 @@ const PomodoroTimer = () => {
     const handleStorageChange = () => {
       const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
       const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
-      const newLongBreakDuration = parseInt(localStorage.getItem('pomodoroLongBreakDuration') || '15') * 60;
 
       setWorkDuration(newWorkDuration);
       setBreakDuration(newBreakDuration);
-      setLongBreakDuration(newLongBreakDuration);
 
       // If timer is idle and not active, update timeLeft to reflect new duration
       if (!isActive && mode === 'idle') {
@@ -193,7 +163,7 @@ const PomodoroTimer = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft, mode, currentCycle, cyclesBeforeLongBreak, workDuration, breakDuration, longBreakDuration]);
+  }, [isActive, timeLeft, mode, workDuration, breakDuration]);
 
   // Start/Pause handler
   const handleStartPause = () => {
@@ -208,12 +178,11 @@ const PomodoroTimer = () => {
     }
   };
 
-  // Reset handler - always reset to work mode
+  // Reset handler - return to idle state
   const handleReset = () => {
     setIsActive(false);
-    setMode('work');
+    setMode('idle');
     setTimeLeft(workDuration);
-    setCurrentCycle(1);
   };
 
   // Skip handler - immediately switch to next mode
@@ -236,7 +205,7 @@ const PomodoroTimer = () => {
   // Dynamic glow color based on mode
   const currentGlowColor = mode === 'work'
     ? 'rgba(249, 115, 22, 0.4)'  // orange-500 glow
-    : (mode === 'break' || mode === 'longBreak')
+    : mode === 'break'
     ? 'rgba(250, 204, 21, 0.4)'  // yellow-400 glow
     : 'rgba(0, 0, 0, 0)';         // no glow when idle
 
