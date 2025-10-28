@@ -1,4 +1,4 @@
-import { useState, memo, useRef, useEffect } from 'react';
+import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -828,7 +828,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     setTasks(updatedTasks);
   };
 
-  const handleMenuToggle = (task, buttonRect) => {
+  const handleMenuToggle = useCallback((task, buttonRect) => {
     const clickedTaskId = task.id;
 
     // Calculate menu position
@@ -847,7 +847,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         return clickedTaskId;
       }
     });
-  };
+  }, [setOpenMenuTaskId, setMenuPosition]);
 
   if (tasks.length === 0) {
     return (
