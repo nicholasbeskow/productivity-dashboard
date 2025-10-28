@@ -266,12 +266,23 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         {task.attachments && task.attachments.length > 0 && (
           <motion.button
             onClick={handleOpenFirstAttachment}
-            className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+            className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            title="Open first attachment"
+            title={`Open first attachment (${task.attachments.length} total)`}
           >
             <FileText size={14} />
+            {(() => {
+              const additionalFiles = task.attachments.length - 1;
+              if (additionalFiles > 0) {
+                return (
+                  <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
+                    +{additionalFiles}
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </motion.button>
         )}
 
@@ -316,6 +327,9 @@ const Dashboard = ({ setActiveTab }) => {
     taskType: 'academic',
     attachments: []
   });
+  // State for attachment drag-and-drop
+  const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
+  const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
 
   useEffect(() => {
     const calculateProgress = () => {
@@ -606,6 +620,42 @@ const Dashboard = ({ setActiveTab }) => {
   const handleRemoveAttachment = (filePathToRemove) => {
     const updatedAttachments = (editForm.attachments || []).filter(path => path !== filePathToRemove);
     setEditForm({ ...editForm, attachments: updatedAttachments });
+  };
+
+  // Handlers for attachment drag-and-drop
+  const handleAttachmentDragStart = (e, index) => {
+    setDraggedAttachmentIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleAttachmentDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedAttachmentIndex !== null && draggedAttachmentIndex !== index) {
+      setDragOverAttachmentIndex(index);
+    }
+  };
+
+  const handleAttachmentDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedAttachmentIndex === null || draggedAttachmentIndex === dropIndex) {
+      setDraggedAttachmentIndex(null);
+      setDragOverAttachmentIndex(null);
+      return;
+    }
+
+    const items = Array.from(editForm.attachments);
+    const [reorderedItem] = items.splice(draggedAttachmentIndex, 1);
+    items.splice(dropIndex, 0, reorderedItem);
+
+    setEditForm(prev => ({ ...prev, attachments: items }));
+    setDraggedAttachmentIndex(null);
+    setDragOverAttachmentIndex(null);
+  };
+
+  const handleAttachmentDragEnd = () => {
+    setDraggedAttachmentIndex(null);
+    setDragOverAttachmentIndex(null);
   };
 
   const handleOpenFile = async (filePath) => {
@@ -1176,11 +1226,27 @@ const Dashboard = ({ setActiveTab }) => {
                                       <div className="mt-3 space-y-2">
                                         {editForm.attachments.map((filePath, index) => {
                                           const fileName = filePath.split(/[\\/]/).pop();
+                                          const isDragging = draggedAttachmentIndex === index;
+                                          const isDragOver = dragOverAttachmentIndex === index;
                                           return (
                                             <div
                                               key={index}
-                                              className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2 border border-bg-primary"
+                                              draggable
+                                              onDragStart={(e) => handleAttachmentDragStart(e, index)}
+                                              onDragOver={(e) => handleAttachmentDragOver(e, index)}
+                                              onDrop={(e) => handleAttachmentDrop(e, index)}
+                                              onDragEnd={handleAttachmentDragEnd}
+                                              className={`flex items-center gap-2 bg-bg-secondary rounded-lg px-3 py-2 border transition-all ${
+                                                isDragging ? 'opacity-50 border-green-glow' :
+                                                isDragOver ? 'border-green-glow shadow-lg' :
+                                                'border-bg-primary'
+                                              }`}
                                             >
+                                              {/* Drag Handle */}
+                                              <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+                                                <GripVertical size={16} />
+                                              </div>
+
                                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                                 <FileText size={14} className="text-green-glow flex-shrink-0" />
                                                 <span className="text-xs text-text-primary truncate" title={filePath}>
