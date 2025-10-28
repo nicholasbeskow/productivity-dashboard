@@ -6,6 +6,8 @@ import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+  const [showAttachmentDropdown, setShowAttachmentDropdown] = useState(false);
+
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -131,22 +133,6 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
     return 'checkbox-not-started';
   };
 
-  // Handler for opening first attachment
-  const handleOpenFirstAttachment = async (e) => {
-    e.stopPropagation();
-    if (task.attachments && task.attachments.length > 0) {
-      try {
-        const { ipcRenderer } = window.require('electron');
-        const result = await ipcRenderer.invoke('shell:open-path', task.attachments[0]);
-        if (!result.success) {
-          console.error('Failed to open file:', result.error);
-        }
-      } catch (error) {
-        console.error('Error opening file:', error);
-      }
-    }
-  };
-
   return (
     <motion.div
       layout={!isJustCompleted}
@@ -262,28 +248,65 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
           </div>
         </div>
 
-        {/* Attachment Icon Button */}
+        {/* Attachment Icon Button with Dropdown */}
         {task.attachments && task.attachments.length > 0 && (
-          <motion.button
-            onClick={handleOpenFirstAttachment}
-            className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            title={`Open first attachment (${task.attachments.length} total)`}
+          <div
+            className="relative flex-shrink-0"
+            onMouseEnter={() => setShowAttachmentDropdown(true)}
+            onMouseLeave={() => setShowAttachmentDropdown(false)}
           >
-            <FileText size={14} />
-            {(() => {
-              const additionalFiles = task.attachments.length - 1;
-              if (additionalFiles > 0) {
-                return (
-                  <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
-                    +{additionalFiles}
-                  </span>
-                );
-              }
-              return null;
-            })()}
-          </motion.button>
+            <motion.button
+              onClick={(e) => e.stopPropagation()}
+              className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title={`View attachments (${task.attachments.length})`}
+            >
+              <FileText size={14} />
+              <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
+                {task.attachments.length}
+              </span>
+            </motion.button>
+
+            {/* Attachment Dropdown */}
+            <AnimatePresence>
+              {showAttachmentDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeInOut" }}
+                  className="absolute top-full mt-1 right-0 bg-bg-secondary border border-bg-primary rounded-md p-1 shadow-lg z-20 max-h-32 overflow-y-auto min-w-[180px]"
+                >
+                  {task.attachments.map((filePath, index) => {
+                    const fileName = filePath.split(/[\\/]/).pop();
+                    return (
+                      <button
+                        key={index}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setShowAttachmentDropdown(false);
+                          try {
+                            const { ipcRenderer } = window.require('electron');
+                            const result = await ipcRenderer.invoke('shell:open-path', filePath);
+                            if (!result.success) {
+                              console.error('Failed to open file:', result.error);
+                            }
+                          } catch (error) {
+                            console.error('Error opening file:', error);
+                          }
+                        }}
+                        className="block w-full text-left px-2 py-1 text-xs text-text-secondary hover:bg-bg-tertiary hover:text-text-primary rounded truncate"
+                        title={filePath}
+                      >
+                        {fileName}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
         {/* Edit Button */}
