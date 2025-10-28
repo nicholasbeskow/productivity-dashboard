@@ -284,7 +284,8 @@ const Dashboard = ({ setActiveTab }) => {
     dueDate: '',
     time: '',
     status: 'not-started',
-    taskType: 'academic'
+    taskType: 'academic',
+    attachments: []
   });
 
   useEffect(() => {
@@ -538,7 +539,8 @@ const Dashboard = ({ setActiveTab }) => {
       dueDate: task.dueDate || '',
       time: task.time || '',
       status: task.status,
-      taskType: task.taskType || 'academic'
+      taskType: task.taskType || 'academic',
+      attachments: task.attachments || []
     });
   };
 
@@ -551,7 +553,8 @@ const Dashboard = ({ setActiveTab }) => {
       dueDate: '',
       time: '',
       status: 'not-started',
-      taskType: 'academic'
+      taskType: 'academic',
+      attachments: []
     });
   };
 
@@ -602,7 +605,8 @@ const Dashboard = ({ setActiveTab }) => {
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
           status: editForm.status,
-          taskType: editForm.taskType
+          taskType: editForm.taskType,
+          attachments: editForm.attachments || []
         };
       }
       return task;

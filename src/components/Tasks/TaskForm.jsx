@@ -27,6 +27,7 @@ const TaskForm = ({ onTaskCreate }) => {
       taskType: taskType,
       createdAt: new Date().toISOString(),
       completedAt: null,
+      attachments: [], // Array to store file attachment paths
       customPriority: 0, // Will be set by parent component based on due date
     };
 

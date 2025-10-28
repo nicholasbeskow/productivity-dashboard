@@ -480,7 +480,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     dueDate: '',
     time: '',
     status: 'not-started',
-    taskType: 'academic'
+    taskType: 'academic',
+    attachments: []
   });
 
   // Menu position state
@@ -719,7 +720,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       dueDate: task.dueDate || '',
       time: task.time || '',
       status: task.status,
-      taskType: task.taskType || 'academic'
+      taskType: task.taskType || 'academic',
+      attachments: task.attachments || []
     });
     setOpenMenuTaskId(null); // Close menu when editing starts
   };
@@ -733,7 +735,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       dueDate: '',
       time: '',
       status: 'not-started',
-      taskType: 'academic'
+      taskType: 'academic',
+      attachments: []
     });
   };
 
@@ -755,7 +758,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
           status: editForm.status,
-          taskType: editForm.taskType
+          taskType: editForm.taskType,
+          attachments: editForm.attachments || []
         };
       }
       return task;
