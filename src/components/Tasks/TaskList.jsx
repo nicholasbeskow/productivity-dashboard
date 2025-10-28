@@ -829,21 +829,24 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleMenuToggle = (task, buttonRect) => {
+    const clickedTaskId = task.id;
+
     // Calculate menu position
     const top = buttonRect.bottom + 8;
     const left = buttonRect.right - 192; // 192px = w-48
 
     setMenuPosition({ top, left });
 
-    // Toggle: close if same task, open if different task
-    if (openMenuTaskId === task.id) {
-      // Case 1: Clicked the same button. Close it.
-      setOpenMenuTaskId(null);
-    } else {
-      // Case 2: Clicked a new button. Open it.
-      // This also handles the case where no menu was open.
-      setOpenMenuTaskId(task.id);
-    }
+    // Use functional update form to get the *current* state
+    setOpenMenuTaskId(prevOpenId => {
+      if (prevOpenId === clickedTaskId) {
+        // Case 1: Clicked the *same* button. Close it.
+        return null;
+      } else {
+        // Case 2: Clicked a *new* button. Open it.
+        return clickedTaskId;
+      }
+    });
   };
 
   if (tasks.length === 0) {
