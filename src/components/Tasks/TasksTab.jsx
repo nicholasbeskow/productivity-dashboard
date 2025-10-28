@@ -8,6 +8,7 @@ const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -182,6 +183,13 @@ const TasksTab = () => {
 
   return (
     <div className="h-full p-8 overflow-y-auto">
+      {/* Global Backdrop - closes menu when clicking away */}
+      {openMenuTaskId && (
+        <div
+          className="fixed inset-0 z-20"
+          onClick={() => setOpenMenuTaskId(null)}
+        />
+      )}
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -241,7 +249,12 @@ const TasksTab = () => {
               </div>
             </div>
 
-            <TaskList tasks={sortedTasks} setTasks={setTasks} />
+            <TaskList
+              tasks={sortedTasks}
+              setTasks={setTasks}
+              openMenuTaskId={openMenuTaskId}
+              setOpenMenuTaskId={setOpenMenuTaskId}
+            />
           </div>
         </div>
       </div>
