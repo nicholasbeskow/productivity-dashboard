@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
+import PomodoroTimer from './PomodoroTimer';
 import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
@@ -1443,20 +1444,8 @@ const Dashboard = ({ setActiveTab }) => {
               )}
             </div>
 
-            {/* Timer Placeholder */}
-            <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-              <h3 className="text-xl font-semibold text-text-primary mb-4">
-                Pomodoro Timer
-              </h3>
-              <div className="flex items-center justify-center h-32">
-                <div className="text-6xl font-bold text-green-glow">
-                  50:00
-                </div>
-              </div>
-              <p className="text-text-tertiary text-sm mt-4 text-center">
-                Timer coming in Week 4
-              </p>
-            </div>
+            {/* Pomodoro Timer */}
+            <PomodoroTimer />
 
             {/* Calendar Placeholder */}
             <div className="lg:col-span-3 bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
