@@ -277,18 +277,24 @@ ipcMain.handle('dialog:show-open-dialog', async () => {
 // Open file with system's default application
 ipcMain.handle('shell:open-path', async (event, filePath) => {
   try {
-    const error = await shell.openPath(filePath);
+    // shell.openPath returns a promise which resolves if successful
+    // or rejects with an error message string if unsuccessful.
+    const errorMessage = await shell.openPath(filePath);
 
-    // shell.openPath returns a string with an error description if it fails,
-    // or an empty string if it succeeds
-    if (error) {
-      return { success: false, error };
+    if (errorMessage) {
+      // Although the promise resolved, shell indicates an issue opening the file.
+      console.error(`Error opening path ${filePath}:`, errorMessage);
+      return { success: false, error: errorMessage };
+    } else {
+      // Success: Promise resolved with no error message.
+      return { success: true };
     }
-
-    return { success: true };
   } catch (error) {
-    console.error('Error opening path:', error);
-    return { success: false, error: error.message };
+    // Catch if the promise itself rejects (e.g., path doesn't exist)
+    console.error(`Failed to open path ${filePath}:`, error);
+    // Ensure error is a string for consistency
+    const errorMessageString = typeof error === 'string' ? error : (error.message || 'Unknown error');
+    return { success: false, error: errorMessageString };
   }
 });
 
