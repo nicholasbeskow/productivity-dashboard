@@ -635,33 +635,69 @@ const Dashboard = ({ setActiveTab }) => {
       return true;
     })
     .sort((a, b) => {
+      // --- NEW SORT LOGIC ---
       const aOverdue = isOverdue(a);
       const bOverdue = isOverdue(b);
 
+      // 1. Overdue tasks always come first
       if (aOverdue && !bOverdue) return -1;
       if (!aOverdue && bOverdue) return 1;
-
       if (aOverdue && bOverdue) {
+        // Both overdue: sort by due date (oldest first)
         return new Date(a.dueDate) - new Date(b.dueDate);
       }
 
+      // 2. Check for manual drag-and-drop priority
       const aHasPriority = (a.customPriority ?? 0) > 0;
       const bHasPriority = (b.customPriority ?? 0) > 0;
 
-      if (aHasPriority && !bHasPriority) return -1;
-      if (!aHasPriority && bHasPriority) return 1;
-
+      // If both have custom priority, sort by it (higher number = higher priority)
       if (aHasPriority && bHasPriority) {
         return (b.customPriority ?? 0) - (a.customPriority ?? 0);
       }
+      // If only one has priority, it comes first
+      if (aHasPriority && !bHasPriority) return -1;
+      if (!aHasPriority && bHasPriority) return 1;
 
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && b.dueDate) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
+      // 3. Fallback to "Smart Sort" (neither has custom priority)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const getPriority = (task) => {
+        if (!task.dueDate) return 1000; // No due date = lowest priority
+
+        const dueDate = new Date(task.dueDate + 'T12:00:00');
+        const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+
+        // Overdue tasks are already handled, so we only care about 0+
+        if (diffDays === 0) {
+          // Today: priority 10 with time, 20 without
+          return task.time ? 10 : 20;
+        } else if (diffDays > 0) {
+          // Future: priority based on days away
+          return 50 + diffDays;
+        } else {
+          // Default for any other case
+          return 1000;
+        }
+      };
+
+      const priorityA = getPriority(a);
+      const priorityB = getPriority(b);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
       }
 
+      // 4. Same priority level (e.g., both "Today w/ Time")
+      // Sort by time
+      if (a.time && b.time) {
+        return a.time.localeCompare(b.time);
+      }
+
+      // 5. Final fallback: creation date
       return new Date(b.createdAt) - new Date(a.createdAt);
+      // --- END OF NEW SORT LOGIC ---
     })
     .slice(0, 5); // Show up to 5 tasks
 
