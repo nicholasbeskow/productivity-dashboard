@@ -1,6 +1,6 @@
 import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2 } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
@@ -138,6 +138,52 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
     if (task.status === 'complete') return 'checkbox-complete';
     if (task.status === 'in-progress') return 'checkbox-in-progress';
     return 'checkbox-not-started';
+  };
+
+  // File attachment handlers for edit mode
+  const handleEditAttachFilesClick = async () => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog');
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        const currentAttachments = editForm.attachments || [];
+        const newPaths = result.filePaths.filter(path => !currentAttachments.includes(path));
+        onEditFormChange({ ...editForm, attachments: [...currentAttachments, ...newPaths] });
+      }
+    } catch (error) {
+      console.error('Error attaching files:', error);
+    }
+  };
+
+  const handleEditRemoveAttachment = (filePathToRemove) => {
+    const updatedAttachments = (editForm.attachments || []).filter(path => path !== filePathToRemove);
+    onEditFormChange({ ...editForm, attachments: updatedAttachments });
+  };
+
+  const handleEditOpenFile = async (filePath) => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:open-path', filePath);
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  };
+
+  const handleShowInFolder = async (filePath) => {
+    if (!window.require) return; // Electron only
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:show-item-in-folder', filePath);
+      if (!result.success) {
+        console.error('Failed to show item in folder:', result.error);
+      }
+    } catch (error) {
+      console.error('Error invoking shell:show-item-in-folder:', error);
+    }
   };
 
   return (
@@ -349,6 +395,69 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             </select>
           </div>
 
+          {/* File Attachments */}
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              File Attachments
+            </label>
+            <button
+              type="button"
+              onClick={handleEditAttachFilesClick}
+              className="w-full px-4 py-2 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <FileText size={16} />
+              Attach More Files
+            </button>
+
+            {/* Attached Files List */}
+            {editForm.attachments && editForm.attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {editForm.attachments.map((filePath, index) => {
+                  const fileName = filePath.split(/[\\/]/).pop();
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between bg-bg-tertiary rounded-lg px-3 py-2 border border-bg-primary"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText size={14} className="text-green-glow flex-shrink-0" />
+                        <span className="text-xs text-text-primary truncate" title={filePath}>
+                          {fileName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleShowInFolder(filePath)}
+                          className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                          title="Show in Folder"
+                        >
+                          <Folder size={14} className="text-green-glow" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditOpenFile(filePath)}
+                          className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                          title="Open file"
+                        >
+                          <ExternalLink size={14} className="text-green-glow" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditRemoveAttachment(filePath)}
+                          className="p-1 hover:bg-red-500/20 rounded transition-colors"
+                          title="Remove attachment"
+                        >
+                          <X size={14} className="text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
             <button
@@ -458,6 +567,12 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
               >
                 {getStatusLabel(task.status)}
               </motion.span>
+              {task.attachments && task.attachments.length > 0 && (
+                <span className="flex items-center gap-1 text-text-tertiary" title="Task has attachments">
+                  <FileText size={14} />
+                  <span className="text-xs">{task.attachments.length}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -480,7 +595,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     dueDate: '',
     time: '',
     status: 'not-started',
-    taskType: 'academic'
+    taskType: 'academic',
+    attachments: []
   });
 
   // Menu position state
@@ -719,7 +835,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       dueDate: task.dueDate || '',
       time: task.time || '',
       status: task.status,
-      taskType: task.taskType || 'academic'
+      taskType: task.taskType || 'academic',
+      attachments: task.attachments || []
     });
     setOpenMenuTaskId(null); // Close menu when editing starts
   };
@@ -733,7 +850,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       dueDate: '',
       time: '',
       status: 'not-started',
-      taskType: 'academic'
+      taskType: 'academic',
+      attachments: []
     });
   };
 
@@ -755,7 +873,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
           status: editForm.status,
-          taskType: editForm.taskType
+          taskType: editForm.taskType,
+          attachments: editForm.attachments || []
         };
       }
       return task;

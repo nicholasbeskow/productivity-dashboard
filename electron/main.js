@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -252,6 +252,61 @@ ipcMain.handle('backup:delete', async (event, fileName) => {
   } catch (error) {
     console.error('Error deleting backup:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// ============================================
+// FILE ATTACHMENT IPC HANDLERS
+// ============================================
+
+// Show open dialog for selecting files
+ipcMain.handle('dialog:show-open-dialog', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select File to Attach',
+      properties: ['openFile', 'multiSelections']
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error showing open dialog:', error);
+    return { canceled: true, filePaths: [] };
+  }
+});
+
+// Open file with system's default application
+ipcMain.handle('shell:open-path', async (event, filePath) => {
+  try {
+    // shell.openPath returns a promise which resolves if successful
+    // or rejects with an error message string if unsuccessful.
+    const errorMessage = await shell.openPath(filePath);
+
+    if (errorMessage) {
+      // Although the promise resolved, shell indicates an issue opening the file.
+      console.error(`Error opening path ${filePath}:`, errorMessage);
+      return { success: false, error: errorMessage };
+    } else {
+      // Success: Promise resolved with no error message.
+      return { success: true };
+    }
+  } catch (error) {
+    // Catch if the promise itself rejects (e.g., path doesn't exist)
+    console.error(`Failed to open path ${filePath}:`, error);
+    // Ensure error is a string for consistency
+    const errorMessageString = typeof error === 'string' ? error : (error.message || 'Unknown error');
+    return { success: false, error: errorMessageString };
+  }
+});
+
+// Show file in system's file explorer/finder
+ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
+  try {
+    // This function is synchronous and throws on error.
+    shell.showItemInFolder(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to show item in folder ${filePath}:`, error);
+    return { success: false, error: error.message || 'Failed to show item in folder' };
   }
 });
 

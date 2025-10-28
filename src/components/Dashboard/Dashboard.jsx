@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2 } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 import backupManager from '../../utils/backupManager';
@@ -131,6 +131,22 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
     return 'checkbox-not-started';
   };
 
+  // Handler for opening first attachment
+  const handleOpenFirstAttachment = async (e) => {
+    e.stopPropagation();
+    if (task.attachments && task.attachments.length > 0) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        const result = await ipcRenderer.invoke('shell:open-path', task.attachments[0]);
+        if (!result.success) {
+          console.error('Failed to open file:', result.error);
+        }
+      } catch (error) {
+        console.error('Error opening file:', error);
+      }
+    }
+  };
+
   return (
     <motion.div
       layout={!isJustCompleted}
@@ -246,6 +262,19 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
           </div>
         </div>
 
+        {/* Attachment Icon Button */}
+        {task.attachments && task.attachments.length > 0 && (
+          <motion.button
+            onClick={handleOpenFirstAttachment}
+            className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Open first attachment"
+          >
+            <FileText size={14} />
+          </motion.button>
+        )}
+
         {/* Edit Button */}
         <motion.button
           onClick={(e) => {
@@ -284,7 +313,8 @@ const Dashboard = ({ setActiveTab }) => {
     dueDate: '',
     time: '',
     status: 'not-started',
-    taskType: 'academic'
+    taskType: 'academic',
+    attachments: []
   });
 
   useEffect(() => {
@@ -538,7 +568,8 @@ const Dashboard = ({ setActiveTab }) => {
       dueDate: task.dueDate || '',
       time: task.time || '',
       status: task.status,
-      taskType: task.taskType || 'academic'
+      taskType: task.taskType || 'academic',
+      attachments: task.attachments || []
     });
   };
 
@@ -551,8 +582,55 @@ const Dashboard = ({ setActiveTab }) => {
       dueDate: '',
       time: '',
       status: 'not-started',
-      taskType: 'academic'
+      taskType: 'academic',
+      attachments: []
     });
+  };
+
+  // File attachment handlers for detail/edit view
+  const handleAttachFilesClick = async () => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog');
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        const currentAttachments = editForm.attachments || [];
+        const newPaths = result.filePaths.filter(path => !currentAttachments.includes(path));
+        setEditForm({ ...editForm, attachments: [...currentAttachments, ...newPaths] });
+      }
+    } catch (error) {
+      console.error('Error attaching files:', error);
+    }
+  };
+
+  const handleRemoveAttachment = (filePathToRemove) => {
+    const updatedAttachments = (editForm.attachments || []).filter(path => path !== filePathToRemove);
+    setEditForm({ ...editForm, attachments: updatedAttachments });
+  };
+
+  const handleOpenFile = async (filePath) => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:open-path', filePath);
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  };
+
+  const handleShowInFolder = async (filePath) => {
+    if (!window.require) return; // Electron only
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:show-item-in-folder', filePath);
+      if (!result.success) {
+        console.error('Failed to show item in folder:', result.error);
+      }
+    } catch (error) {
+      console.error('Error invoking shell:show-item-in-folder:', error);
+    }
   };
 
   const handleDeleteTask = (taskId) => {
@@ -602,7 +680,8 @@ const Dashboard = ({ setActiveTab }) => {
           dueDate: editForm.dueDate || null,
           time: editForm.time || null,
           status: editForm.status,
-          taskType: editForm.taskType
+          taskType: editForm.taskType,
+          attachments: editForm.attachments || []
         };
       }
       return task;
@@ -1078,6 +1157,69 @@ const Dashboard = ({ setActiveTab }) => {
                                     </select>
                                   </div>
 
+                                  {/* File Attachments */}
+                                  <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                      File Attachments
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={handleAttachFilesClick}
+                                      className="w-full px-4 py-2 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                    >
+                                      <FileText size={16} />
+                                      Attach More Files
+                                    </button>
+
+                                    {/* Attached Files List */}
+                                    {editForm.attachments && editForm.attachments.length > 0 && (
+                                      <div className="mt-3 space-y-2">
+                                        {editForm.attachments.map((filePath, index) => {
+                                          const fileName = filePath.split(/[\\/]/).pop();
+                                          return (
+                                            <div
+                                              key={index}
+                                              className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2 border border-bg-primary"
+                                            >
+                                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <FileText size={14} className="text-green-glow flex-shrink-0" />
+                                                <span className="text-xs text-text-primary truncate" title={filePath}>
+                                                  {fileName}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleShowInFolder(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Show in Folder"
+                                                >
+                                                  <Folder size={14} className="text-green-glow" />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenFile(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Open file"
+                                                >
+                                                  <ExternalLink size={14} className="text-green-glow" />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleRemoveAttachment(filePath)}
+                                                  className="p-1 hover:bg-red-500/20 rounded transition-colors"
+                                                  title="Remove attachment"
+                                                >
+                                                  <X size={14} className="text-red-500" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+
                                   {/* Action Buttons */}
                                   <div className="space-y-3 pt-2">
                                     <div className="flex gap-3">
@@ -1165,6 +1307,49 @@ const Dashboard = ({ setActiveTab }) => {
                                         <ExternalLink size={16} className="group-hover:scale-110 transition-transform" />
                                         <span className="underline">Open Link</span>
                                       </button>
+                                    </div>
+                                  )}
+
+                                  {/* Attachments */}
+                                  {detailTask.attachments && detailTask.attachments.length > 0 && (
+                                    <div>
+                                      <p className="text-sm text-text-tertiary mb-2">File Attachments</p>
+                                      <div className="space-y-2">
+                                        {detailTask.attachments.map((filePath, index) => {
+                                          const fileName = filePath.split(/[\\/]/).pop();
+                                          return (
+                                            <div
+                                              key={index}
+                                              className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2 border border-bg-primary"
+                                            >
+                                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <FileText size={14} className="text-green-glow flex-shrink-0" />
+                                                <span className="text-xs text-text-primary truncate" title={filePath}>
+                                                  {fileName}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleShowInFolder(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Show in Folder"
+                                                >
+                                                  <Folder size={14} className="text-green-glow" />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenFile(filePath)}
+                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
+                                                  title="Open file"
+                                                >
+                                                  <ExternalLink size={14} className="text-green-glow" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   )}
 

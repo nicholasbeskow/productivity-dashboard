@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText, UploadCloud, X } from 'lucide-react';
 
 const TaskForm = ({ onTaskCreate }) => {
   const [title, setTitle] = useState('');
@@ -8,6 +8,60 @@ const TaskForm = ({ onTaskCreate }) => {
   const [dueDate, setDueDate] = useState('');
   const [time, setTime] = useState('');
   const [taskType, setTaskType] = useState('academic');
+  const [attachments, setAttachments] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // File attachment handlers
+  const handleAttachFilesClick = async () => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog');
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        setAttachments(prev => {
+          // Filter out duplicates
+          const newPaths = result.filePaths.filter(path => !prev.includes(path));
+          return [...prev, ...newPaths];
+        });
+      }
+    } catch (error) {
+      console.error('Error attaching files:', error);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    try {
+      const files = Array.from(e.dataTransfer.files);
+      const filePaths = files.map(file => file.path).filter(Boolean);
+
+      if (filePaths.length > 0) {
+        setAttachments(prev => {
+          // Filter out duplicates
+          const newPaths = filePaths.filter(path => !prev.includes(path));
+          return [...prev, ...newPaths];
+        });
+      }
+    } catch (error) {
+      console.error('Error handling dropped files:', error);
+    }
+  };
+
+  const handleRemoveAttachment = (filePathToRemove) => {
+    setAttachments(prev => prev.filter(path => path !== filePathToRemove));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -27,6 +81,7 @@ const TaskForm = ({ onTaskCreate }) => {
       taskType: taskType,
       createdAt: new Date().toISOString(),
       completedAt: null,
+      attachments: attachments, // Use the attachments state
       customPriority: 0, // Will be set by parent component based on due date
     };
 
@@ -39,6 +94,7 @@ const TaskForm = ({ onTaskCreate }) => {
     setDueDate('');
     setTime('');
     setTaskType('academic');
+    setAttachments([]);
   };
 
   return (
@@ -144,6 +200,72 @@ const TaskForm = ({ onTaskCreate }) => {
               🏠 Personal
             </button>
           </div>
+        </div>
+
+        {/* File Attachments Section */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2">
+            File Attachments
+          </label>
+
+          {/* Drag & Drop Zone */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+              isDragging
+                ? 'border-green-glow bg-green-glow/10'
+                : 'border-bg-primary hover:border-green-glow/50 bg-bg-tertiary/50'
+            }`}
+          >
+            <UploadCloud
+              size={32}
+              className={`mx-auto mb-2 ${isDragging ? 'text-green-glow' : 'text-text-tertiary'}`}
+            />
+            <p className="text-sm text-text-secondary mb-2">
+              Drag & drop files here
+            </p>
+            <p className="text-xs text-text-tertiary mb-3">or</p>
+            <button
+              type="button"
+              onClick={handleAttachFilesClick}
+              className="px-4 py-2 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium"
+            >
+              <FileText size={16} className="inline mr-2" />
+              Browse Files
+            </button>
+          </div>
+
+          {/* Attached Files List */}
+          {attachments.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {attachments.map((filePath, index) => {
+                const fileName = filePath.split(/[\\/]/).pop();
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-bg-tertiary rounded-lg px-3 py-2 border border-bg-primary"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileText size={16} className="text-green-glow flex-shrink-0" />
+                      <span className="text-sm text-text-primary truncate" title={filePath}>
+                        {fileName}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(filePath)}
+                      className="ml-2 p-1 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
+                      title="Remove attachment"
+                    >
+                      <X size={16} className="text-red-500" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Submit Button */}
