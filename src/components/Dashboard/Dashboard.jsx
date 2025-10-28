@@ -266,12 +266,23 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         {task.attachments && task.attachments.length > 0 && (
           <motion.button
             onClick={handleOpenFirstAttachment}
-            className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+            className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            title="Open first attachment"
+            title={`Open first attachment (${task.attachments.length} total)`}
           >
             <FileText size={14} />
+            {(() => {
+              const additionalFiles = task.attachments.length - 1;
+              if (additionalFiles > 0) {
+                return (
+                  <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
+                    +{additionalFiles}
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </motion.button>
         )}
 
