@@ -170,7 +170,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
     >
       {/* 3-Dot Menu Button */}
       {!isEditing && (
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 z-30">
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
