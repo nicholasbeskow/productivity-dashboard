@@ -6,6 +6,46 @@ import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
+  // State for attachment drag-and-drop
+  const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
+  const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
+
+  // Handlers for attachment drag-and-drop
+  const handleAttachmentDragStart = (e, index) => {
+    setDraggedAttachmentIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleAttachmentDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedAttachmentIndex !== null && draggedAttachmentIndex !== index) {
+      setDragOverAttachmentIndex(index);
+    }
+  };
+
+  const handleAttachmentDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedAttachmentIndex === null || draggedAttachmentIndex === dropIndex) {
+      setDraggedAttachmentIndex(null);
+      setDragOverAttachmentIndex(null);
+      return;
+    }
+
+    const items = Array.from(editForm.attachments);
+    const [reorderedItem] = items.splice(draggedAttachmentIndex, 1);
+    items.splice(dropIndex, 0, reorderedItem);
+
+    onEditFormChange({ ...editForm, attachments: items });
+    setDraggedAttachmentIndex(null);
+    setDragOverAttachmentIndex(null);
+  };
+
+  const handleAttachmentDragEnd = () => {
+    setDraggedAttachmentIndex(null);
+    setDragOverAttachmentIndex(null);
+  };
+
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -414,11 +454,27 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
               <div className="mt-3 space-y-2">
                 {editForm.attachments.map((filePath, index) => {
                   const fileName = filePath.split(/[\\/]/).pop();
+                  const isDragging = draggedAttachmentIndex === index;
+                  const isDragOver = dragOverAttachmentIndex === index;
                   return (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-bg-tertiary rounded-lg px-3 py-2 border border-bg-primary"
+                      draggable
+                      onDragStart={(e) => handleAttachmentDragStart(e, index)}
+                      onDragOver={(e) => handleAttachmentDragOver(e, index)}
+                      onDrop={(e) => handleAttachmentDrop(e, index)}
+                      onDragEnd={handleAttachmentDragEnd}
+                      className={`flex items-center gap-2 bg-bg-tertiary rounded-lg px-3 py-2 border transition-all ${
+                        isDragging ? 'opacity-50 border-green-glow' :
+                        isDragOver ? 'border-green-glow shadow-lg' :
+                        'border-bg-primary'
+                      }`}
                     >
+                      {/* Drag Handle */}
+                      <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+                        <GripVertical size={16} />
+                      </div>
+
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <FileText size={14} className="text-green-glow flex-shrink-0" />
                         <span className="text-xs text-text-primary truncate" title={filePath}>
