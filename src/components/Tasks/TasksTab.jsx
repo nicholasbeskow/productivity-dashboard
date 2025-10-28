@@ -211,44 +211,77 @@ const TasksTab = () => {
     });
   }, [tasks, taskFilter]);
 
-  const handleTaskCreate = (newTask) => {
-    // Find the right position for the new task based on due date
-    let insertIndex = tasks.length;
-
-    if (newTask.dueDate) {
-      const newDueDate = new Date(newTask.dueDate);
-
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
-
-        // Skip overdue tasks
-        if (isOverdue(task)) continue;
-
-        // If task has no due date or later due date, insert before it
-        if (!task.dueDate || new Date(task.dueDate) > newDueDate) {
-          insertIndex = i;
-          break;
-        }
-      }
-    }
-
-    // Calculate customPriority based on position
-    const newTaskWithPriority = {
-      ...newTask,
-      customPriority: tasks.length - insertIndex + 1,
+  const handleTaskCreate = (newTaskFromForm) => {
+    // 1. Create the full task object
+    const newTask = {
+      ...newTaskFromForm,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'not-started',
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      customPriority: 0, // Will be set in a moment
     };
 
-    // Insert task at the right position
-    const updatedTasks = [...tasks];
-    updatedTasks.splice(insertIndex, 0, newTaskWithPriority);
+    // 2. Add the new task to the *end* of the current task list
+    const currentTasks = [...tasks, newTask];
 
-    // Recalculate all priorities to maintain order
-    const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
+    // 3. Get the "Smart Sort" logic (same as handleSmartSort)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const getPriority = (task) => {
+      if (!task.dueDate) return 1000; // No due date
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) { // Today
+        return task.time ? 10 : 20; // 10 for time, 20 for no time
+      } else if (diffDays > 0) { // Future
+        return 50 + diffDays;
+      } else { // Overdue (should be handled by isOverdue)
+        return 1000;
+      }
+    };
+
+    // 4. Run the full Smart Sort on the *entire* list (including the new task)
+    const sortedTasks = currentTasks.sort((a, b) => {
+      const aOverdue = isOverdue(a);
+      const bOverdue = isOverdue(b);
+
+      // 1. Overdue tasks
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      if (aOverdue && bOverdue) {
+        return new Date(a.dueDate) - new Date(b.dueDate); // Oldest overdue first
+      }
+
+      // 2. Smart Sort fallback
+      const priorityA = getPriority(a);
+      const priorityB = getPriority(b);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // 3. Same priority level (e.g., both "Today w/ Time")
+      if (a.time && b.time) {
+        return a.time.localeCompare(b.time); // Earliest time first
+      }
+
+      // 4. Final fallback: creation date
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    // 5. Re-map the sorted tasks and assign a new customPriority to *everything*
+    const tasksWithNewPriority = sortedTasks.map((task, index) => ({
       ...task,
-      customPriority: updatedTasks.length - index,
+      customPriority: sortedTasks.length - index, // Highest priority has highest number
     }));
 
-    setTasks(tasksWithUpdatedPriorities);
+    // 6. Save the new, perfectly sorted list to state
+    setTasks(tasksWithNewPriority);
+
+    console.log('[TasksTab] New task created and Smart Sort applied.');
   };
 
   return (
