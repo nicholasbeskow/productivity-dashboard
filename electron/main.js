@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -251,6 +251,43 @@ ipcMain.handle('backup:delete', async (event, fileName) => {
     return { success: true };
   } catch (error) {
     console.error('Error deleting backup:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================
+// FILE ATTACHMENT IPC HANDLERS
+// ============================================
+
+// Show open dialog for selecting files
+ipcMain.handle('dialog:show-open-dialog', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select File to Attach',
+      properties: ['openFile', 'multiSelections']
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error showing open dialog:', error);
+    return { canceled: true, filePaths: [] };
+  }
+});
+
+// Open file with system's default application
+ipcMain.handle('shell:open-path', async (event, filePath) => {
+  try {
+    const error = await shell.openPath(filePath);
+
+    // shell.openPath returns a string with an error description if it fails,
+    // or an empty string if it succeeds
+    if (error) {
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening path:', error);
     return { success: false, error: error.message };
   }
 });
