@@ -1,4 +1,4 @@
-import { useState, memo, useRef, useEffect } from 'react';
+import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -170,7 +170,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
     >
       {/* 3-Dot Menu Button */}
       {!isEditing && (
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 z-30">
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
@@ -828,14 +828,26 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     setTasks(updatedTasks);
   };
 
-  const handleMenuToggle = (task, buttonRect) => {
+  const handleMenuToggle = useCallback((task, buttonRect) => {
+    const clickedTaskId = task.id;
+
     // Calculate menu position
     const top = buttonRect.bottom + 8;
     const left = buttonRect.right - 192; // 192px = w-48
 
     setMenuPosition({ top, left });
-    setOpenMenuTaskId(task.id);
-  };
+
+    // Use functional update form to get the *current* state
+    setOpenMenuTaskId(prevOpenId => {
+      if (prevOpenId === clickedTaskId) {
+        // Case 1: Clicked the *same* button. Close it.
+        return null;
+      } else {
+        // Case 2: Clicked a *new* button. Open it.
+        return clickedTaskId;
+      }
+    });
+  }, [setOpenMenuTaskId, setMenuPosition]);
 
   if (tasks.length === 0) {
     return (
@@ -944,10 +956,10 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       {openMenuTaskId && createPortal(
         <AnimatePresence>
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             className="fixed z-30 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
             style={{
               position: 'absolute',
