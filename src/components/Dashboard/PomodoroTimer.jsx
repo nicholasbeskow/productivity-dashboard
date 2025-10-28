@@ -153,6 +153,13 @@ const PomodoroTimer = () => {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
 
+  // Dynamic glow color based on mode
+  const currentGlowColor = mode === 'work'
+    ? 'rgba(249, 115, 22, 0.4)'  // orange-500 glow
+    : (mode === 'break' || mode === 'longBreak')
+    ? 'rgba(250, 204, 21, 0.4)'  // yellow-400 glow
+    : 'rgba(0, 0, 0, 0)';         // no glow when idle
+
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
       <h3 className="text-xl font-semibold text-text-primary mb-4">
@@ -167,12 +174,8 @@ const PomodoroTimer = () => {
             width="240"
             height="240"
             className="transform -rotate-90"
-            style={{
-              filter: `drop-shadow(0 0 8px ${currentColor}40)`,
-              transition: 'filter 0.5s ease-in-out'
-            }}
           >
-            {/* Background circle */}
+            {/* Background circle - NO GLOW */}
             <circle
               cx="120"
               cy="120"
@@ -181,7 +184,7 @@ const PomodoroTimer = () => {
               strokeWidth="12"
               fill="none"
             />
-            {/* Progress circle */}
+            {/* Progress circle - GLOW APPLIED HERE */}
             <circle
               cx="120"
               cy="120"
@@ -193,7 +196,8 @@ const PomodoroTimer = () => {
               strokeDashoffset={strokeDashoffset}
               strokeLinecap="round"
               style={{
-                transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out'
+                filter: `drop-shadow(0 0 8px ${currentGlowColor})`,
+                transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out, filter 0.5s ease-in-out'
               }}
             />
           </svg>
