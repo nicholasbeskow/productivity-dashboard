@@ -30,10 +30,18 @@ const useTimerStore = create((set, get) => ({
 
   toggleTimer: () => set((state) => ({ isActive: !state.isActive })),
 
-  setDurations: ({ work, break: breakDur }) => set({
-    workDuration: work,
-    breakDuration: breakDur
-  }),
+  setDurations: ({ work, break: breakDur }) => {
+    set({
+      workDuration: work,
+      breakDuration: breakDur
+    });
+
+    // If timer is idle and not active, also update timeLeft
+    const state = get();
+    if (!state.isActive && state.mode === 'idle') {
+      set({ timeLeft: work });
+    }
+  },
 
   resetTimer: () => set((state) => ({
     mode: 'idle',
@@ -79,5 +87,24 @@ const useTimerStore = create((set, get) => ({
     isActive: true
   }))
 }));
+
+// Set up localStorage listener when store module loads
+// This ensures settings changes are always picked up, even when component is unmounted
+const handleStorageChange = () => {
+  const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
+  const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
+
+  // Update store with new durations
+  useTimerStore.getState().setDurations({
+    work: newWorkDuration,
+    break: newBreakDuration
+  });
+};
+
+// Listen for both storage events (from other tabs) and custom event (same tab)
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener('pomodoroSettingsChanged', handleStorageChange);
+}
 
 export default useTimerStore;

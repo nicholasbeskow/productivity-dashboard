@@ -84,29 +84,6 @@ const PomodoroTimer = () => {
     }
   };
 
-  // Listen for localStorage changes (from Settings)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
-      const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
-
-      setDurations({ work: newWorkDuration, break: newBreakDuration });
-
-      // If timer is idle and not active, update timeLeft to reflect new duration
-      if (!isActive && mode === 'idle') {
-        setTimeLeft(newWorkDuration);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('pomodoroSettingsChanged', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('pomodoroSettingsChanged', handleStorageChange);
-    };
-  }, [isActive, mode, setDurations, setTimeLeft]);
-
   // Timer countdown logic
   useEffect(() => {
     let interval = null;
