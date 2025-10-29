@@ -1,6 +1,9 @@
 const { app, BrowserWindow, Notification, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const Store = require('electron-store');
+
+const store = new Store();
 
 let mainWindow;
 let mainWindowRef = null; // Reference for sending timer updates
@@ -8,13 +11,18 @@ let mainWindowRef = null; // Reference for sending timer updates
 // ============================================
 // POMODORO TIMER STATE (Main Process)
 // ============================================
+
+// Load durations from store (provide defaults in minutes)
+const initialWorkMinutes = store.get('pomodoroWorkDuration', 50);
+const initialBreakMinutes = store.get('pomodoroBreakDuration', 10);
+
 let timerInterval = null;
 let timerState = {
   mode: 'idle', // 'work', 'break', 'idle'
-  timeLeft: 50 * 60, // Default work duration in seconds
+  timeLeft: initialWorkMinutes * 60, // Initialize with loaded work duration in seconds
   isActive: false,
-  workDuration: 50 * 60,
-  breakDuration: 10 * 60,
+  workDuration: initialWorkMinutes * 60, // Convert minutes to seconds
+  breakDuration: initialBreakMinutes * 60, // Convert minutes to seconds
 };
 
 function createWindow() {
@@ -104,43 +112,41 @@ function startTimer() {
 
     if (timerState.timeLeft <= 0) {
       // Timer reached zero - switch modes
-      stopTimer();
+      clearInterval(timerInterval);
+      timerInterval = null;
 
-      // Determine next mode and send notification
+      const finishedMode = timerState.mode;
       let nextMode;
       let nextDuration;
-      let shouldAutoStart = false;
+      let notificationTitle = '';
+      let notificationBody = '';
 
-      if (timerState.mode === 'work') {
+      if (finishedMode === 'work') {
         // Work completed -> Break
         sendNotification('Work Complete!', 'Time for a break!');
         nextMode = 'break';
         nextDuration = timerState.breakDuration;
-        shouldAutoStart = true;
-      } else if (timerState.mode === 'break') {
+      } else if (finishedMode === 'break') {
         // Break completed -> Work
         sendNotification('Break Over!', 'Ready for the next session?');
         nextMode = 'work';
         nextDuration = timerState.workDuration;
-        shouldAutoStart = false;
       } else {
-        // Idle -> Work (shouldn't happen)
+        // Idle -> Work (shouldn't happen during timer, but handle it)
         nextMode = 'work';
         nextDuration = timerState.workDuration;
-        shouldAutoStart = false;
       }
 
-      // Update state
+      // Update state for next session
       timerState.mode = nextMode;
       timerState.timeLeft = nextDuration;
-      timerState.isActive = false;
+      timerState.isActive = true; // Always true for auto-advance
 
-      // Auto-start breaks
-      if (shouldAutoStart) {
-        startTimer();
-      } else {
-        sendTimerUpdate();
-      }
+      // Send update before starting next timer
+      sendTimerUpdate();
+
+      // Auto-start the next session
+      startTimer();
     } else {
       // Continue countdown
       sendTimerUpdate();
@@ -187,10 +193,16 @@ function skipTimer() {
     nextDuration = timerState.workDuration;
   }
 
+  // Update state
   timerState.mode = nextMode;
   timerState.timeLeft = nextDuration;
-  timerState.isActive = false;
+  timerState.isActive = true; // Auto-advance after skip
+
+  // Send update
   sendTimerUpdate();
+
+  // Auto-start next session
+  startTimer();
 }
 
 // ============================================
@@ -477,17 +489,25 @@ ipcMain.on('timer:skip', () => {
   skipTimer();
 });
 
-// Set durations (receives seconds from renderer)
-ipcMain.on('timer:set-durations', (event, { work, break: breakDur }) => {
-  timerState.workDuration = work;
-  timerState.breakDuration = breakDur;
+// Update settings from renderer (receives minutes, saves to store)
+ipcMain.on('timer:update-settings-from-renderer', (event, { workMinutes, breakMinutes }) => {
+  const workSecs = parseInt(workMinutes || 50) * 60;
+  const breakSecs = parseInt(breakMinutes || 10) * 60;
 
-  // If idle, update timeLeft to new work duration
-  if (timerState.mode === 'idle') {
-    timerState.timeLeft = work;
+  // Save to electron-store (in minutes for consistency)
+  store.set('pomodoroWorkDuration', parseInt(workMinutes || 50));
+  store.set('pomodoroBreakDuration', parseInt(breakMinutes || 10));
+
+  // Update running state (in seconds)
+  timerState.workDuration = workSecs;
+  timerState.breakDuration = breakSecs;
+
+  // If idle and not active, update timeLeft
+  if (timerState.mode === 'idle' && !timerState.isActive) {
+    timerState.timeLeft = timerState.workDuration;
   }
 
-  sendTimerUpdate();
+  sendTimerUpdate(); // Notify renderer
 });
 
 module.exports = { sendNotification };

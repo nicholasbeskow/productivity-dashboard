@@ -67,8 +67,19 @@ const SettingsTab = () => {
     setPomodoroWorkDuration(newDuration);
     localStorage.setItem('pomodoroWorkDuration', newDuration);
     backupManager.saveAutoBackup();
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('pomodoroSettingsChanged'));
+
+    // Send update to main process via IPC
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('timer:update-settings-from-renderer', {
+          workMinutes: parseInt(newDuration),
+          breakMinutes: parseInt(pomodoroBreakDuration)
+        });
+      } catch (error) {
+        console.error('Error sending timer settings to main process:', error);
+      }
+    }
   };
 
   const handleBreakDurationChange = (e) => {
@@ -76,8 +87,19 @@ const SettingsTab = () => {
     setPomodoroBreakDuration(newDuration);
     localStorage.setItem('pomodoroBreakDuration', newDuration);
     backupManager.saveAutoBackup();
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('pomodoroSettingsChanged'));
+
+    // Send update to main process via IPC
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('timer:update-settings-from-renderer', {
+          workMinutes: parseInt(pomodoroWorkDuration),
+          breakMinutes: parseInt(newDuration)
+        });
+      } catch (error) {
+        console.error('Error sending timer settings to main process:', error);
+      }
+    }
   };
 
   const handleExport = async () => {

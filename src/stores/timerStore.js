@@ -37,12 +37,6 @@ const useTimerStore = create((set, get) => ({
     }
   },
 
-  setDurations: ({ work, break: breakDur }) => {
-    if (ipcRenderer) {
-      ipcRenderer.send('timer:set-durations', { work, break: breakDur });
-    }
-  },
-
   startWork: () => {
     if (ipcRenderer) {
       ipcRenderer.send('timer:start');
@@ -65,22 +59,7 @@ if (ipcRenderer) {
   }).catch(console.error);
 }
 
-// Set up localStorage listener for settings changes
-const handleStorageChange = () => {
-  const newWorkDuration = parseInt(localStorage.getItem('pomodoroWorkDuration') || '50') * 60;
-  const newBreakDuration = parseInt(localStorage.getItem('pomodoroBreakDuration') || '10') * 60;
-
-  // Send duration updates to main process
-  useTimerStore.getState().setDurations({
-    work: newWorkDuration,
-    break: newBreakDuration
-  });
-};
-
-// Listen for both storage events (from other tabs) and custom event (same tab)
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', handleStorageChange);
-  window.addEventListener('pomodoroSettingsChanged', handleStorageChange);
-}
+// Note: Settings updates are now handled directly via IPC in SettingsTab.jsx
+// No localStorage listener needed here - main process handles settings persistence
 
 export default useTimerStore;
