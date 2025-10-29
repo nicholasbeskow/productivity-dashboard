@@ -6,6 +6,8 @@ const SettingsTab = () => {
   const [userName, setUserName] = useState('');
   const [semesterStartDate, setSemesterStartDate] = useState('');
   const [semesterEndDate, setSemesterEndDate] = useState('');
+  const [pomodoroWorkDuration, setPomodoroWorkDuration] = useState('');
+  const [pomodoroBreakDuration, setPomodoroBreakDuration] = useState('');
   const [backups, setBackups] = useState([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [backupMessage, setBackupMessage] = useState(null);
@@ -15,6 +17,8 @@ const SettingsTab = () => {
     setUserName(localStorage.getItem('userName') || '');
     setSemesterStartDate(localStorage.getItem('semesterStartDate') || '2025-08-25');
     setSemesterEndDate(localStorage.getItem('semesterEndDate') || '2025-12-11');
+    setPomodoroWorkDuration(localStorage.getItem('pomodoroWorkDuration') || '50');
+    setPomodoroBreakDuration(localStorage.getItem('pomodoroBreakDuration') || '10');
 
     // Load backup list
     loadBackupList();
@@ -56,6 +60,46 @@ const SettingsTab = () => {
     backupManager.saveAutoBackup();
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('semesterDatesChanged'));
+  };
+
+  const handleWorkDurationChange = (e) => {
+    const newDuration = e.target.value;
+    setPomodoroWorkDuration(newDuration);
+    localStorage.setItem('pomodoroWorkDuration', newDuration);
+    backupManager.saveAutoBackup();
+
+    // Send update to main process via IPC
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('timer:update-settings-from-renderer', {
+          workMinutes: parseInt(newDuration),
+          breakMinutes: parseInt(pomodoroBreakDuration)
+        });
+      } catch (error) {
+        console.error('Error sending timer settings to main process:', error);
+      }
+    }
+  };
+
+  const handleBreakDurationChange = (e) => {
+    const newDuration = e.target.value;
+    setPomodoroBreakDuration(newDuration);
+    localStorage.setItem('pomodoroBreakDuration', newDuration);
+    backupManager.saveAutoBackup();
+
+    // Send update to main process via IPC
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('timer:update-settings-from-renderer', {
+          workMinutes: parseInt(pomodoroWorkDuration),
+          breakMinutes: parseInt(newDuration)
+        });
+      } catch (error) {
+        console.error('Error sending timer settings to main process:', error);
+      }
+    }
   };
 
   const handleExport = async () => {
@@ -165,7 +209,7 @@ const SettingsTab = () => {
             </div>
           </div>
 
-          {/* Timer Settings Placeholder */}
+          {/* Timer Settings */}
           <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
               Pomodoro Timer
@@ -177,9 +221,11 @@ const SettingsTab = () => {
                 </label>
                 <input
                   type="number"
-                  value={50}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                  disabled
+                  value={pomodoroWorkDuration}
+                  onChange={handleWorkDurationChange}
+                  min="1"
+                  max="120"
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
                 />
               </div>
               <div>
@@ -188,14 +234,16 @@ const SettingsTab = () => {
                 </label>
                 <input
                   type="number"
-                  value={10}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                  disabled
+                  value={pomodoroBreakDuration}
+                  onChange={handleBreakDurationChange}
+                  min="1"
+                  max="60"
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
                 />
               </div>
             </div>
             <p className="text-xs text-text-tertiary mt-4">
-              Timer customization will be enabled in Week 4
+              Changes take effect immediately when you reset or start a new session
             </p>
           </div>
 
