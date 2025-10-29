@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useTimerStore from '../../stores/timerStore';
@@ -13,15 +12,9 @@ const PomodoroTimer = () => {
     mode,
     timeLeft,
     isActive,
-    workDuration,
-    breakDuration,
-    tick,
-    setIsActive,
-    setDurations,
-    setTimeLeft,
     resetTimer,
     toggleTimer,
-    switchToNextMode,
+    skipTimer,
     startWork
   } = useTimerStore();
 
@@ -63,56 +56,6 @@ const PomodoroTimer = () => {
     }
   };
 
-  // Send desktop notification
-  const sendNotification = (title, body) => {
-    if (window.require) {
-      try {
-        const { ipcRenderer } = window.require('electron');
-        ipcRenderer.send('timer:send-notification', { title, body });
-      } catch (error) {
-        console.error('Error sending notification:', error);
-      }
-    }
-  };
-
-  // Helper to send notification based on completed mode
-  const sendCompletionNotification = (completedMode) => {
-    if (completedMode === 'work') {
-      sendNotification('Work Complete!', 'Time for a break!');
-    } else if (completedMode === 'break') {
-      sendNotification('Break Over!', 'Ready for the next session?');
-    }
-  };
-
-  // Timer countdown logic
-  useEffect(() => {
-    let interval = null;
-
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        const currentTime = useTimerStore.getState().timeLeft;
-
-        if (currentTime <= 1) {
-          // Timer reached 0 - switch to next mode
-          const currentMode = useTimerStore.getState().mode;
-          setIsActive(false);
-
-          // Use setTimeout to ensure state updates complete
-          setTimeout(() => {
-            sendCompletionNotification(currentMode);
-            switchToNextMode();
-          }, 100);
-        } else {
-          tick();
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isActive, timeLeft, tick, setIsActive, switchToNextMode]);
-
   // Start/Pause handler
   const handleStartPause = () => {
     if (mode === 'idle') {
@@ -131,12 +74,7 @@ const PomodoroTimer = () => {
 
   // Skip handler - immediately switch to next mode
   const handleSkip = () => {
-    const currentMode = mode;
-    setIsActive(false);
-    setTimeout(() => {
-      sendCompletionNotification(currentMode);
-      switchToNextMode();
-    }, 100);
+    skipTimer();
   };
 
   // Calculate progress percentage (for circular progress)

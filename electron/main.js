@@ -3,6 +3,19 @@ const path = require('path');
 const fs = require('fs');
 
 let mainWindow;
+let mainWindowRef = null; // Reference for sending timer updates
+
+// ============================================
+// POMODORO TIMER STATE (Main Process)
+// ============================================
+let timerInterval = null;
+let timerState = {
+  mode: 'idle', // 'work', 'break', 'idle'
+  timeLeft: 50 * 60, // Default work duration in seconds
+  isActive: false,
+  workDuration: 50 * 60,
+  breakDuration: 10 * 60,
+};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -32,8 +45,12 @@ function createWindow() {
     mainWindow.loadFile(distPath);
   }
 
+  // Store window reference for timer updates
+  mainWindowRef = mainWindow;
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    mainWindowRef = null;
   });
 }
 
@@ -58,6 +75,122 @@ function sendNotification(title, body) {
   if (Notification.isSupported()) {
     new Notification({ title, body }).show();
   }
+}
+
+// ============================================
+// POMODORO TIMER FUNCTIONS (Main Process)
+// ============================================
+
+// Send timer state update to renderer
+function sendTimerUpdate() {
+  if (mainWindowRef && mainWindowRef.webContents) {
+    mainWindowRef.webContents.send('timer:update-state', timerState);
+  }
+}
+
+// Start the timer
+function startTimer() {
+  // Clear any existing interval
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+
+  timerState.isActive = true;
+  sendTimerUpdate();
+
+  // Start countdown interval
+  timerInterval = setInterval(() => {
+    timerState.timeLeft--;
+
+    if (timerState.timeLeft <= 0) {
+      // Timer reached zero - switch modes
+      stopTimer();
+
+      // Determine next mode and send notification
+      let nextMode;
+      let nextDuration;
+      let shouldAutoStart = false;
+
+      if (timerState.mode === 'work') {
+        // Work completed -> Break
+        sendNotification('Work Complete!', 'Time for a break!');
+        nextMode = 'break';
+        nextDuration = timerState.breakDuration;
+        shouldAutoStart = true;
+      } else if (timerState.mode === 'break') {
+        // Break completed -> Work
+        sendNotification('Break Over!', 'Ready for the next session?');
+        nextMode = 'work';
+        nextDuration = timerState.workDuration;
+        shouldAutoStart = false;
+      } else {
+        // Idle -> Work (shouldn't happen)
+        nextMode = 'work';
+        nextDuration = timerState.workDuration;
+        shouldAutoStart = false;
+      }
+
+      // Update state
+      timerState.mode = nextMode;
+      timerState.timeLeft = nextDuration;
+      timerState.isActive = false;
+
+      // Auto-start breaks
+      if (shouldAutoStart) {
+        startTimer();
+      } else {
+        sendTimerUpdate();
+      }
+    } else {
+      // Continue countdown
+      sendTimerUpdate();
+    }
+  }, 1000);
+}
+
+// Stop/pause the timer
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  timerState.isActive = false;
+  sendTimerUpdate();
+}
+
+// Reset timer to idle
+function resetTimer() {
+  stopTimer();
+  timerState.mode = 'idle';
+  timerState.timeLeft = timerState.workDuration;
+  sendTimerUpdate();
+}
+
+// Skip current session
+function skipTimer() {
+  stopTimer();
+
+  // Determine next mode and send notification for skipped session
+  let nextMode;
+  let nextDuration;
+
+  if (timerState.mode === 'work') {
+    sendNotification('Work Complete!', 'Time for a break!');
+    nextMode = 'break';
+    nextDuration = timerState.breakDuration;
+  } else if (timerState.mode === 'break') {
+    sendNotification('Break Over!', 'Ready for the next session?');
+    nextMode = 'work';
+    nextDuration = timerState.workDuration;
+  } else {
+    nextMode = 'work';
+    nextDuration = timerState.workDuration;
+  }
+
+  timerState.mode = nextMode;
+  timerState.timeLeft = nextDuration;
+  timerState.isActive = false;
+  sendTimerUpdate();
 }
 
 // ============================================
@@ -314,13 +447,47 @@ ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
 // POMODORO TIMER IPC HANDLERS
 // ============================================
 
-// Send desktop notification for timer events
-ipcMain.on('timer:send-notification', (event, { title, body }) => {
-  if (Notification.isSupported()) {
-    sendNotification(title, body);
-  } else {
-    console.warn('Notifications not supported on this system.');
+// Get initial timer state
+ipcMain.handle('timer:get-initial-state', async () => {
+  return timerState;
+});
+
+// Start timer
+ipcMain.on('timer:start', () => {
+  if (timerState.mode === 'idle') {
+    // First time starting - switch to work mode
+    timerState.mode = 'work';
+    timerState.timeLeft = timerState.workDuration;
   }
+  startTimer();
+});
+
+// Pause/stop timer
+ipcMain.on('timer:pause', () => {
+  stopTimer();
+});
+
+// Reset timer
+ipcMain.on('timer:reset', () => {
+  resetTimer();
+});
+
+// Skip current session
+ipcMain.on('timer:skip', () => {
+  skipTimer();
+});
+
+// Set durations (receives seconds from renderer)
+ipcMain.on('timer:set-durations', (event, { work, break: breakDur }) => {
+  timerState.workDuration = work;
+  timerState.breakDuration = breakDur;
+
+  // If idle, update timeLeft to new work duration
+  if (timerState.mode === 'idle') {
+    timerState.timeLeft = work;
+  }
+
+  sendTimerUpdate();
 });
 
 module.exports = { sendNotification };
