@@ -12,14 +12,33 @@ const PomodoroTimer = () => {
     mode,
     timeLeft,
     isActive,
+    workDuration,
+    breakDuration,
     resetTimer,
     toggleTimer,
     skipTimer,
     startWork
   } = useTimerStore();
 
+  // Check if essential data is loaded
+  if (workDuration === undefined || timeLeft === undefined) {
+    return (
+      <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+        <h3 className="text-xl font-semibold text-text-primary mb-4">
+          Pomodoro Timer
+        </h3>
+        <div className="flex items-center justify-center h-48">
+          <p className="text-text-secondary">Loading timer...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Helper function to format seconds as MM:SS
   const formatTime = (seconds) => {
+    if (seconds === undefined || seconds === null) {
+      return '00:00';
+    }
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -29,11 +48,11 @@ const PomodoroTimer = () => {
   const getTotalDuration = () => {
     switch (mode) {
       case 'work':
-        return workDuration;
+        return workDuration || 3000; // Fallback to 50 minutes
       case 'break':
-        return breakDuration;
+        return breakDuration || 600; // Fallback to 10 minutes
       default:
-        return workDuration; // idle defaults to work duration
+        return workDuration || 3000; // idle defaults to work duration
     }
   };
 
@@ -79,8 +98,9 @@ const PomodoroTimer = () => {
 
   // Calculate progress percentage (for circular progress)
   const totalDuration = getTotalDuration();
+  const safeTimeLeft = timeLeft ?? 0;
   const progressPercentage = totalDuration > 0
-    ? ((totalDuration - timeLeft) / totalDuration) * 100
+    ? ((totalDuration - safeTimeLeft) / totalDuration) * 100
     : 0;
 
   const currentColor = getCurrentColor();
