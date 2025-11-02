@@ -110,9 +110,27 @@ const TasksTab = () => {
       return acc;
     }, {});
 
-    // 2. Sort tasks *within* each group by customPriority
-    Object.keys(groups).forEach(dateKey => {
-      groups[dateKey].sort((a, b) => (b.customPriority ?? 0) - (a.customPriority ?? 0));
+    // 2. Sort tasks *within* each group (this matches Dashboard logic)
+    Object.keys(groups).forEach(groupKey => {
+      groups[groupKey].sort((a, b) => {
+        const aHasPriority = (a.customPriority ?? 0) > 0;
+        const bHasPriority = (b.customPriority ?? 0) > 0;
+
+        // If either has custom priority, sort by that
+        if (aHasPriority || bHasPriority) {
+          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
+        }
+
+        // If no custom priority, sort by time (if date is the same)
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+
+        // Fallback to creation date (newest first)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
     });
 
     // 3. Sort the group keys themselves
@@ -154,92 +172,88 @@ const TasksTab = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Task List */}
-          <div>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Your Tasks</h3>
+          {/* Task Filter */}
+          <div className="mb-4">
+            <label className="block text-sm text-text-secondary mb-2">
+              Show:
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleFilterChange('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  taskFilter === 'all'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleFilterChange('academic')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  taskFilter === 'academic'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                Academic
+              </button>
+              <button
+                onClick={() => handleFilterChange('personal')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  taskFilter === 'personal'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                }`}
+              >
+                Personal
+              </button>
+            </div>
+          </div>
 
-            {/* Task Filter */}
-            <div className="mb-4">
-              <label className="block text-sm text-text-secondary mb-2">
-                Show:
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleFilterChange('all')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'all'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => handleFilterChange('academic')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'academic'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
-                >
-                  Academic
-                </button>
-                <button
-                  onClick={() => handleFilterChange('personal')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'personal'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
-                >
-                  Personal
-                </button>
+          {/* Task List Section */}
+          <div className="space-y-8">
+            {sortedGroupKeys.length > 0 ? (
+              sortedGroupKeys.map(groupKey => {
+                const tasksInGroup = groupedTasks[groupKey];
+                let headerText;
+                let headerColor = 'text-text-primary';
+
+                if (groupKey === 'Overdue') {
+                  headerText = 'Overdue';
+                  headerColor = 'text-red-500';
+                } else if (groupKey === 'Inbox') {
+                  headerText = 'Inbox';
+                  headerColor = 'text-text-secondary';
+                } else {
+                  // Use our new, corrected utility!
+                  headerText = formatTaskDateHeader(groupKey);
+                }
+
+                return (
+                  <div key={groupKey}>
+                    {/* Group Header */}
+                    <h3 className={`text-xl font-semibold mb-3 ${headerColor}`}>
+                      {headerText}
+                    </h3>
+
+                    {/* Render the task list for this group */}
+                    <TaskList
+                      tasks={tasksInGroup}
+                      setTasks={setTasks}
+                      openMenuTaskId={openMenuTaskId}
+                      setOpenMenuTaskId={setOpenMenuTaskId}
+                    />
+                  </div>
+                );
+              })
+            ) : (
+              <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
+                <p className="text-text-secondary">
+                  No tasks found for this filter.
+                </p>
               </div>
-            </div>
-
-            {/* NEW: Loop over sorted groups and render each one as a section */}
-            <div className="space-y-8">
-              {sortedGroupKeys.length > 0 ? (
-                sortedGroupKeys.map(groupKey => {
-                  const tasksInGroup = groupedTasks[groupKey];
-                  let headerText;
-                  let headerColor = 'text-text-primary';
-
-                  if (groupKey === 'Overdue') {
-                    headerText = 'Overdue';
-                    headerColor = 'text-red-500';
-                  } else if (groupKey === 'Inbox') {
-                    headerText = 'Inbox';
-                    headerColor = 'text-text-secondary';
-                  } else {
-                    headerText = formatTaskDateHeader(groupKey);
-                  }
-
-                  return (
-                    <div key={groupKey}>
-                      {/* Group Header */}
-                      <h3 className={`text-lg font-semibold mb-3 ${headerColor}`}>
-                        {headerText}
-                      </h3>
-
-                      {/* Render the task list for this group */}
-                      <TaskList
-                        tasks={tasksInGroup}
-                        setTasks={setTasks}
-                        openMenuTaskId={openMenuTaskId}
-                        setOpenMenuTaskId={setOpenMenuTaskId}
-                      />
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
-                  <p className="text-text-secondary">
-                    No tasks found for this filter.
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
