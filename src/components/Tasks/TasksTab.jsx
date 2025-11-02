@@ -1,5 +1,6 @@
 import { CheckSquare, Plus } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
+import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import TaskList from './TaskList';
 import TaskForm from './TaskForm';
 import backupManager from '../../utils/backupManager';
@@ -78,6 +79,47 @@ const TasksTab = () => {
 
     // We do NOT close the form here, allowing for multiple task adds.
     // The form's internal state is cleared by its own handleSubmit.
+  };
+
+  const handleDragEnd = (result) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+      return;
+    }
+
+    const endGroupKey = destination.droppableId;
+    const destGroupTasks = groupedTasks[endGroupKey] || [];
+
+    // Calculate new customPriority
+    let newPriority;
+    if (destination.index === 0) {
+      // Dropped at the top
+      const topTask = destGroupTasks[0];
+      newPriority = (topTask?.customPriority || 0) + 1;
+    } else if (destination.index === destGroupTasks.length) {
+      // Dropped at the bottom
+      const bottomTask = destGroupTasks[destGroupTasks.length - 1];
+      newPriority = (bottomTask?.customPriority || 1) - 1;
+    } else {
+      // Dropped in the middle
+      const taskAfter = destGroupTasks[destination.index - 1];
+      const taskBefore = destGroupTasks[destination.index];
+      newPriority = ((taskAfter?.customPriority || 0) + (taskBefore?.customPriority || 0)) / 2;
+    }
+
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === draggableId) {
+          return {
+            ...task,
+            dueDate: (endGroupKey === 'Inbox' || endGroupKey === 'Overdue') ? null : endGroupKey,
+            customPriority: newPriority,
+          };
+        }
+        return task;
+      })
+    );
   };
 
   const isOverdue = (task) => {
@@ -229,74 +271,80 @@ const TasksTab = () => {
           </div>
 
           {/* Task List Section */}
-          <div className="space-y-8">
-            {sortedGroupKeys.length > 0 ? (
-              sortedGroupKeys.map(groupKey => {
-                const tasksInGroup = groupedTasks[groupKey];
-                let headerText;
-                let headerColor = 'text-text-primary';
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="space-y-8">
+              {sortedGroupKeys.length > 0 ? (
+                sortedGroupKeys.map(groupKey => {
+                  const tasksInGroup = groupedTasks[groupKey];
+                  let headerText;
+                  let headerColor = 'text-text-primary';
 
-                if (groupKey === 'Overdue') {
-                  headerText = 'Overdue';
-                  headerColor = 'text-red-500';
-                } else if (groupKey === 'Inbox') {
-                  headerText = 'Inbox';
-                  headerColor = 'text-text-secondary';
-                } else {
-                  // Use our new, corrected utility!
-                  headerText = formatTaskDateHeader(groupKey);
-                }
+                  if (groupKey === 'Overdue') {
+                    headerText = 'Overdue';
+                    headerColor = 'text-red-500';
+                  } else if (groupKey === 'Inbox') {
+                    headerText = 'Inbox';
+                    headerColor = 'text-text-secondary';
+                  } else {
+                    // Use our new, corrected utility!
+                    headerText = formatTaskDateHeader(groupKey);
+                  }
 
-                return (
-                  <div key={groupKey}>
-                    {/* Group Header with Add Button */}
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className={`text-xl font-semibold ${headerColor}`}>
-                        {headerText}
-                      </h3>
+                  const isDropDisabled = groupKey === 'Overdue';
 
-                      {/* Show '+' button ONLY if the form is NOT open for this group */}
-                      {openFormGroup !== groupKey && (
-                        <button
-                          onClick={() => setOpenFormGroup(groupKey)}
-                          className="p-1 text-text-tertiary hover:text-green-glow hover:bg-green-glow/10 rounded-lg transition-all"
-                          title="Add task to this group"
+                  return (
+                    <Droppable droppableId={groupKey} key={groupKey} isDropDisabled={isDropDisabled}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`rounded-lg ${snapshot.isDraggingOver ? 'bg-bg-tertiary/70' : 'bg-transparent'} transition-colors duration-200 ease-in-out`}
                         >
-                          <Plus size={20} />
-                        </button>
+                          {/* Header with Add Button */}
+                          <div className="flex items-center justify-between mb-3 px-2 pt-2">
+                            <h3 className={`text-xl font-semibold ${headerColor}`}>{headerText}</h3>
+                            {openFormGroup !== groupKey && (
+                              <button
+                                onClick={() => setOpenFormGroup(groupKey)}
+                                className="p-1 text-text-tertiary hover:text-green-glow hover:bg-green-glow/10 rounded-lg transition-all"
+                                title="Add task to this group"
+                              >
+                                <Plus size={20} />
+                              </button>
+                            )}
+                          </div>
+                          {/* Inline Form */}
+                          {openFormGroup === groupKey && (
+                            <div className="mb-4 px-2">
+                              <TaskForm
+                                defaultDate={groupKey === 'Inbox' || groupKey === 'Overdue' ? null : groupKey}
+                                onTaskCreate={handleTaskCreate}
+                                onCancel={() => setOpenFormGroup(null)}
+                              />
+                            </div>
+                          )}
+                          {/* Task List */}
+                          <TaskList
+                            tasks={tasksInGroup}
+                            setTasks={setTasks}
+                            openMenuTaskId={openMenuTaskId}
+                            setOpenMenuTaskId={setOpenMenuTaskId}
+                            droppableProvided={provided}
+                          />
+                        </div>
                       )}
-                    </div>
-
-                    {/* Inline Form - Show if this group is selected */}
-                    {openFormGroup === groupKey && (
-                      <div className="mb-4">
-                        <TaskForm
-                          // Pass `null` as the date for Inbox/Overdue, otherwise pass the date key
-                          defaultDate={groupKey === 'Inbox' || groupKey === 'Overdue' ? null : groupKey}
-                          onTaskCreate={handleTaskCreate}
-                          onCancel={() => setOpenFormGroup(null)}
-                        />
-                      </div>
-                    )}
-
-                    {/* Render the task list for this group */}
-                    <TaskList
-                      tasks={tasksInGroup}
-                      setTasks={setTasks}
-                      openMenuTaskId={openMenuTaskId}
-                      setOpenMenuTaskId={setOpenMenuTaskId}
-                    />
-                  </div>
-                );
-              })
-            ) : (
-              <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
-                <p className="text-text-secondary">
-                  No tasks found for this filter.
-                </p>
-              </div>
-            )}
-          </div>
+                    </Droppable>
+                  );
+                })
+              ) : (
+                <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
+                  <p className="text-text-secondary">
+                    No tasks found for this filter.
+                  </p>
+                </div>
+              )}
+            </div>
+          </DragDropContext>
         </div>
       </div>
     </div>

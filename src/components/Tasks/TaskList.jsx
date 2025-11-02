@@ -1,11 +1,12 @@
 import { useState, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Draggable } from 'react-beautiful-dnd';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
+const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle, isDragging, dragHandleProps }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -240,10 +241,10 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
         opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-default ${glowClass} ${
+      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
-      } ${!isEditing && 'hover:border-green-glow/30'}`}
+      } ${!isEditing && 'hover:border-green-glow/30'} ${isDragging ? 'shadow-glow-strong' : ''}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
     >
       {/* 3-Dot Menu Button */}
@@ -529,7 +530,10 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
         /* View Mode */
         <div className="flex items-start gap-4">
           {/* Drag Handle */}
-          <div className="mt-1 text-text-tertiary hover:text-green-glow transition-colors flex-shrink-0">
+          <div
+            {...dragHandleProps}
+            className="mt-1 text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
+          >
             <GripVertical size={20} />
           </div>
 
@@ -631,7 +635,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
 
 TaskCard.displayName = 'TaskCard';
 
-const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
+const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppableProvided }) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -943,28 +947,41 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
           }
         `}
       </style>
-      <div className="space-y-3">
+      <div className="space-y-3 px-2 pb-1">
         <AnimatePresence mode="popLayout">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              justCompletedId={justCompletedId}
-              onStatusChange={handleStatusChange}
-              onOpenUrl={handleOpenUrl}
-              isEditing={editingTaskId === task.id}
-              editForm={editForm}
-              onStartEdit={handleStartEdit}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              onEditFormChange={setEditForm}
-              onDuplicate={handleDuplicate}
-              onDelete={handleDelete}
-              isMenuOpen={openMenuTaskId === task.id}
-              onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
-            />
+          {tasks.map((task, index) => (
+            <Draggable key={task.id} draggableId={task.id} index={index}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  className="mb-3"
+                >
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    justCompletedId={justCompletedId}
+                    onStatusChange={handleStatusChange}
+                    onOpenUrl={handleOpenUrl}
+                    isEditing={editingTaskId === task.id}
+                    editForm={editForm}
+                    onStartEdit={handleStartEdit}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={handleCancelEdit}
+                    onEditFormChange={setEditForm}
+                    onDuplicate={handleDuplicate}
+                    onDelete={handleDelete}
+                    isMenuOpen={openMenuTaskId === task.id}
+                    onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
+                    isDragging={snapshot.isDragging}
+                    dragHandleProps={provided.dragHandleProps}
+                  />
+                </div>
+              )}
+            </Draggable>
           ))}
         </AnimatePresence>
+        {droppableProvided.placeholder}
       </div>
 
       {/* Portal-based dropdown menu - renders outside DOM hierarchy */}
