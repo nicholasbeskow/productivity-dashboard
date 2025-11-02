@@ -558,4 +558,42 @@ ipcMain.handle('canvas:test-connection', async (event, { canvasUrl, apiToken }) 
   }
 });
 
+// Fetch Canvas assignments
+ipcMain.handle('canvas:fetch-assignments', async () => {
+  try {
+    // Retrieve credentials from electron-store
+    const canvasUrl = store.get('canvasUrl');
+    const apiToken = store.get('canvasApiToken');
+
+    // Check if credentials are set
+    if (!canvasUrl || !apiToken) {
+      return { success: false, error: 'Canvas credentials not set. Please configure them in Settings.' };
+    }
+
+    // Fetch upcoming assignments from Canvas API
+    const url = `https://${canvasUrl}/api/v1/users/self/upcoming_events?per_page=50`;
+    const response = await axios.get(url, {
+      headers: { 'Authorization': `Bearer ${apiToken}` }
+    });
+
+    // Filter only assignment events and format the data
+    const assignments = response.data
+      .filter(event => event.type === 'assignment')
+      .map(event => ({
+        id: event.assignment.id,
+        name: event.assignment.name,
+        due_at: event.assignment.due_at,
+        html_url: event.html_url,
+        course_id: event.course_id,
+        context_name: event.context_name, // Course name
+        description: event.assignment.description || '',
+      }));
+
+    return { success: true, assignments };
+  } catch (error) {
+    console.error('Error fetching Canvas assignments:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 module.exports = { sendNotification };
