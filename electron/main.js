@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Notification, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 const Store = require('electron-store');
 
 const store = new Store();
@@ -508,6 +509,53 @@ ipcMain.on('timer:update-settings-from-renderer', (event, { workMinutes, breakMi
   }
 
   sendTimerUpdate(); // Notify renderer
+});
+
+// ============================================
+// CANVAS INTEGRATION IPC HANDLERS
+// ============================================
+
+// Save Canvas credentials securely
+ipcMain.handle('canvas:save-credentials', async (event, { canvasUrl, apiToken }) => {
+  try {
+    store.set('canvasUrl', canvasUrl);
+    store.set('canvasApiToken', apiToken);
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving Canvas credentials:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Load Canvas credentials
+ipcMain.handle('canvas:load-credentials', async () => {
+  try {
+    const canvasUrl = store.get('canvasUrl');
+    const apiToken = store.get('canvasApiToken');
+    return { canvasUrl, apiToken };
+  } catch (error) {
+    console.error('Error loading Canvas credentials:', error);
+    return { canvasUrl: null, apiToken: null };
+  }
+});
+
+// Test Canvas connection
+ipcMain.handle('canvas:test-connection', async (event, { canvasUrl, apiToken }) => {
+  try {
+    const url = `https://${canvasUrl}/api/v1/users/self`;
+    const response = await axios.get(url, {
+      headers: { 'Authorization': `Bearer ${apiToken}` }
+    });
+
+    if (response.data && response.data.name) {
+      return { success: true, name: response.data.name };
+    } else {
+      return { success: false, error: 'Invalid response from Canvas API' };
+    }
+  } catch (error) {
+    console.error('Error testing Canvas connection:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 module.exports = { sendNotification };

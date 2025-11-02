@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Settings, Lock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
 
@@ -12,6 +12,11 @@ const SettingsTab = () => {
   const [selectedBackup, setSelectedBackup] = useState('');
   const [backupMessage, setBackupMessage] = useState(null);
 
+  // Canvas Integration state
+  const [canvasUrl, setCanvasUrl] = useState('');
+  const [apiToken, setApiToken] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState(null);
+
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
@@ -22,6 +27,9 @@ const SettingsTab = () => {
 
     // Load backup list
     loadBackupList();
+
+    // Load Canvas credentials
+    loadCanvasCredentials();
   }, []);
 
   const loadBackupList = async () => {
@@ -149,6 +157,49 @@ const SettingsTab = () => {
     }
   };
 
+  // Canvas Integration Handlers
+  const loadCanvasCredentials = async () => {
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        const { canvasUrl: savedUrl, apiToken: savedToken } = await ipcRenderer.invoke('canvas:load-credentials');
+        if (savedUrl) setCanvasUrl(savedUrl);
+        if (savedToken) setApiToken(savedToken);
+      } catch (error) {
+        console.error('Error loading Canvas credentials:', error);
+      }
+    }
+  };
+
+  const handleSaveAndTest = async () => {
+    if (!window.require) {
+      setConnectionStatus({ status: 'error', message: 'Electron not available' });
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+
+      // Set loading state
+      setConnectionStatus({ status: 'loading', message: 'Testing connection...' });
+
+      // Save credentials
+      await ipcRenderer.invoke('canvas:save-credentials', { canvasUrl, apiToken });
+
+      // Test connection
+      const result = await ipcRenderer.invoke('canvas:test-connection', { canvasUrl, apiToken });
+
+      if (result.success) {
+        setConnectionStatus({ status: 'success', message: `Connected as ${result.name}!` });
+      } else {
+        setConnectionStatus({ status: 'error', message: `Connection failed: ${result.error}` });
+      }
+    } catch (error) {
+      console.error('Error saving/testing Canvas credentials:', error);
+      setConnectionStatus({ status: 'error', message: `Error: ${error.message}` });
+    }
+  };
+
   return (
     <div className="h-full p-8 overflow-y-auto">
       <div className="max-w-4xl mx-auto">
@@ -186,26 +237,67 @@ const SettingsTab = () => {
             </div>
           </div>
 
-          {/* Canvas Settings Placeholder */}
+          {/* Canvas Integration */}
           <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
+            <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <Lock size={20} className="text-green-glow" />
               Canvas Integration
             </h3>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">
+                  Canvas URL
+                </label>
+                <input
+                  type="text"
+                  value={canvasUrl}
+                  onChange={(e) => setCanvasUrl(e.target.value)}
+                  placeholder="e.g., usf.instructure.com"
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                />
+                <p className="text-xs text-text-tertiary mt-2">
+                  Enter your school's Canvas domain (without https://)
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm text-text-secondary mb-2">
                   Canvas API Token
                 </label>
                 <input
                   type="password"
-                  placeholder="Paste your Canvas API token here"
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                  disabled
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="Paste your token here"
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
                 />
                 <p className="text-xs text-text-tertiary mt-2">
-                  Canvas setup will be enabled in Week 3
+                  Generate a token from your Canvas Profile → Settings → New Access Token
                 </p>
               </div>
+
+              <button
+                onClick={handleSaveAndTest}
+                disabled={!canvasUrl || !apiToken}
+                className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
+                  canvasUrl && apiToken
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                    : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                }`}
+              >
+                Save & Test Connection
+              </button>
+
+              {/* Connection Status Feedback */}
+              {connectionStatus && (
+                <div className={`p-3 rounded-lg ${
+                  connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' :
+                  connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
+                  'bg-blue-500/20 text-blue-500'
+                }`}>
+                  {connectionStatus.message}
+                </div>
+              )}
             </div>
           </div>
 
