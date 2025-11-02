@@ -1,11 +1,11 @@
-import { useState, memo, useRef, useEffect, useCallback } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
+const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -233,25 +233,17 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       animate={{
         opacity: isJustCompleted ? [1, 1, 0] : 1,
         y: 0,
-        scale: draggedTask?.id === task.id ? 1.05 : 1,
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
         opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
-        scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      draggable={!isEditing}
-      onDragStart={(e) => !isEditing && onDragStart(e, task)}
-      onDragOver={(e) => !isEditing && onDragOver(e, task)}
-      onDragEnd={onDragEnd}
-      onDrop={(e) => !isEditing && onDrop(e, task)}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${
+      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-default ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
-        dragOverTask?.id === task.id ? 'border-green-glow' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
+      } ${!isEditing && 'hover:border-green-glow/30'}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
     >
       {/* 3-Dot Menu Button */}
@@ -537,7 +529,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
         /* View Mode */
         <div className="flex items-start gap-4">
           {/* Drag Handle */}
-          <div className="mt-1 text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+          <div className="mt-1 text-text-tertiary hover:text-green-glow transition-colors flex-shrink-0">
             <GripVertical size={20} />
           </div>
 
@@ -641,8 +633,6 @@ TaskCard.displayName = 'TaskCard';
 
 const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
-  const [draggedTask, setDraggedTask] = useState(null);
-  const [dragOverTask, setDragOverTask] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editForm, setEditForm] = useState({
     title: '',
@@ -657,85 +647,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
   // Menu position state
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-
-  // Refs for auto-scroll functionality
-  const scrollIntervalRef = useRef(null);
-  const isScrollingRef = useRef(false);
-  const isDraggingRef = useRef(false);
-
-  // Auto-scroll while dragging near viewport edges
-  useEffect(() => {
-    const handleDragOver = (e) => {
-      if (!isDraggingRef.current) return;
-
-      const edgeThreshold = 50; // pixels from edge to trigger scroll
-      const scrollSpeed = 8; // pixels per frame
-      const viewportHeight = window.innerHeight;
-
-      // Find the scrollable container (the one with overflow-y-auto)
-      const scrollContainer = document.querySelector('.overflow-y-auto');
-      if (!scrollContainer) return;
-
-      // Check if near top edge
-      if (e.clientY < edgeThreshold) {
-        if (!isScrollingRef.current) {
-          isScrollingRef.current = true;
-          const scroll = () => {
-            if (isDraggingRef.current && e.clientY < edgeThreshold) {
-              scrollContainer.scrollBy({ top: -scrollSpeed, behavior: 'auto' });
-              scrollIntervalRef.current = requestAnimationFrame(scroll);
-            } else {
-              isScrollingRef.current = false;
-            }
-          };
-          scroll();
-        }
-      }
-      // Check if near bottom edge
-      else if (e.clientY > viewportHeight - edgeThreshold) {
-        if (!isScrollingRef.current) {
-          isScrollingRef.current = true;
-          const scroll = () => {
-            if (isDraggingRef.current && e.clientY > viewportHeight - edgeThreshold) {
-              scrollContainer.scrollBy({ top: scrollSpeed, behavior: 'auto' });
-              scrollIntervalRef.current = requestAnimationFrame(scroll);
-            } else {
-              isScrollingRef.current = false;
-            }
-          };
-          scroll();
-        }
-      }
-      // Not near any edge - stop scrolling
-      else {
-        if (scrollIntervalRef.current) {
-          cancelAnimationFrame(scrollIntervalRef.current);
-          scrollIntervalRef.current = null;
-          isScrollingRef.current = false;
-        }
-      }
-    };
-
-    // Close menu when scrolling
-    const handleScroll = () => {
-      if (openMenuTaskId) {
-        setOpenMenuTaskId(null);
-      }
-    };
-
-    // Add window-level dragover listener
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('scroll', handleScroll, true); // Use capture to catch all scroll events
-
-    return () => {
-      window.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('scroll', handleScroll, true);
-      if (scrollIntervalRef.current) {
-        cancelAnimationFrame(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-      }
-    };
-  }, [openMenuTaskId, setOpenMenuTaskId]);
 
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
@@ -798,71 +709,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       // 4. Update UI
       setTasks(updatedAllTasks);
     }
-  };
-
-  const handleDragStart = (e, task) => {
-    setDraggedTask(task);
-    isDraggingRef.current = true;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', task.id);
-  };
-
-  const handleDragOver = (e, task) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedTask && task.id !== draggedTask.id) {
-      setDragOverTask(task);
-    }
-  };
-
-  const handleDragEnd = () => {
-    setDraggedTask(null);
-    setDragOverTask(null);
-    isDraggingRef.current = false;
-
-    // Stop auto-scrolling
-    if (scrollIntervalRef.current) {
-      cancelAnimationFrame(scrollIntervalRef.current);
-      scrollIntervalRef.current = null;
-      isScrollingRef.current = false;
-    }
-  };
-
-  const handleDrop = (e, dropTask) => {
-    e.preventDefault();
-
-    if (!draggedTask || draggedTask.id === dropTask.id) {
-      handleDragEnd();
-      return;
-    }
-
-    // Reorder tasks
-    const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
-    const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
-
-    console.log('[TaskList] Drag from index', draggedIndex, 'to', dropIndex);
-
-    const newTasks = [...tasks];
-    const [removed] = newTasks.splice(draggedIndex, 1);
-    newTasks.splice(dropIndex, 0, removed);
-
-    // Update customPriority based on new order - ALL tasks get new priority
-    const updatedTasks = newTasks.map((task, index) => ({
-      ...task,
-      customPriority: newTasks.length - index, // Higher number = higher priority
-    }));
-
-    console.log('[TaskList] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
-
-    // Save immediately to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    console.log('[TaskList] Saved to localStorage');
-
-    // Backup after save
-    backupManager.saveAutoBackup();
-
-    setTasks(updatedTasks);
-    handleDragEnd();
   };
 
   const handleOpenUrl = (url) => {
@@ -1104,12 +950,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               key={task.id}
               task={task}
               justCompletedId={justCompletedId}
-              draggedTask={draggedTask}
-              dragOverTask={dragOverTask}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
               onStatusChange={handleStatusChange}
               onOpenUrl={handleOpenUrl}
               isEditing={editingTaskId === task.id}
