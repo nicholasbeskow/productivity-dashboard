@@ -98,8 +98,8 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
   };
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="bg-bg-secondary rounded-xl p-4 border border-bg-tertiary">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {/* Title Input */}
         <div>
           <label className="block text-sm text-text-secondary mb-2">
@@ -110,7 +110,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter task title"
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-1.5 text-sm text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             required
           />
         </div>
@@ -124,8 +124,8 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter task description (optional)"
-            rows={3}
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none"
+            rows={2}
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-1.5 text-sm text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none"
           />
         </div>
 
@@ -139,7 +139,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com (optional)"
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-1.5 text-sm text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
           />
         </div>
 
@@ -153,7 +153,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-1.5 text-sm text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             />
           </div>
           <div>
@@ -164,7 +164,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-1.5 text-sm text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             />
           </div>
         </div>
@@ -178,7 +178,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             <button
               type="button"
               onClick={() => setTaskType('academic')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 taskType === 'academic'
                   ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
                   : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
@@ -189,7 +189,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             <button
               type="button"
               onClick={() => setTaskType('personal')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 taskType === 'personal'
                   ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
                   : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
@@ -211,7 +211,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+            className={`border-2 border-dashed rounded-lg p-4 text-center transition-all ${
               isDragging
                 ? 'border-green-glow bg-green-glow/10'
                 : 'border-bg-primary hover:border-green-glow/50 bg-bg-tertiary/50'
@@ -270,7 +270,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            className="flex-1 bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow"
+            className="flex-1 bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow"
           >
             <Plus size={20} />
             Add Task
@@ -278,7 +278,7 @@ const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold rounded-lg transition-all"
+            className="px-6 py-2 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold rounded-lg transition-all"
           >
             Cancel
           </button>
