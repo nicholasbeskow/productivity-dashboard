@@ -1,6 +1,7 @@
-import { CheckSquare } from 'lucide-react';
+import { CheckSquare, Plus } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskList from './TaskList';
+import InlineTaskForm from './InlineTaskForm';
 import backupManager from '../../utils/backupManager';
 import { formatTaskDateHeader } from '../../utils/formatTaskDate';
 
@@ -9,6 +10,7 @@ const TasksTab = () => {
   const [taskFilter, setTaskFilter] = useState('all');
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
+  const [openFormGroup, setOpenFormGroup] = useState(null);
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -61,6 +63,20 @@ const TasksTab = () => {
     setTaskFilter(filter);
     localStorage.setItem('taskFilter', filter);
     window.dispatchEvent(new Event('taskFilterChanged'));
+  };
+
+  const handleTaskCreate = (newTask) => {
+    // Find the highest priority of all tasks
+    const maxPriority = tasks.reduce((max, task) => Math.max(max, (task.customPriority || 0)), 0);
+
+    const taskWithPriority = {
+      ...newTask,
+      customPriority: maxPriority + 1, // Make it the highest priority
+    };
+
+    setTasks(prevTasks => [taskWithPriority, ...prevTasks]);
+    // We keep the form open so you can add multiple tasks
+    // setOpenFormGroup(null); // <-- Don't close, just clear form (handled by InlineTaskForm)
   };
 
   const isOverdue = (task) => {
@@ -232,10 +248,33 @@ const TasksTab = () => {
 
                 return (
                   <div key={groupKey}>
-                    {/* Group Header */}
-                    <h3 className={`text-xl font-semibold mb-3 ${headerColor}`}>
-                      {headerText}
-                    </h3>
+                    {/* Group Header with Add Button */}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-xl font-semibold ${headerColor}`}>
+                        {headerText}
+                      </h3>
+
+                      {/* Show '+' button ONLY if the form is NOT open for this group */}
+                      {openFormGroup !== groupKey && (
+                        <button
+                          onClick={() => setOpenFormGroup(groupKey)}
+                          className="p-1 text-text-tertiary hover:text-green-glow hover:bg-green-glow/10 rounded-lg transition-all"
+                          title="Add task to this group"
+                        >
+                          <Plus size={20} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Inline Form - Show if this group is selected */}
+                    {openFormGroup === groupKey && (
+                      <InlineTaskForm
+                        // Pass `null` as the date for Inbox/Overdue, otherwise pass the date key
+                        defaultDate={groupKey === 'Inbox' || groupKey === 'Overdue' ? null : groupKey}
+                        onTaskCreate={handleTaskCreate}
+                        onCancel={() => setOpenFormGroup(null)}
+                      />
+                    )}
 
                     {/* Render the task list for this group */}
                     <TaskList
