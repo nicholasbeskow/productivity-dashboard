@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Plus, FileText, UploadCloud, X } from 'lucide-react';
 
-const TaskForm = ({ onTaskCreate }) => {
+const TaskForm = ({ onTaskCreate, onCancel, defaultDate }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(defaultDate || '');
   const [time, setTime] = useState('');
   const [taskType, setTaskType] = useState('academic');
   const [attachments, setAttachments] = useState([]);
@@ -87,11 +87,11 @@ const TaskForm = ({ onTaskCreate }) => {
 
     onTaskCreate(newTask);
 
-    // Clear form
+    // Clear form, but keep the date for the current group
     setTitle('');
     setDescription('');
     setUrl('');
-    setDueDate('');
+    setDueDate(defaultDate || ''); // Reset to the group's date
     setTime('');
     setTaskType('academic');
     setAttachments([]);
@@ -99,8 +99,6 @@ const TaskForm = ({ onTaskCreate }) => {
 
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-lg font-semibold text-text-primary mb-4">Create New Task</h3>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
         <div>
@@ -268,14 +266,23 @@ const TaskForm = ({ onTaskCreate }) => {
           )}
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
-        >
-          <Plus size={20} />
-          Create Task
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            className="flex-1 bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow"
+          >
+            <Plus size={20} />
+            Add Task
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-3 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold rounded-lg transition-all"
+          >
+            Cancel
+          </button>
+        </div>
       </form>
     </div>
   );

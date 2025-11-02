@@ -1,7 +1,7 @@
 import { CheckSquare, Plus } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskList from './TaskList';
-import InlineTaskForm from './InlineTaskForm';
+import TaskForm from './TaskForm';
 import backupManager from '../../utils/backupManager';
 import { formatTaskDateHeader } from '../../utils/formatTaskDate';
 
@@ -75,8 +75,9 @@ const TasksTab = () => {
     };
 
     setTasks(prevTasks => [taskWithPriority, ...prevTasks]);
-    // We keep the form open so you can add multiple tasks
-    // setOpenFormGroup(null); // <-- Don't close, just clear form (handled by InlineTaskForm)
+
+    // We do NOT close the form here, allowing for multiple task adds.
+    // The form's internal state is cleared by its own handleSubmit.
   };
 
   const isOverdue = (task) => {
@@ -124,7 +125,7 @@ const TasksTab = () => {
 
       (acc[groupKey] = acc[groupKey] || []).push(task);
       return acc;
-    }, {});
+    }, { 'Inbox': [] });
 
     // 2. Sort tasks *within* each group (this matches Dashboard logic)
     Object.keys(groups).forEach(groupKey => {
@@ -268,12 +269,14 @@ const TasksTab = () => {
 
                     {/* Inline Form - Show if this group is selected */}
                     {openFormGroup === groupKey && (
-                      <InlineTaskForm
-                        // Pass `null` as the date for Inbox/Overdue, otherwise pass the date key
-                        defaultDate={groupKey === 'Inbox' || groupKey === 'Overdue' ? null : groupKey}
-                        onTaskCreate={handleTaskCreate}
-                        onCancel={() => setOpenFormGroup(null)}
-                      />
+                      <div className="mb-4">
+                        <TaskForm
+                          // Pass `null` as the date for Inbox/Overdue, otherwise pass the date key
+                          defaultDate={groupKey === 'Inbox' || groupKey === 'Overdue' ? null : groupKey}
+                          onTaskCreate={handleTaskCreate}
+                          onCancel={() => setOpenFormGroup(null)}
+                        />
+                      </div>
                     )}
 
                     {/* Render the task list for this group */}
