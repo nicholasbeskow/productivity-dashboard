@@ -1,8 +1,8 @@
 import { CheckSquare } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import backupManager from '../../utils/backupManager';
+import { formatTaskDateHeader } from '../../utils/formatTaskDate';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
@@ -80,106 +80,57 @@ const TasksTab = () => {
     }
   };
 
-  // Smart sorting: overdue first, then by due date, then by custom priority
-  const sortedTasks = useMemo(() => {
-    return [...tasks]
-      .filter(task => {
-        if (taskFilter === 'all') return true;
-        if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
-        if (taskFilter === 'personal') return task.taskType === 'personal';
-        return true;
-      })
-      .sort((a, b) => {
-      const aOverdue = isOverdue(a);
-      const bOverdue = isOverdue(b);
-
-      // Overdue tasks first
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-
-      // Both overdue: sort by most overdue first
-      if (aOverdue && bOverdue) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
-
-      // If one has custom priority and the other doesn't, prioritize the one with custom priority
-      const aHasPriority = (a.customPriority ?? 0) > 0;
-      const bHasPriority = (b.customPriority ?? 0) > 0;
-
-      if (aHasPriority && !bHasPriority) return -1;
-      if (!aHasPriority && bHasPriority) return 1;
-
-      // Both have custom priority: sort by priority
-      if (aHasPriority && bHasPriority) {
-        return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-      }
-
-      // Neither has custom priority: sort by due date (and time if present)
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && b.dueDate) {
-        // Same date check
-        if (a.dueDate === b.dueDate) {
-          // Same day: tasks with times come before tasks without times
-          if (a.time && !b.time) return -1;
-          if (!a.time && b.time) return 1;
-
-          // Both have times: sort by time (earlier first)
-          if (a.time && b.time) {
-            const aDateTime = new Date(`${a.dueDate}T${a.time}`);
-            const bDateTime = new Date(`${b.dueDate}T${b.time}`);
-            return aDateTime - bDateTime;
-          }
-        }
-
-        // Different dates: sort by date
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
-
-      // Both have no due date: sort by creation date (newest first)
-      return new Date(b.createdAt) - new Date(a.createdAt);
+  // NEW: Data Grouping Logic
+  const { groupedTasks, sortedGroupKeys } = useMemo(() => {
+    const filteredTasks = tasks.filter(task => {
+      if (taskFilter === 'all') return true;
+      if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
+      if (taskFilter === 'personal') return task.taskType === 'personal';
+      return true;
     });
-  }, [tasks, taskFilter]);
 
-  const handleTaskCreate = (newTask) => {
-    // Find the right position for the new task based on due date
-    let insertIndex = tasks.length;
+    // 1. Group tasks into an object
+    const groups = filteredTasks.reduce((acc, task) => {
+      let groupKey;
 
-    if (newTask.dueDate) {
-      const newDueDate = new Date(newTask.dueDate);
-
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
-
-        // Skip overdue tasks
-        if (isOverdue(task)) continue;
-
-        // If task has no due date or later due date, insert before it
-        if (!task.dueDate || new Date(task.dueDate) > newDueDate) {
-          insertIndex = i;
-          break;
-        }
+      // Group 1: Overdue
+      if (isOverdue(task) && task.status !== 'complete') {
+        groupKey = 'Overdue';
       }
-    }
+      // Group 2: No Date
+      else if (!task.dueDate) {
+        groupKey = 'Inbox';
+      }
+      // Group 3: Dated Tasks (use the date string as the key)
+      else {
+        groupKey = task.dueDate;
+      }
 
-    // Calculate customPriority based on position
-    const newTaskWithPriority = {
-      ...newTask,
-      customPriority: tasks.length - insertIndex + 1,
-    };
+      (acc[groupKey] = acc[groupKey] || []).push(task);
+      return acc;
+    }, {});
 
-    // Insert task at the right position
-    const updatedTasks = [...tasks];
-    updatedTasks.splice(insertIndex, 0, newTaskWithPriority);
+    // 2. Sort tasks *within* each group by customPriority
+    Object.keys(groups).forEach(dateKey => {
+      groups[dateKey].sort((a, b) => (b.customPriority ?? 0) - (a.customPriority ?? 0));
+    });
 
-    // Recalculate all priorities to maintain order
-    const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
-      ...task,
-      customPriority: updatedTasks.length - index,
-    }));
+    // 3. Sort the group keys themselves
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      // Overdue always first
+      if (a === 'Overdue') return -1;
+      if (b === 'Overdue') return 1;
 
-    setTasks(tasksWithUpdatedPriorities);
-  };
+      // Inbox always second
+      if (a === 'Inbox') return -1;
+      if (b === 'Inbox') return 1;
+
+      // All other keys are dates, sort them chronologically
+      return new Date(a) - new Date(b);
+    });
+
+    return { groupedTasks: groups, sortedGroupKeys: sortedKeys };
+  }, [tasks, taskFilter]);
 
   return (
     <div className="h-full p-8 overflow-y-auto">
@@ -203,9 +154,6 @@ const TasksTab = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Task Form */}
-          <TaskForm onTaskCreate={handleTaskCreate} />
-
           {/* Task List */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">Your Tasks</h3>
@@ -249,12 +197,49 @@ const TasksTab = () => {
               </div>
             </div>
 
-            <TaskList
-              tasks={sortedTasks}
-              setTasks={setTasks}
-              openMenuTaskId={openMenuTaskId}
-              setOpenMenuTaskId={setOpenMenuTaskId}
-            />
+            {/* NEW: Loop over sorted groups and render each one as a section */}
+            <div className="space-y-8">
+              {sortedGroupKeys.length > 0 ? (
+                sortedGroupKeys.map(groupKey => {
+                  const tasksInGroup = groupedTasks[groupKey];
+                  let headerText;
+                  let headerColor = 'text-text-primary';
+
+                  if (groupKey === 'Overdue') {
+                    headerText = 'Overdue';
+                    headerColor = 'text-red-500';
+                  } else if (groupKey === 'Inbox') {
+                    headerText = 'Inbox';
+                    headerColor = 'text-text-secondary';
+                  } else {
+                    headerText = formatTaskDateHeader(groupKey);
+                  }
+
+                  return (
+                    <div key={groupKey}>
+                      {/* Group Header */}
+                      <h3 className={`text-lg font-semibold mb-3 ${headerColor}`}>
+                        {headerText}
+                      </h3>
+
+                      {/* Render the task list for this group */}
+                      <TaskList
+                        tasks={tasksInGroup}
+                        setTasks={setTasks}
+                        openMenuTaskId={openMenuTaskId}
+                        setOpenMenuTaskId={setOpenMenuTaskId}
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
+                  <p className="text-text-secondary">
+                    No tasks found for this filter.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
