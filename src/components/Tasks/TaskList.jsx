@@ -1,12 +1,11 @@
-import { useState, memo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, memo } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle, isDragging, dragHandleProps }) => {
+const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging, dragHandleProps }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -253,8 +252,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
-              const buttonRect = e.currentTarget.getBoundingClientRect();
-              onMenuToggle(buttonRect);
+              onMenuToggleRequest(e.currentTarget);
             }}
             className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
@@ -635,7 +633,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
 
 TaskCard.displayName = 'TaskCard';
 
-const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppableProvided }) => {
+const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -648,9 +646,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppabl
     taskType: 'academic',
     attachments: []
   });
-
-  // Menu position state
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
@@ -744,7 +739,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppabl
       taskType: task.taskType || 'academic',
       attachments: task.attachments || []
     });
-    setOpenMenuTaskId(null); // Close menu when editing starts
   };
 
   const handleCancelEdit = () => {
@@ -853,27 +847,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppabl
     setTasks(updatedTasks);
   };
 
-  const handleMenuToggle = useCallback((task, buttonRect) => {
-    const clickedTaskId = task.id;
-
-    // Calculate menu position
-    const top = buttonRect.bottom + 8;
-    const left = buttonRect.right - 192; // 192px = w-48
-
-    setMenuPosition({ top, left });
-
-    // Use functional update form to get the *current* state
-    setOpenMenuTaskId(prevOpenId => {
-      if (prevOpenId === clickedTaskId) {
-        // Case 1: Clicked the *same* button. Close it.
-        return null;
-      } else {
-        // Case 2: Clicked a *new* button. Open it.
-        return clickedTaskId;
-      }
-    });
-  }, [setOpenMenuTaskId, setMenuPosition]);
-
   if (tasks.length === 0) {
     return (
       <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
@@ -971,8 +944,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppabl
                     onEditFormChange={setEditForm}
                     onDuplicate={handleDuplicate}
                     onDelete={handleDelete}
-                    isMenuOpen={openMenuTaskId === task.id}
-                    onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
+                    onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
                     isDragging={snapshot.isDragging}
                     dragHandleProps={provided.dragHandleProps}
                   />
@@ -983,58 +955,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId, droppabl
         </AnimatePresence>
         {droppableProvided.placeholder}
       </div>
-
-      {/* Portal-based dropdown menu - renders outside DOM hierarchy */}
-      {openMenuTaskId && createPortal(
-        <AnimatePresence>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="fixed z-30 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
-            style={{
-              position: 'absolute',
-              top: `${menuPosition.top}px`,
-              left: `${menuPosition.left}px`,
-            }}
-          >
-            <button
-              onClick={() => {
-                const task = tasks.find(t => t.id === openMenuTaskId);
-                if (task) handleStartEdit(task);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-            >
-              <Pencil size={14} />
-              Edit
-            </button>
-            <button
-              onClick={() => {
-                handleDuplicate(openMenuTaskId);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-            >
-              <Copy size={14} />
-              Duplicate
-            </button>
-            <div className="border-t border-bg-primary" />
-            <button
-              onClick={() => {
-                handleDelete(openMenuTaskId);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          </motion.div>
-        </AnimatePresence>,
-        document.body
-      )}
     </>
   );
 };

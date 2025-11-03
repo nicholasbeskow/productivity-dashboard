@@ -1,5 +1,7 @@
-import { CheckSquare, Plus } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Copy, Trash2 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import TaskList from './TaskList';
 import TaskForm from './TaskForm';
@@ -12,6 +14,7 @@ const TasksTab = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [openFormGroup, setOpenFormGroup] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -65,6 +68,27 @@ const TasksTab = () => {
     localStorage.setItem('taskFilter', filter);
     window.dispatchEvent(new Event('taskFilterChanged'));
   };
+
+  // Close menu on scroll
+  useEffect(() => {
+    if (!openMenuTaskId) return;
+
+    const handleScroll = () => {
+      setOpenMenuTaskId(null);
+      setMenuPosition(null);
+    };
+
+    const scrollableContainer = document.querySelector('.overflow-y-auto');
+    if (scrollableContainer) {
+      scrollableContainer.addEventListener('scroll', handleScroll, { once: true });
+    }
+
+    return () => {
+      if (scrollableContainer) {
+        scrollableContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [openMenuTaskId]);
 
   const handleTaskCreate = (newTask) => {
     // Find the highest priority of all tasks
@@ -120,6 +144,61 @@ const TasksTab = () => {
         return task;
       })
     );
+  };
+
+  // Handles opening the menu and setting its position
+  const handleMenuToggle = (taskId, buttonElement) => {
+    if (openMenuTaskId === taskId) {
+      setOpenMenuTaskId(null); // Close if already open
+      setMenuPosition(null);
+    } else {
+      const buttonRect = buttonElement.getBoundingClientRect();
+      setOpenMenuTaskId(taskId);
+      setMenuPosition({
+        top: buttonRect.bottom + 8,  // Position below the button
+        left: buttonRect.right - 192, // 192px = w-48
+      });
+    }
+  };
+
+  // Closes the menu
+  const closeMenu = () => {
+    setOpenMenuTaskId(null);
+    setMenuPosition(null);
+  };
+
+  // Finds the task (needed for delete/duplicate)
+  const getTaskById = (taskId) => tasks.find(t => t.id === taskId);
+
+  const handleMenuDelete = (taskId) => {
+    const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
+    if (!confirmed) return;
+
+    setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
+    closeMenu();
+  };
+
+  const handleMenuDuplicate = (taskId) => {
+    const taskToDuplicate = getTaskById(taskId);
+    if (!taskToDuplicate) return;
+
+    const duplicatedTask = {
+      ...taskToDuplicate,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'not-started',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      title: `${taskToDuplicate.title} (Copy)`,
+      customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5
+    };
+
+    setTasks(prevTasks => {
+      const originalIndex = prevTasks.findIndex(t => t.id === taskId);
+      const newTasks = [...prevTasks];
+      newTasks.splice(originalIndex + 1, 0, duplicatedTask);
+      return newTasks;
+    });
+    closeMenu();
   };
 
   const isOverdue = (task) => {
@@ -211,13 +290,6 @@ const TasksTab = () => {
 
   return (
     <div className="h-full p-8 overflow-y-auto">
-      {/* Global Backdrop - closes menu when clicking away */}
-      {openMenuTaskId && (
-        <div
-          className="fixed inset-0 z-20"
-          onClick={() => setOpenMenuTaskId(null)}
-        />
-      )}
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -327,8 +399,7 @@ const TasksTab = () => {
                           <TaskList
                             tasks={tasksInGroup}
                             setTasks={setTasks}
-                            openMenuTaskId={openMenuTaskId}
-                            setOpenMenuTaskId={setOpenMenuTaskId}
+                            onMenuToggle={handleMenuToggle}
                             droppableProvided={provided}
                           />
                         </div>
@@ -346,6 +417,58 @@ const TasksTab = () => {
             </div>
           </DragDropContext>
         </div>
+
+        {/* --- Task Context Menu (Rendered at Root) --- */}
+        {openMenuTaskId && menuPosition && createPortal(
+          <>
+            {/* Backdrop to close menu */}
+            <div
+              className="fixed inset-0 z-20"
+              onClick={closeMenu}
+            />
+            <AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
+                className="fixed z-30 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
+                style={{
+                  top: `${menuPosition.top}px`,
+                  left: `${menuPosition.left}px`,
+                }}
+              >
+                <button
+                  onClick={() => {
+                    // We'll wire up "Edit" later, for now just close
+                    console.log("Edit not wired up in TasksTab yet");
+                    closeMenu();
+                  }}
+                  className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed"
+                >
+                  <Pencil size={14} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleMenuDuplicate(openMenuTaskId)}
+                  className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+                >
+                  <Copy size={14} />
+                  Duplicate
+                </button>
+                <div className="border-t border-bg-primary" />
+                <button
+                  onClick={() => handleMenuDelete(openMenuTaskId)}
+                  className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
+              </motion.div>
+            </AnimatePresence>
+          </>,
+          document.body
+        )}
       </div>
     </div>
   );
