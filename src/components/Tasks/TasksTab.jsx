@@ -16,6 +16,17 @@ const TasksTab = () => {
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [openFormGroup, setOpenFormGroup] = useState(null);
   const [menuPosition, setMenuPosition] = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    url: '',
+    dueDate: '',
+    time: '',
+    status: 'not-started',
+    taskType: 'academic',
+    attachments: []
+  });
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -200,6 +211,53 @@ const TasksTab = () => {
       return newTasks;
     });
     closeMenu();
+  };
+
+  const handleStartEdit = (task) => {
+    setEditingTaskId(task.id);
+    setEditForm({
+      title: task.title,
+      description: task.description || '',
+      url: task.url || '',
+      dueDate: task.dueDate || '',
+      time: task.time || '',
+      status: task.status,
+      taskType: task.taskType || 'academic',
+      attachments: task.attachments || []
+    });
+    closeMenu(); // Close the 3-dot menu
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+    setEditForm({
+      title: '', description: '', url: '', dueDate: '', time: '',
+      status: 'not-started', taskType: 'academic', attachments: []
+    });
+  };
+
+  const handleSaveEdit = (taskId) => {
+    if (!editForm.title.trim()) return;
+
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            dueDate: editForm.dueDate || null,
+            time: editForm.time || null,
+            status: editForm.status,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || []
+          };
+        }
+        return task;
+      })
+    );
+    handleCancelEdit(); // Close edit form
   };
 
   const isOverdue = (task) => {
@@ -416,6 +474,12 @@ const TasksTab = () => {
                             setTasks={setTasks}
                             onMenuToggle={handleMenuToggle}
                             droppableProvided={provided}
+                            editingTaskId={editingTaskId}
+                            editForm={editForm}
+                            onEditFormChange={setEditForm}
+                            onStartEdit={handleStartEdit}
+                            onSaveEdit={handleSaveEdit}
+                            onCancelEdit={handleCancelEdit}
                           />
                         </div>
                       )}
@@ -455,11 +519,10 @@ const TasksTab = () => {
               >
                 <button
                   onClick={() => {
-                    // We'll wire up "Edit" later, for now just close
-                    console.log("Edit not wired up in TasksTab yet");
-                    closeMenu();
+                    const task = getTaskById(openMenuTaskId);
+                    if (task) handleStartEdit(task);
                   }}
-                  className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed"
+                  className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
                 >
                   <Pencil size={14} />
                   Edit

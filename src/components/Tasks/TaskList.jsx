@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging }, ref) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging, dragHandleProps }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -242,7 +242,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-grab mb-3 ${glowClass} ${
+      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all mb-3 ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
       } ${!isEditing && 'hover:border-green-glow/30'} ${isDragging ? 'shadow-glow-strong' : ''}`}
@@ -531,7 +531,8 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
         <div className="flex items-start gap-4">
           {/* Drag Handle */}
           <div
-            className="mt-1 text-text-tertiary hover:text-green-glow transition-colors flex-shrink-0"
+            {...dragHandleProps}
+            className="mt-1 text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
           >
             <GripVertical size={20} />
           </div>
@@ -634,19 +635,12 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
 
 TaskCard.displayName = 'TaskCard';
 
-const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
+const TaskList = ({
+  tasks, setTasks, onMenuToggle, droppableProvided,
+  editingTaskId, editForm, onEditFormChange,
+  onStartEdit, onSaveEdit, onCancelEdit
+}) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
-  const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editForm, setEditForm] = useState({
-    title: '',
-    description: '',
-    url: '',
-    dueDate: '',
-    time: '',
-    status: 'not-started',
-    taskType: 'academic',
-    attachments: []
-  });
 
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
@@ -726,70 +720,6 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
     } else {
       window.open(url, '_blank');
     }
-  };
-
-  const handleStartEdit = (task) => {
-    setEditingTaskId(task.id);
-    setEditForm({
-      title: task.title,
-      description: task.description || '',
-      url: task.url || '',
-      dueDate: task.dueDate || '',
-      time: task.time || '',
-      status: task.status,
-      taskType: task.taskType || 'academic',
-      attachments: task.attachments || []
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingTaskId(null);
-    setEditForm({
-      title: '',
-      description: '',
-      url: '',
-      dueDate: '',
-      time: '',
-      status: 'not-started',
-      taskType: 'academic',
-      attachments: []
-    });
-  };
-
-  const handleSaveEdit = (taskId) => {
-    if (!editForm.title.trim()) return;
-
-    // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
-    // Don't map over 'tasks' prop as it may be filtered
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-
-    const updatedTasks = fullTasksArray.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          title: editForm.title.trim(),
-          description: editForm.description.trim(),
-          url: editForm.url.trim() || null,
-          dueDate: editForm.dueDate || null,
-          time: editForm.time || null,
-          status: editForm.status,
-          taskType: editForm.taskType,
-          attachments: editForm.attachments || []
-        };
-      }
-      return task;
-    });
-
-    // Save full array to localStorage first
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-    // Backup after save
-    backupManager.saveAutoBackup();
-
-    // Then update parent state with full array (parent will filter for display)
-    setTasks(updatedTasks);
-    handleCancelEdit();
   };
 
   const handleDuplicate = (taskId) => {
@@ -932,7 +862,6 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
                 <TaskCard
                   ref={provided.innerRef}
                   {...provided.draggableProps}
-                  {...provided.dragHandleProps}
                   key={task.id}
                   task={task}
                   justCompletedId={justCompletedId}
@@ -940,14 +869,15 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
                   onOpenUrl={handleOpenUrl}
                   isEditing={editingTaskId === task.id}
                   editForm={editForm}
-                  onStartEdit={handleStartEdit}
-                  onSaveEdit={handleSaveEdit}
-                  onCancelEdit={handleCancelEdit}
-                  onEditFormChange={setEditForm}
+                  onStartEdit={() => onStartEdit(task)}
+                  onSaveEdit={() => onSaveEdit(task.id)}
+                  onCancelEdit={onCancelEdit}
+                  onEditFormChange={onEditFormChange}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
                   onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
                   isDragging={snapshot.isDragging}
+                  dragHandleProps={provided.dragHandleProps}
                 />
               )}
             </Draggable>
