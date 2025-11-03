@@ -227,21 +227,8 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
   };
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      layout={!isJustCompleted}
-      initial={{ opacity: 0, y: -10 }}
-      animate={{
-        opacity: isJustCompleted ? [1, 1, 0] : 1,
-        y: 0,
-      }}
-      exit={{ opacity: 0, scale: 0.95, y: -20 }}
-      transition={{
-        layout: { type: 'tween', duration: 0.15, ease: 'easeOut' },
-        opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
-        scale: { duration: 0.4, ease: "easeInOut" },
-        exit: { duration: 0.3 }
-      }}
       className={`relative bg-bg-secondary rounded-xl p-4 border transition-all mb-3 ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
@@ -629,7 +616,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }));
 
@@ -855,34 +842,32 @@ const TaskList = ({
           </p>
         )}
 
-        <AnimatePresence mode="popLayout">
-          {tasks.map((task, index) => (
-            <Draggable key={task.id} draggableId={task.id} index={index}>
-              {(provided, snapshot) => (
-                <TaskCard
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  key={task.id}
-                  task={task}
-                  justCompletedId={justCompletedId}
-                  onStatusChange={handleStatusChange}
-                  onOpenUrl={handleOpenUrl}
-                  isEditing={editingTaskId === task.id}
-                  editForm={editForm}
-                  onStartEdit={() => onStartEdit(task)}
-                  onSaveEdit={() => onSaveEdit(task.id)}
-                  onCancelEdit={onCancelEdit}
-                  onEditFormChange={onEditFormChange}
-                  onDuplicate={handleDuplicate}
-                  onDelete={handleDelete}
-                  onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
-                  isDragging={snapshot.isDragging}
-                  dragHandleProps={provided.dragHandleProps}
-                />
-              )}
-            </Draggable>
-          ))}
-        </AnimatePresence>
+        {tasks.map((task, index) => (
+          <Draggable key={task.id} draggableId={task.id} index={index}>
+            {(provided, snapshot) => (
+              <TaskCard
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                key={task.id}
+                task={task}
+                justCompletedId={justCompletedId}
+                onStatusChange={handleStatusChange}
+                onOpenUrl={handleOpenUrl}
+                isEditing={editingTaskId === task.id}
+                editForm={editForm}
+                onStartEdit={() => onStartEdit(task)}
+                onSaveEdit={() => onSaveEdit(task.id)}
+                onCancelEdit={onCancelEdit}
+                onEditFormChange={onEditFormChange}
+                onDuplicate={handleDuplicate}
+                onDelete={handleDelete}
+                onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
+                isDragging={snapshot.isDragging}
+                dragHandleProps={provided.dragHandleProps}
+              />
+            )}
+          </Draggable>
+        ))}
         {droppableProvided.placeholder}
       </div>
     </>
