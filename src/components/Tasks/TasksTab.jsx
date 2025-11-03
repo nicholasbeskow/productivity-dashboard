@@ -2,6 +2,7 @@ import { CheckSquare, Plus, Pencil, Copy, Trash2 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { addDays } from 'date-fns';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import TaskList from './TaskList';
 import TaskForm from './TaskForm';
@@ -227,7 +228,16 @@ const TasksTab = () => {
       return true;
     });
 
-    // 1. Group tasks into an object
+    // Create initial groups for Inbox + next 7 days
+    const initialGroups = { 'Inbox': [] };
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(today, i);
+      const dateKey = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+      initialGroups[dateKey] = [];
+    }
+
     const groups = filteredTasks.reduce((acc, task) => {
       let groupKey;
 
@@ -246,7 +256,12 @@ const TasksTab = () => {
 
       (acc[groupKey] = acc[groupKey] || []).push(task);
       return acc;
-    }, { 'Inbox': [] });
+    }, initialGroups);
+
+    // Don't show an "Overdue" group if it's empty
+    if (groups.Overdue && groups.Overdue.length === 0) {
+      delete groups.Overdue;
+    }
 
     // 2. Sort tasks *within* each group (this matches Dashboard logic)
     Object.keys(groups).forEach(groupKey => {

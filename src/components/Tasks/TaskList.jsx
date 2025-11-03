@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging, dragHandleProps }) => {
+const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -236,11 +236,12 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
-        layout: { type: 'spring', stiffness: 300, damping: 30 },
+        layout: { type: 'tween', duration: 0.15, ease: 'easeOut' },
         opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
+        scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all ${glowClass} ${
+      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-grab ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
       } ${!isEditing && 'hover:border-green-glow/30'} ${isDragging ? 'shadow-glow-strong' : ''}`}
@@ -529,8 +530,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
         <div className="flex items-start gap-4">
           {/* Drag Handle */}
           <div
-            {...dragHandleProps}
-            className="mt-1 text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
+            className="mt-1 text-text-tertiary hover:text-green-glow transition-colors flex-shrink-0"
           >
             <GripVertical size={20} />
           </div>
@@ -847,14 +847,6 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
     setTasks(updatedTasks);
   };
 
-  if (tasks.length === 0) {
-    return (
-      <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
-        <p className="text-text-secondary">No tasks yet. Create your first task above!</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <style>
@@ -920,7 +912,14 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
           }
         `}
       </style>
-      <div className="space-y-3 px-2 pb-1">
+      <div className={`space-y-3 px-2 pb-1 ${tasks.length === 0 ? 'min-h-[60px]' : ''}`}>
+        {/* Show a message if the list is empty */}
+        {tasks.length === 0 && (
+          <p className="text-xs text-text-tertiary text-center pt-5">
+            Drag tasks here
+          </p>
+        )}
+
         <AnimatePresence mode="popLayout">
           {tasks.map((task, index) => (
             <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -928,6 +927,7 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
                 <div
                   ref={provided.innerRef}
                   {...provided.draggableProps}
+                  {...provided.dragHandleProps}
                   className="mb-3"
                 >
                   <TaskCard
@@ -946,7 +946,6 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
                     onDelete={handleDelete}
                     onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
                     isDragging={snapshot.isDragging}
-                    dragHandleProps={provided.dragHandleProps}
                   />
                 </div>
               )}
