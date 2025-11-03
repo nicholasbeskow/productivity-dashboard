@@ -1,11 +1,11 @@
-import { useState, memo } from 'react';
+import { useState, memo, forwardRef } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging }) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -228,6 +228,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
 
   return (
     <motion.div
+      ref={ref}
       layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
@@ -241,7 +242,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
         scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-grab ${glowClass} ${
+      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all cursor-grab mb-3 ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
       } ${!isEditing && 'hover:border-green-glow/30'} ${isDragging ? 'shadow-glow-strong' : ''}`}
@@ -629,7 +630,7 @@ const TaskCard = memo(({ task, justCompletedId, onStatusChange, onOpenUrl, isEdi
       )}
     </motion.div>
   );
-});
+}));
 
 TaskCard.displayName = 'TaskCard';
 
@@ -928,30 +929,26 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
           {tasks.map((task, index) => (
             <Draggable key={task.id} draggableId={task.id} index={index}>
               {(provided, snapshot) => (
-                <div
+                <TaskCard
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
-                  className="mb-3"
-                >
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    justCompletedId={justCompletedId}
-                    onStatusChange={handleStatusChange}
-                    onOpenUrl={handleOpenUrl}
-                    isEditing={editingTaskId === task.id}
-                    editForm={editForm}
-                    onStartEdit={handleStartEdit}
-                    onSaveEdit={handleSaveEdit}
-                    onCancelEdit={handleCancelEdit}
-                    onEditFormChange={setEditForm}
-                    onDuplicate={handleDuplicate}
-                    onDelete={handleDelete}
-                    onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
-                    isDragging={snapshot.isDragging}
-                  />
-                </div>
+                  key={task.id}
+                  task={task}
+                  justCompletedId={justCompletedId}
+                  onStatusChange={handleStatusChange}
+                  onOpenUrl={handleOpenUrl}
+                  isEditing={editingTaskId === task.id}
+                  editForm={editForm}
+                  onStartEdit={handleStartEdit}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onEditFormChange={setEditForm}
+                  onDuplicate={handleDuplicate}
+                  onDelete={handleDelete}
+                  onMenuToggleRequest={(buttonElement) => onMenuToggle(task.id, buttonElement)}
+                  isDragging={snapshot.isDragging}
+                />
               )}
             </Draggable>
           ))}

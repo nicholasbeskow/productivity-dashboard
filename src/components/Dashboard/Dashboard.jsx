@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, forwardRef } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
@@ -6,7 +6,7 @@ import PomodoroTimer from './PomodoroTimer';
 import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit }) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit }, ref) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -150,6 +150,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
   return (
     <motion.div
+      ref={ref}
       layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
@@ -290,7 +291,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       </div>
     </motion.div>
   );
-});
+}));
 
 TaskCard.displayName = 'TaskCard';
 
