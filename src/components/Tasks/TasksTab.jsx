@@ -1,4 +1,4 @@
-import { CheckSquare } from 'lucide-react';
+import { CheckSquare, Search } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
@@ -9,6 +9,7 @@ const TasksTab = () => {
   const [taskFilter, setTaskFilter] = useState('all');
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -82,12 +83,24 @@ const TasksTab = () => {
 
   // Smart sorting: overdue first, then by due date, then by custom priority
   const sortedTasks = useMemo(() => {
+    const lowerCaseSearch = searchTerm.toLowerCase();
+
     return [...tasks]
       .filter(task => {
+        // First, filter by type (All/Academic/Personal)
         if (taskFilter === 'all') return true;
         if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
         if (taskFilter === 'personal') return task.taskType === 'personal';
         return true;
+      })
+      .filter(task => {
+        // Second, filter by the search term
+        if (!lowerCaseSearch) return true; // Show all if search is empty
+
+        const titleMatch = task.title.toLowerCase().includes(lowerCaseSearch);
+        const descMatch = (task.description || '').toLowerCase().includes(lowerCaseSearch);
+
+        return titleMatch || descMatch;
       })
       .sort((a, b) => {
       const aOverdue = isOverdue(a);
@@ -139,7 +152,7 @@ const TasksTab = () => {
       // Both have no due date: sort by creation date (newest first)
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-  }, [tasks, taskFilter]);
+  }, [tasks, taskFilter, searchTerm]);
 
   const handleTaskCreate = (newTask) => {
     // Find the right position for the new task based on due date
@@ -246,6 +259,26 @@ const TasksTab = () => {
                 >
                   Personal
                 </button>
+              </div>
+            </div>
+
+            {/* Task Search */}
+            <div className="mb-4">
+              <label className="block text-sm text-text-secondary mb-2">
+                Search Tasks
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by title or description..."
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 pl-10 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                />
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+                />
               </div>
             </div>
 
