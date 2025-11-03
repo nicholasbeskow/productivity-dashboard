@@ -6,7 +6,7 @@ import PomodoroTimer from './PomodoroTimer';
 import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit }) => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
@@ -155,27 +155,19 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       animate={{
         opacity: isJustCompleted ? [1, 1, 0] : 1,
         y: 0,
-        scale: draggedTask?.id === task.id ? 1.05 : 1,
       }}
       exit={{ opacity: 0, scale: 0.95, y: -20 }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
         opacity: isJustCompleted ? { delay: 0.1, duration: 0.5 } : { duration: 0.2 },
-        scale: { duration: 0.4, ease: "easeInOut" },
         exit: { duration: 0.3 }
       }}
-      draggable
-      onDragStart={(e) => onDragStart(e, task)}
-      onDragOver={(e) => onDragOver(e, task)}
-      onDragEnd={onDragEnd}
-      onDrop={(e) => onDrop(e, task)}
       className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' :
-        dragOverTask?.id === task.id ? 'border-green-glow' :
         'border-bg-primary hover:border-green-glow/30'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:bg-bg-tertiary/80' : 'cursor-move'}`}
+      } ${(task.description || task.url) ? 'cursor-pointer hover:bg-bg-tertiary/80' : ''}`}
       style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
+      onClick={() => (task.description || task.url) && onViewDetails(task.id)}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -217,11 +209,6 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Drag Handle */}
-          <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
-            <GripVertical size={16} />
-          </div>
-
           {/* Checkbox */}
           <motion.button
             onClick={(e) => {
@@ -315,8 +302,6 @@ const Dashboard = ({ setActiveTab }) => {
   const [taskFilter, setTaskFilter] = useState('all');
   const [detailViewTaskId, setDetailViewTaskId] = useState(null);
   const [justCompletedId, setJustCompletedId] = useState(null);
-  const [draggedTask, setDraggedTask] = useState(null);
-  const [dragOverTask, setDragOverTask] = useState(null);
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [editForm, setEditForm] = useState({
     title: '',
@@ -515,63 +500,6 @@ const Dashboard = ({ setActiveTab }) => {
     } else {
       window.open(url, '_blank');
     }
-  };
-
-  const handleDragStart = (e, task) => {
-    setDraggedTask(task);
-    setDetailViewTaskId(null); // Close detail view when dragging starts
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', task.id);
-  };
-
-  const handleDragOver = (e, task) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedTask && task.id !== draggedTask.id) {
-      setDragOverTask(task);
-    }
-  };
-
-  const handleDragEnd = () => {
-    setDraggedTask(null);
-    setDragOverTask(null);
-  };
-
-  const handleDrop = (e, dropTask) => {
-    e.preventDefault();
-
-    if (!draggedTask || draggedTask.id === dropTask.id) {
-      handleDragEnd();
-      return;
-    }
-
-    // Reorder tasks
-    const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
-    const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
-
-    console.log('[Dashboard] Drag from index', draggedIndex, 'to', dropIndex);
-
-    const newTasks = [...tasks];
-    const [removed] = newTasks.splice(draggedIndex, 1);
-    newTasks.splice(dropIndex, 0, removed);
-
-    // Update customPriority based on new order - ALL tasks get new priority
-    const updatedTasks = newTasks.map((task, index) => ({
-      ...task,
-      customPriority: newTasks.length - index, // Higher number = higher priority
-    }));
-
-    console.log('[Dashboard] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
-
-    setTasks(updatedTasks);
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    console.log('[Dashboard] Saved to localStorage');
-
-    // Backup after save
-    backupManager.saveAutoBackup();
-
-    window.dispatchEvent(new Event('storage'));
-    handleDragEnd();
   };
 
   const handleStartEdit = (task) => {
@@ -975,12 +903,6 @@ const Dashboard = ({ setActiveTab }) => {
                               onViewDetails={setDetailViewTaskId}
                               onStatusChange={handleStatusChange}
                               onStartEdit={handleStartEditFromCard}
-                              draggedTask={draggedTask}
-                              dragOverTask={dragOverTask}
-                              onDragStart={handleDragStart}
-                              onDragOver={handleDragOver}
-                              onDrop={handleDrop}
-                              onDragEnd={handleDragEnd}
                             />
                           ))}
                         </AnimatePresence>
