@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging, dragHandleProps }, ref) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, onMenuToggleRequest, isDragging, dragHandleProps, ...draggableProps }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -229,6 +229,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, onStatusChange, onOpe
   return (
     <div
       ref={ref}
+      {...draggableProps}
       className={`relative bg-bg-secondary rounded-xl p-4 border transition-all mb-3 ${glowClass} ${
         task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
         taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
