@@ -912,10 +912,14 @@ const TaskList = ({ tasks, setTasks, onMenuToggle, droppableProvided }) => {
           }
         `}
       </style>
-      <div className={`space-y-3 px-2 pb-1 ${tasks.length === 0 ? 'min-h-[60px]' : ''}`}>
+      <div className={`space-y-3 px-2 pb-1 ${
+        tasks.length === 0
+          ? 'min-h-[76px] bg-bg-secondary border-2 border-dashed border-bg-tertiary rounded-lg'
+          : ''
+      }`}>
         {/* Show a message if the list is empty */}
         {tasks.length === 0 && (
-          <p className="text-xs text-text-tertiary text-center pt-5">
+          <p className="text-xs text-text-tertiary text-center pt-6">
             Drag tasks here
           </p>
         )}
