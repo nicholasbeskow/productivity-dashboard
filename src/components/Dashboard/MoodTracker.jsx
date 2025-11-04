@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles } from 'lucide-react';
-import { format, getDaysInMonth, startOfMonth, getDay, isSameDay } from 'date-fns';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
 // Mood definitions with icons, colors, and labels
@@ -166,6 +166,16 @@ const MoodTracker = () => {
     setView('month');
   };
 
+  // Handle previous month navigation
+  const handlePrevMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  // Handle next month navigation
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
+  };
+
   // Get mood for a specific date
   const getMoodForDate = (date) => {
     const dateString = getDateString(date);
@@ -238,10 +248,31 @@ const MoodTracker = () => {
         transition={{ duration: 0.3 }}
       >
         {/* Month header */}
-        <div className="mb-4 text-center">
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={handlePrevMonth}
+            className="p-2 rounded-lg hover:bg-bg-tertiary text-text-primary transition-all"
+            title="Previous month"
+          >
+            <ChevronLeft size={20} />
+          </button>
+
           <h4 className="text-lg font-semibold text-text-primary">
             {format(currentMonth, 'MMMM yyyy')}
           </h4>
+
+          <button
+            onClick={handleNextMonth}
+            disabled={isSameMonth(currentMonth, new Date())}
+            className={`p-2 rounded-lg transition-all ${
+              isSameMonth(currentMonth, new Date())
+                ? 'opacity-50 cursor-not-allowed text-text-tertiary'
+                : 'hover:bg-bg-tertiary text-text-primary'
+            }`}
+            title="Next month"
+          >
+            <ChevronRight size={20} />
+          </button>
         </div>
 
         {/* Day headers */}
