@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles } from 'lucide-react';
+import { format, getDaysInMonth, startOfMonth, getDay, isSameDay } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
 // Mood definitions with icons, colors, and labels
@@ -9,28 +10,28 @@ const moods = [
     level: 5,
     label: 'Great',
     icon: Laugh,
+    color: 'text-yellow-500',
+    glowColor: '#eab308',
+    hoverGlow: '0 0 20px rgba(234, 179, 8, 0.6)',
+    particleColors: ['#eab308', '#fbbf24', '#facc15']
+  },
+  {
+    level: 4,
+    label: 'Good',
+    icon: Smile,
     color: 'text-green-glow',
     glowColor: '#3dd68c',
     hoverGlow: '0 0 20px rgba(61, 214, 140, 0.6)',
     particleColors: ['#3dd68c', '#2aba73', '#4fe39f']
   },
   {
-    level: 4,
-    label: 'Good',
-    icon: Smile,
+    level: 3,
+    label: 'Okay',
+    icon: Meh,
     color: 'text-blue-400',
     glowColor: '#60a5fa',
     hoverGlow: '0 0 20px rgba(96, 165, 250, 0.6)',
     particleColors: ['#60a5fa', '#3b82f6', '#93c5fd']
-  },
-  {
-    level: 3,
-    label: 'Okay',
-    icon: Meh,
-    color: 'text-yellow-500',
-    glowColor: '#eab308',
-    hoverGlow: '0 0 20px rgba(234, 179, 8, 0.6)',
-    particleColors: ['#eab308', '#fbbf24', '#facc15']
   },
   {
     level: 2,
@@ -71,200 +72,281 @@ const getMoodMessage = (level) => {
 };
 
 const MoodTracker = () => {
-  const [todaysMood, setTodaysMood] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [view, setView] = useState('loading'); // 'loading', 'select', 'confirm', 'month'
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [editingDate, setEditingDate] = useState(new Date());
+  const [moodLog, setMoodLog] = useState([]);
   const [showParticles, setShowParticles] = useState(false);
+  const [selectedMood, setSelectedMood] = useState(null);
 
-  // Helper to get today's date in YYYY-MM-DD format
-  const getTodayString = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+  // Helper to get date string in YYYY-MM-DD format
+  const getDateString = (date) => {
+    return format(date, 'yyyy-MM-dd');
   };
 
   // Load mood log from localStorage on mount
   useEffect(() => {
-    const moodLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
-    const todayString = getTodayString();
-    const todayEntry = moodLog.find(entry => entry.date === todayString);
+    const storedLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
+    setMoodLog(storedLog);
+
+    const todayString = getDateString(new Date());
+    const todayEntry = storedLog.find(entry => entry.date === todayString);
 
     if (todayEntry) {
-      // Find the matching mood object
-      const mood = moods.find(m => m.level === todayEntry.level);
-      if (mood) {
-        setTodaysMood(mood);
-      }
+      setView('month');
+    } else {
+      setView('select');
     }
-
-    setIsLoading(false);
   }, []);
 
-  // Trigger particles when todaysMood is set
+  // Trigger particles when selectedMood is set
   useEffect(() => {
-    if (todaysMood) {
+    if (selectedMood && view === 'confirm') {
       setShowParticles(true);
-      // Hide particles after animation completes
       const timer = setTimeout(() => {
         setShowParticles(false);
       }, 600);
       return () => clearTimeout(timer);
     }
-  }, [todaysMood]);
+  }, [selectedMood, view]);
 
   // Handle mood selection
   const handleMoodSelect = (mood) => {
-    setTodaysMood(mood);
+    setSelectedMood(mood);
+    setView('confirm');
 
-    // Load existing mood log
-    const moodLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
-    const todayString = getTodayString();
-
-    // Filter out any existing entry for today
-    const updatedLog = moodLog.filter(entry => entry.date !== todayString);
-
-    // Add new entry
+    // Update mood log
+    const editingDateString = getDateString(editingDate);
+    const updatedLog = moodLog.filter(entry => entry.date !== editingDateString);
     updatedLog.push({
-      date: todayString,
+      date: editingDateString,
       level: mood.level,
       label: mood.label
     });
 
-    // Save to localStorage
+    setMoodLog(updatedLog);
     localStorage.setItem('moodLog', JSON.stringify(updatedLog));
-
-    // Trigger backup
     backupManager.saveAutoBackup();
+
+    // Automatically transition to month view after 2.5 seconds
+    setTimeout(() => {
+      setView('month');
+    }, 2500);
   };
 
-  // Handle change mood
-  const handleChangeMood = () => {
-    setTodaysMood(null);
+  // Handle day click in monthly view
+  const handleDayClick = (date) => {
+    setEditingDate(date);
+    setView('select');
+  };
+
+  // Get mood for a specific date
+  const getMoodForDate = (date) => {
+    const dateString = getDateString(date);
+    const entry = moodLog.find(e => e.date === dateString);
+    if (entry) {
+      return moods.find(m => m.level === entry.level);
+    }
+    return null;
+  };
+
+  // Render monthly calendar view
+  const renderMonthlyView = () => {
+    const daysInMonth = getDaysInMonth(currentMonth);
+    const firstDayOfMonth = startOfMonth(currentMonth);
+    const startDayOfWeek = getDay(firstDayOfMonth);
+
+    const days = [];
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(<div key={`empty-${i}`} className="h-12" />);
+    }
+
+    // Add cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const mood = getMoodForDate(date);
+      const isToday = isSameDay(date, new Date());
+
+      days.push(
+        <motion.button
+          key={day}
+          onClick={() => handleDayClick(date)}
+          className={`h-12 flex items-center justify-center rounded-lg transition-all ${
+            isToday ? 'bg-green-glow/20 border border-green-glow' : 'hover:bg-bg-tertiary'
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {mood ? (
+            (() => {
+              const MoodIcon = mood.icon;
+              return <MoodIcon size={24} className={mood.color} strokeWidth={1.5} />;
+            })()
+          ) : (
+            <span className="text-text-tertiary text-sm">{day}</span>
+          )}
+        </motion.button>
+      );
+    }
+
+    return (
+      <motion.div
+        key="month"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Month header */}
+        <div className="mb-4 text-center">
+          <h4 className="text-lg font-semibold text-text-primary">
+            {format(currentMonth, 'MMMM yyyy')}
+          </h4>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+            <div
+              key={index}
+              className="h-8 flex items-center justify-center text-xs font-medium text-text-tertiary"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {days}
+        </div>
+      </motion.div>
+    );
   };
 
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-xl font-bold text-text-primary mb-4">Daily Check-in</h3>
+      <h3 className="text-xl font-bold text-text-primary mb-4">Mood Tracker</h3>
 
       <AnimatePresence mode="wait">
-        {!isLoading && (
-          todaysMood ? (
-            // View B: Mood selected
-            <motion.div
-              key="selected"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3 }}
-              className="relative"
-            >
-              {/* Particle Effect */}
-              <AnimatePresence>
-                {showParticles && (
-                  <div>
-                    {[...Array(12)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                        animate={{
-                          opacity: 0,
-                          x: (Math.random() - 0.5) * 100,
-                          y: (Math.random() - 0.5) * 100,
-                          scale: 0,
-                        }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
-                        className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: todaysMood.particleColors[i % 3],
-                          willChange: 'transform, opacity',
-                        }}
-                      />
-                    ))}
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 1] }}
-                      transition={{ duration: 0.4 }}
-                      className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
-                    >
-                      <Sparkles className={todaysMood.color} size={20} />
-                    </motion.div>
-                  </div>
-                )}
-              </AnimatePresence>
+        {view === 'select' && (
+          // View A: Select mood
+          <motion.div
+            key="select"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <p className="text-text-secondary text-center mb-6">
+              How are you feeling{' '}
+              {isSameDay(editingDate, new Date())
+                ? 'today'
+                : `on ${format(editingDate, 'MMM d')}`}?
+            </p>
 
-              <div className="flex flex-col items-center gap-4">
-                <motion.div
-                  className={`${todaysMood.color}`}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                >
-                  {(() => {
-                    const MoodIcon = todaysMood.icon;
-                    return <MoodIcon size={64} strokeWidth={1.5} />;
-                  })()}
-                </motion.div>
-
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-text-primary mb-2">
-                    {todaysMood.label}
-                  </p>
-                  <p className="text-sm text-text-secondary mb-4">
-                    {getMoodMessage(todaysMood.level)}
-                  </p>
-                </div>
-
-                <motion.button
-                  onClick={handleChangeMood}
-                  className="text-sm text-text-tertiary hover:text-green-glow transition-colors underline"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  (Change)
-                </motion.button>
-              </div>
-            </motion.div>
-          ) : (
-            // View A: Select mood
-            <motion.div
-              key="select"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3 }}
-            >
-              <p className="text-text-secondary text-center mb-6">
-                How are you feeling today?
-              </p>
-
-              <div className="flex justify-center gap-4 flex-wrap">
-                {moods.map((mood) => {
-                  const MoodIcon = mood.icon;
-                  return (
-                    <motion.button
-                      key={mood.level}
-                      onClick={() => handleMoodSelect(mood)}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
-                      whileHover={{
-                        scale: 1.1,
-                        boxShadow: mood.hoverGlow
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                      title={mood.label}
-                    >
-                      <MoodIcon size={32} strokeWidth={1.5} />
-                      <span className="text-xs font-medium text-text-secondary">
-                        {mood.label}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )
+            <div className="flex justify-center gap-4 flex-wrap">
+              {moods.map((mood) => {
+                const MoodIcon = mood.icon;
+                return (
+                  <motion.button
+                    key={mood.level}
+                    onClick={() => handleMoodSelect(mood)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
+                    whileHover={{
+                      scale: 1.1,
+                      boxShadow: mood.hoverGlow
+                    }}
+                    whileTap={{ scale: 0.95 }}
+                    title={mood.label}
+                  >
+                    <MoodIcon size={32} strokeWidth={1.5} />
+                    <span className="text-xs font-medium text-text-secondary">
+                      {mood.label}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
         )}
+
+        {view === 'confirm' && selectedMood && (
+          // View B: Confirmation
+          <motion.div
+            key="confirm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="relative"
+          >
+            {/* Particle Effect */}
+            <AnimatePresence>
+              {showParticles && (
+                <div>
+                  {[...Array(12)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                      animate={{
+                        opacity: 0,
+                        x: (Math.random() - 0.5) * 100,
+                        y: (Math.random() - 0.5) * 100,
+                        scale: 0,
+                      }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
+                      className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: selectedMood.particleColors[i % 3],
+                        willChange: 'transform, opacity',
+                      }}
+                    />
+                  ))}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 1] }}
+                    transition={{ duration: 0.4 }}
+                    className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
+                  >
+                    <Sparkles className={selectedMood.color} size={20} />
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex flex-col items-center gap-4">
+              <motion.div
+                className={`${selectedMood.color}`}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              >
+                {(() => {
+                  const MoodIcon = selectedMood.icon;
+                  return <MoodIcon size={64} strokeWidth={1.5} />;
+                })()}
+              </motion.div>
+
+              <div className="text-center">
+                <p className="text-2xl font-bold text-text-primary mb-2">
+                  {selectedMood.label}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {getMoodMessage(selectedMood.level)}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {view === 'month' && renderMonthlyView()}
       </AnimatePresence>
     </div>
   );
