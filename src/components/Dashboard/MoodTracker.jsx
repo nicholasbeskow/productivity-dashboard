@@ -201,7 +201,10 @@ const MoodTracker = () => {
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 15 }}
                 >
-                  <todaysMood.icon size={64} strokeWidth={1.5} />
+                  {(() => {
+                    const MoodIcon = todaysMood.icon;
+                    return <MoodIcon size={64} strokeWidth={1.5} />;
+                  })()}
                 </motion.div>
 
                 <div className="text-center">
@@ -237,24 +240,27 @@ const MoodTracker = () => {
               </p>
 
               <div className="flex justify-center gap-4 flex-wrap">
-                {moods.map((mood) => (
-                  <motion.button
-                    key={mood.level}
-                    onClick={() => handleMoodSelect(mood)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
-                    whileHover={{
-                      scale: 1.1,
-                      boxShadow: mood.hoverGlow
-                    }}
-                    whileTap={{ scale: 0.95 }}
-                    title={mood.label}
-                  >
-                    <mood.icon size={32} strokeWidth={1.5} />
-                    <span className="text-xs font-medium text-text-secondary">
-                      {mood.label}
-                    </span>
-                  </motion.button>
-                ))}
+                {moods.map((mood) => {
+                  const MoodIcon = mood.icon;
+                  return (
+                    <motion.button
+                      key={mood.level}
+                      onClick={() => handleMoodSelect(mood)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
+                      whileHover={{
+                        scale: 1.1,
+                        boxShadow: mood.hoverGlow
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                      title={mood.label}
+                    >
+                      <MoodIcon size={32} strokeWidth={1.5} />
+                      <span className="text-xs font-medium text-text-secondary">
+                        {mood.label}
+                      </span>
+                    </motion.button>
+                  );
+                })}
               </div>
             </motion.div>
           )
