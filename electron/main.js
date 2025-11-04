@@ -42,16 +42,16 @@ function createWindow() {
     frame: true,
   });
 
-  // Check if dist folder exists to determine if we're in dev or production
-  const distPath = path.join(__dirname, '../dist/index.html');
-  const isDev = !fs.existsSync(distPath);
+  // Use Electron's built-in 'isPackaged' check
+  const isDev = !app.isPackaged;
 
   // Load the app
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(distPath);
+    // Load the built file from the 'dist' folder
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
   // Store window reference for timer updates
