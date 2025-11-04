@@ -604,6 +604,7 @@ const StatsTab = () => {
         datasets: [{
           label: 'Average Mood',
           data: [],
+          spanGaps: true,
           borderColor: '#eab308',
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
@@ -664,6 +665,7 @@ const StatsTab = () => {
         datasets: [{
           label: 'Mood',
           data: moodData,
+          spanGaps: true,
           borderColor: '#eab308',
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
@@ -715,6 +717,7 @@ const StatsTab = () => {
           datasets: [{
             label: 'Average Mood',
             data: [null],
+            spanGaps: true,
             borderColor: '#eab308',
             backgroundColor: 'rgba(234, 179, 8, 0.1)',
           }]
@@ -745,6 +748,7 @@ const StatsTab = () => {
           datasets: [{
             label: 'Average Mood',
             data: [],
+            spanGaps: true,
             borderColor: '#eab308',
           }]
         };
@@ -840,7 +844,7 @@ const StatsTab = () => {
         pointHoverBackgroundColor: '#eab308',
         pointHoverBorderColor: '#eab308',
         pointHoverBorderWidth: 2,
-        spanGaps: false, // Don't connect null values
+        spanGaps: true, // Connect data points across null (missing) values
       }]
     };
   };
