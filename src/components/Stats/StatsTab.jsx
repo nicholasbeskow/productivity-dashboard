@@ -649,7 +649,7 @@ const StatsTab = () => {
 
       const moodData = hours.map(() => null); // For day view, just show today's single mood if any
       const todayMood = moodLog.find(entry => {
-        const entryDate = new Date(entry.date);
+        const entryDate = new Date(entry.date + 'T12:00:00');
         return entryDate.toDateString() === today.toDateString();
       });
       if (todayMood) {
@@ -750,7 +750,7 @@ const StatsTab = () => {
         };
       }
 
-      const moodDates = moodLog.map(e => new Date(e.date));
+      const moodDates = moodLog.map(e => new Date(e.date + 'T12:00:00'));
       const firstMoodDate = new Date(Math.min(...moodDates));
       const lastMoodDate = new Date(Math.max(...moodDates));
 
@@ -805,13 +805,12 @@ const StatsTab = () => {
 
       if (date.type === 'week' || date.type === 'month') {
         moodsForDate = moodLog.filter(entry => {
-          const entryDate = new Date(entry.date);
+          const entryDate = new Date(entry.date + 'T12:00:00');
           return entryDate >= date.start && entryDate <= date.end;
         });
       } else {
         moodsForDate = moodLog.filter(entry => {
-          const entryDate = new Date(entry.date);
-          entryDate.setHours(12, 0, 0, 0);
+          const entryDate = new Date(entry.date + 'T12:00:00');
           return entryDate.toDateString() === date.toDateString();
         });
       }
@@ -964,7 +963,7 @@ const StatsTab = () => {
 
     // Calculate mood average for period
     const moodsInPeriod = moodLog.filter(entry => {
-      const entryDate = new Date(entry.date);
+      const entryDate = new Date(entry.date + 'T12:00:00');
       return entryDate >= startDate && entryDate <= today;
     });
 
