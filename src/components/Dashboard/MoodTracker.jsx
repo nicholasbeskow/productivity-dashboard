@@ -140,6 +140,22 @@ const MoodTracker = () => {
     setView('select');
   };
 
+  // Handle remove mood for editing date
+  const handleRemoveMood = () => {
+    const editingDateString = getDateString(editingDate);
+
+    // Filter out the mood for editingDate
+    const updatedLog = moodLog.filter(entry => entry.date !== editingDateString);
+
+    // Update state and localStorage
+    setMoodLog(updatedLog);
+    localStorage.setItem('moodLog', JSON.stringify(updatedLog));
+    backupManager.saveAutoBackup();
+
+    // Return to month view
+    setView('month');
+  };
+
   // Get mood for a specific date
   const getMoodForDate = (date) => {
     const dateString = getDateString(date);
@@ -255,10 +271,7 @@ const MoodTracker = () => {
                     key={mood.level}
                     onClick={() => handleMoodSelect(mood)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
-                    whileHover={{
-                      scale: 1.1,
-                      boxShadow: mood.hoverGlow
-                    }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     title={mood.label}
                   >
@@ -269,6 +282,15 @@ const MoodTracker = () => {
                   </motion.button>
                 );
               })}
+            </div>
+
+            <div className="text-center mt-6">
+              <button
+                onClick={handleRemoveMood}
+                className="text-sm text-text-tertiary hover:text-red-500 transition-colors underline"
+              >
+                Remove Mood
+              </button>
             </div>
           </motion.div>
         )}
