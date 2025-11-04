@@ -6,7 +6,7 @@ import { Wind, Play, Pause } from 'lucide-react';
 const pacerVariants = {
   initial: { scale: 1 },
   breatheIn: { scale: 1.5, transition: { duration: 4, ease: 'easeInOut' } },
-  holdAfterIn: { scale: 1.5, transition: { duration: 0 } },
+  holdAfterIn: { scale: 1.5 },
   breatheOut: { scale: 1, transition: { duration: 8, ease: 'easeInOut' } },
 };
 
@@ -81,9 +81,9 @@ const BreathingTab = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
-              className={`text-center h-16 z-10 ${!isActive ? 'mt-40' : ''}`}
+              className={`text-center z-10 ${!isActive ? 'absolute top-80' : ''}`}
             >
-              <h3 className="text-4xl font-semibold text-text-primary">
+              <h3 className={`font-semibold text-text-primary ${isActive ? 'text-2xl' : 'text-4xl'}`}>
                 {isActive ? currentInstruction.text : 'Ready?'}
               </h3>
               {isActive && (
