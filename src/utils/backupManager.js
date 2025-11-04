@@ -21,10 +21,11 @@ class BackupManager {
   }
 
   /**
-   * Get all localStorage data for backup
+   * Get all localStorage AND electron-store data for backup
    */
-  getAllData() {
-    return {
+  async getAllData() {
+    // 1. Get renderer-side data from localStorage
+    const localData = {
       tasks: JSON.parse(localStorage.getItem('tasks') || '[]'),
       completedTasks: JSON.parse(localStorage.getItem('completedTasks') || '[]'),
       moodLog: JSON.parse(localStorage.getItem('moodLog') || '[]'),
@@ -32,18 +33,41 @@ class BackupManager {
       semesterStartDate: localStorage.getItem('semesterStartDate') || '',
       semesterEndDate: localStorage.getItem('semesterEndDate') || '',
       taskFilter: localStorage.getItem('taskFilter') || 'all',
+      pomodoroWorkDuration: localStorage.getItem('pomodoroWorkDuration') || '50',
+      pomodoroBreakDuration: localStorage.getItem('pomodoroBreakDuration') || '10',
+    };
+
+    // 2. Get main-side data from electron-store
+    let mainData = {};
+    if (this.isElectron()) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        const result = await ipcRenderer.invoke('backup:get-electron-store-data');
+        if (result.success) {
+          mainData = result.data;
+        }
+      } catch (error) {
+        console.error('Failed to get electron-store data:', error);
+      }
+    }
+
+    // 3. Merge all data into one object
+    return {
+      ...localData,
+      ...mainData, // This adds { canvasUrl, apiToken }
       timestamp: new Date().toISOString(),
       version: '1.5.0'
     };
   }
 
   /**
-   * Restore all data from backup
+   * Restore all data from backup to localStorage AND electron-store
    */
-  restoreAllData(data) {
+  async restoreAllData(data) {
     if (!data) return false;
 
     try {
+      // 1. Restore renderer-side data to localStorage
       if (data.tasks) localStorage.setItem('tasks', JSON.stringify(data.tasks));
       if (data.completedTasks) localStorage.setItem('completedTasks', JSON.stringify(data.completedTasks));
       if (data.moodLog) localStorage.setItem('moodLog', JSON.stringify(data.moodLog));
@@ -51,11 +75,27 @@ class BackupManager {
       if (data.semesterStartDate) localStorage.setItem('semesterStartDate', data.semesterStartDate);
       if (data.semesterEndDate) localStorage.setItem('semesterEndDate', data.semesterEndDate);
       if (data.taskFilter) localStorage.setItem('taskFilter', data.taskFilter);
+      if (data.pomodoroWorkDuration) localStorage.setItem('pomodoroWorkDuration', data.pomodoroWorkDuration);
+      if (data.pomodoroBreakDuration) localStorage.setItem('pomodoroBreakDuration', data.pomodoroBreakDuration);
 
-      // Trigger storage event to update all components
+      // 2. Restore main-side data to electron-store
+      if (this.isElectron()) {
+        try {
+          const { ipcRenderer } = window.require('electron');
+          const mainData = {
+            canvasUrl: data.canvasUrl,
+            apiToken: data.apiToken
+          };
+          await ipcRenderer.invoke('backup:restore-electron-store-data', mainData);
+        } catch (error) {
+          console.error('Failed to restore electron-store data:', error);
+        }
+      }
+
+      // 3. Trigger storage event to update all components
       window.dispatchEvent(new Event('storage'));
-
       return true;
+
     } catch (error) {
       console.error('Error restoring backup:', error);
       return false;
@@ -73,7 +113,7 @@ class BackupManager {
 
     try {
       const { ipcRenderer } = window.require('electron');
-      const data = this.getAllData();
+      const data = await this.getAllData();
       const result = await ipcRenderer.invoke('backup:save-auto', data);
       return result;
     } catch (error) {
@@ -93,7 +133,7 @@ class BackupManager {
 
     try {
       const { ipcRenderer } = window.require('electron');
-      const data = this.getAllData();
+      const data = await this.getAllData();
       const result = await ipcRenderer.invoke('backup:save-snapshot', data);
 
       if (result.success) {
@@ -123,7 +163,7 @@ class BackupManager {
     // Backup on app launch (after 2 seconds)
     setTimeout(async () => {
       try {
-        const data = this.getAllData();
+        const data = await this.getAllData();
         const { ipcRenderer } = window.require('electron');
         await ipcRenderer.invoke('backup:save-snapshot', data);
         console.log('✅ Startup backup created');
@@ -143,7 +183,7 @@ class BackupManager {
 
       this.snapshotTimeout = setTimeout(async () => {
         try {
-          const data = this.getAllData();
+          const data = await this.getAllData();
           const { ipcRenderer } = window.require('electron');
           await ipcRenderer.invoke('backup:save-snapshot', data);
           console.log('✅ Daily backup created');
@@ -177,7 +217,7 @@ class BackupManager {
   async exportBackup() {
     if (!this.isElectron()) {
       // Fallback for web: download as JSON file
-      const data = this.getAllData();
+      const data = await this.getAllData();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -192,7 +232,7 @@ class BackupManager {
 
     try {
       const { ipcRenderer } = window.require('electron');
-      const data = this.getAllData();
+      const data = await this.getAllData();
       const result = await ipcRenderer.invoke('backup:export', data);
       return result;
     } catch (error) {

@@ -596,4 +596,30 @@ ipcMain.handle('canvas:fetch-assignments', async () => {
   }
 });
 
+// Get electron-store data for backup
+ipcMain.handle('backup:get-electron-store-data', async () => {
+  try {
+    const canvasUrl = store.get('canvasUrl');
+    const apiToken = store.get('canvasApiToken');
+    return { success: true, data: { canvasUrl, apiToken } };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Restore electron-store data from backup
+ipcMain.handle('backup:restore-electron-store-data', async (event, data) => {
+  try {
+    if (data.canvasUrl) {
+      store.set('canvasUrl', data.canvasUrl);
+    }
+    if (data.apiToken) {
+      store.set('canvasApiToken', data.apiToken);
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 module.exports = { sendNotification };
