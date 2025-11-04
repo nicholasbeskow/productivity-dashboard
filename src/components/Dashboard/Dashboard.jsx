@@ -3,6 +3,7 @@ import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 import PomodoroTimer from './PomodoroTimer';
+import MoodTracker from './MoodTracker';
 import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
@@ -1447,16 +1448,9 @@ const Dashboard = ({ setActiveTab }) => {
             {/* Pomodoro Timer */}
             <PomodoroTimer />
 
-            {/* Calendar Placeholder */}
-            <div className="lg:col-span-3 bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-              <h3 className="text-xl font-semibold text-text-primary mb-4">
-                Calendar
-              </h3>
-              <div className="h-64 bg-bg-tertiary rounded-lg flex items-center justify-center">
-                <p className="text-text-tertiary">
-                  Calendar view coming in Week 2
-                </p>
-              </div>
+            {/* Mood Tracker */}
+            <div className="lg:col-span-3">
+              <MoodTracker />
             </div>
           </div>
         </div>
