@@ -136,6 +136,16 @@ const MoodTracker = () => {
 
   // Handle day click in monthly view
   const handleDayClick = (date) => {
+    // Prevent editing future dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+      return; // Don't allow clicking future dates
+    }
+
     setEditingDate(date);
     setView('select');
   };
@@ -185,15 +195,27 @@ const MoodTracker = () => {
       const mood = getMoodForDate(date);
       const isToday = isSameDay(date, new Date());
 
+      // Check if date is in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      const isFuture = checkDate > today;
+
       days.push(
         <motion.button
           key={day}
           onClick={() => handleDayClick(date)}
+          disabled={isFuture}
           className={`h-12 flex items-center justify-center rounded-lg transition-all ${
-            isToday ? 'bg-green-glow/20 border border-green-glow' : 'hover:bg-bg-tertiary'
+            isFuture
+              ? 'opacity-50 cursor-not-allowed'
+              : isToday
+              ? 'bg-green-glow/20 border border-green-glow'
+              : 'hover:bg-bg-tertiary'
           }`}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={isFuture ? {} : { scale: 1.05 }}
+          whileTap={isFuture ? {} : { scale: 0.95 }}
         >
           {mood ? (
             (() => {
@@ -257,10 +279,9 @@ const MoodTracker = () => {
             transition={{ duration: 0.3 }}
           >
             <p className="text-text-secondary text-center mb-6">
-              How are you feeling{' '}
               {isSameDay(editingDate, new Date())
-                ? 'today'
-                : `on ${format(editingDate, 'MMM d')}`}?
+                ? 'How are you feeling today?'
+                : `How were you feeling on ${format(editingDate, 'MMM d')}?`}
             </p>
 
             <div className="flex justify-center gap-4 flex-wrap">
@@ -346,9 +367,9 @@ const MoodTracker = () => {
             <div className="flex flex-col items-center gap-4">
               <motion.div
                 className={`${selectedMood.color}`}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
               >
                 {(() => {
                   const MoodIcon = selectedMood.icon;
