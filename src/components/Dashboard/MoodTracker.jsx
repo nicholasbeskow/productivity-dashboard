@@ -159,7 +159,7 @@ const MoodTracker = () => {
               {/* Particle Effect */}
               <AnimatePresence>
                 {showParticles && (
-                  <>
+                  <div>
                     {[...Array(12)].map((_, i) => (
                       <motion.div
                         key={i}
@@ -190,7 +190,7 @@ const MoodTracker = () => {
                     >
                       <Sparkles className={todaysMood.color} size={20} />
                     </motion.div>
-                  </>
+                  </div>
                 )}
               </AnimatePresence>
 
