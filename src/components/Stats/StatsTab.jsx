@@ -1262,7 +1262,18 @@ const StatsTab = () => {
 
           {/* Chart Container */}
           <div className="h-[400px]">
-            {moodLog.length === 0 ? (
+            {timePeriod === 'Day' ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-text-secondary text-lg mb-2">
+                    Mood data is tracked daily.
+                  </p>
+                  <p className="text-text-tertiary text-sm">
+                    Please select 'Week', 'Month', or another view to see trends.
+                  </p>
+                </div>
+              </div>
+            ) : moodLog.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
                   <p className="text-text-secondary text-lg mb-2">
