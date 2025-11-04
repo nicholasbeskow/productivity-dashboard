@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, FrownCry, Sparkles } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
 
 // Mood definitions with icons, colors, and labels
@@ -44,7 +44,7 @@ const moods = [
   {
     level: 1,
     label: 'Rocky',
-    icon: FrownCry,
+    icon: CloudRain,
     color: 'text-red-500',
     glowColor: '#ef4444',
     hoverGlow: '0 0 20px rgba(239, 68, 68, 0.6)',
