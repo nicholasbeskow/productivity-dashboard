@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Flame, BookOpen, Home } from 'lucide-react';
+import { BarChart3, Flame, BookOpen, Home, Smile } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
 import {
@@ -26,6 +26,7 @@ ChartJS.register(
 
 const StatsTab = () => {
   const [completedTasks, setCompletedTasks] = useState([]);
+  const [moodLog, setMoodLog] = useState([]);
   const [timePeriod, setTimePeriod] = useState('Week');
 
   // Load completed tasks from localStorage
@@ -60,6 +61,42 @@ const StatsTab = () => {
       window.removeEventListener('storage', loadCompletedTasks);
     };
   }, []);
+
+  // Load mood log from localStorage
+  useEffect(() => {
+    const loadMoodLog = () => {
+      const stored = localStorage.getItem('moodLog');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setMoodLog(parsed);
+        } catch (error) {
+          console.error('Error loading mood log:', error);
+          setMoodLog([]);
+        }
+      } else {
+        setMoodLog([]);
+      }
+    };
+
+    loadMoodLog();
+
+    // Listen for storage changes
+    window.addEventListener('storage', loadMoodLog);
+
+    return () => {
+      window.removeEventListener('storage', loadMoodLog);
+    };
+  }, []);
+
+  // Moods configuration
+  const moodsConfig = {
+    5: { label: 'Great', color: '#eab308' }, // yellow-500
+    4: { label: 'Good', color: '#3dd68c' },  // green-glow
+    3: { label: 'Okay', color: '#60a5fa' },  // blue-400
+    2: { label: 'Down', color: '#f97316' },  // orange-500
+    1: { label: 'Rocky', color: '#ef4444' }   // red-500
+  };
 
   // Calculate stats
   const calculateCurrentStreak = () => {
@@ -541,6 +578,317 @@ const StatsTab = () => {
     },
   };
 
+  // Helper function to calculate average mood
+  const calculateAverageMood = (moods) => {
+    if (moods.length === 0) return null;
+    const sum = moods.reduce((acc, entry) => acc + entry.level, 0);
+    return sum / moods.length;
+  };
+
+  // Calculate all-time average mood
+  const calculateAllTimeAverageMood = () => {
+    const avg = calculateAverageMood(moodLog);
+    if (avg === null) return { value: 'N/A', label: 'No data' };
+    const roundedAvg = Math.round(avg);
+    return {
+      value: avg.toFixed(1),
+      label: moodsConfig[roundedAvg]?.label || 'Unknown'
+    };
+  };
+
+  // Mood chart data calculation
+  const getMoodChartData = () => {
+    if (moodLog.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          label: 'Average Mood',
+          data: [],
+          borderColor: '#eab308',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#eab308',
+          pointHoverBorderColor: '#eab308',
+          pointHoverBorderWidth: 2,
+        }]
+      };
+    }
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let dates = [];
+    let labels = [];
+    let hours = [];
+
+    if (timePeriod === 'Day') {
+      // Today with hourly breakdown (0-23 hours)
+      const todayStart = new Date(today);
+      todayStart.setHours(0, 0, 0, 0);
+
+      for (let hour = 0; hour < 24; hour++) {
+        hours.push(hour);
+        if (hour % 2 === 0) {
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+          labels.push(`${hour12}${ampm}`);
+        } else {
+          labels.push('');
+        }
+      }
+
+      const moodData = hours.map(() => null); // For day view, just show today's single mood if any
+      const todayMood = moodLog.find(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate.toDateString() === today.toDateString();
+      });
+      if (todayMood) {
+        // Show the mood value across all hours for today
+        for (let i = 0; i < moodData.length; i++) {
+          moodData[i] = todayMood.level;
+        }
+      }
+
+      return {
+        labels,
+        datasets: [{
+          label: 'Mood',
+          data: moodData,
+          borderColor: '#eab308',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#eab308',
+          pointHoverBackgroundColor: '#eab308',
+          pointBorderColor: '#eab308',
+          pointHoverBorderColor: '#eab308',
+          pointHoverBorderWidth: 2,
+        }]
+      };
+    } else if (timePeriod === 'Week') {
+      // Last 7 days
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(dayNames[date.getDay()]);
+      }
+    } else if (timePeriod === 'Month') {
+      // Last 30 days
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        const dayOfMonth = date.getDate();
+        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
+          labels.push(dayOfMonth.toString());
+        } else {
+          labels.push('');
+        }
+      }
+    } else if (timePeriod === 'Semester') {
+      const semesterStartDate = localStorage.getItem('semesterStartDate');
+      const semesterEndDate = localStorage.getItem('semesterEndDate');
+
+      if (!semesterStartDate || !semesterEndDate) {
+        return {
+          labels: ['No Data'],
+          datasets: [{
+            label: 'Average Mood',
+            data: [null],
+            borderColor: '#eab308',
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+          }]
+        };
+      }
+
+      const startDate = new Date(semesterStartDate + 'T12:00:00');
+      const endDate = new Date(semesterEndDate + 'T12:00:00');
+      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+      const interval = Math.ceil(totalDays / 10);
+
+      for (let i = 0; i <= totalDays; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        dates.push(date);
+
+        if (i % interval === 0 || i === totalDays) {
+          labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
+        } else {
+          labels.push('');
+        }
+      }
+    } else if (timePeriod === 'All Time') {
+      if (moodLog.length === 0) {
+        return {
+          labels: [],
+          datasets: [{
+            label: 'Average Mood',
+            data: [],
+            borderColor: '#eab308',
+          }]
+        };
+      }
+
+      const moodDates = moodLog.map(e => new Date(e.date));
+      const firstMoodDate = new Date(Math.min(...moodDates));
+      const lastMoodDate = new Date(Math.max(...moodDates));
+
+      firstMoodDate.setHours(0, 0, 0, 0);
+      lastMoodDate.setHours(23, 59, 59, 999);
+
+      const totalDays = Math.ceil((lastMoodDate - firstMoodDate) / (1000 * 60 * 60 * 24)) + 1;
+
+      if (totalDays <= 30) {
+        for (let i = 0; i < totalDays; i++) {
+          const date = new Date(firstMoodDate);
+          date.setDate(date.getDate() + i);
+          dates.push(date);
+
+          const showLabel = i % Math.ceil(totalDays / 10) === 0 || i === totalDays - 1;
+          labels.push(showLabel ? `${date.getMonth() + 1}/${date.getDate()}` : '');
+        }
+      } else if (totalDays <= 90) {
+        const weeks = Math.ceil(totalDays / 7);
+
+        for (let i = 0; i < weeks; i++) {
+          const weekStart = new Date(firstMoodDate);
+          weekStart.setDate(weekStart.getDate() + (i * 7));
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          weekEnd.setHours(23, 59, 59, 999);
+
+          dates.push({ start: weekStart, end: weekEnd, type: 'week' });
+          labels.push(`${weekStart.getMonth() + 1}/${weekStart.getDate()}`);
+        }
+      } else {
+        const months = Math.ceil(totalDays / 30);
+
+        for (let i = 0; i < months; i++) {
+          const monthStart = new Date(firstMoodDate);
+          monthStart.setDate(monthStart.getDate() + (i * 30));
+          const monthEnd = new Date(monthStart);
+          monthEnd.setDate(monthEnd.getDate() + 29);
+          monthEnd.setHours(23, 59, 59, 999);
+
+          dates.push({ start: monthStart, end: monthEnd, type: 'month' });
+
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          labels.push(`${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`);
+        }
+      }
+    }
+
+    // Calculate average mood for each date
+    const moodData = dates.map(date => {
+      let moodsForDate = [];
+
+      if (date.type === 'week' || date.type === 'month') {
+        moodsForDate = moodLog.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= date.start && entryDate <= date.end;
+        });
+      } else {
+        moodsForDate = moodLog.filter(entry => {
+          const entryDate = new Date(entry.date);
+          entryDate.setHours(12, 0, 0, 0);
+          return entryDate.toDateString() === date.toDateString();
+        });
+      }
+
+      const avg = calculateAverageMood(moodsForDate);
+      return avg; // Can be null if no moods for that date
+    });
+
+    return {
+      labels,
+      datasets: [{
+        label: 'Average Mood',
+        data: moodData,
+        borderColor: '#eab308',
+        backgroundColor: (context) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+          gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+          gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#eab308',
+        pointHoverBorderColor: '#eab308',
+        pointHoverBorderWidth: 2,
+        spanGaps: false, // Don't connect null values
+      }]
+    };
+  };
+
+  // Mood chart options
+  const moodChartOptions = {
+    ...chartOptions,
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        min: 1,
+        max: 5,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          stepSize: 1,
+        },
+      },
+    },
+    plugins: {
+      ...chartOptions.plugins,
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          title: (context) => {
+            const index = context[0].dataIndex;
+            const dates = getMoodChartData().labels;
+            return dates[index] || '';
+          },
+          label: (context) => {
+            const avg = context.parsed.y;
+            if (avg === null || avg === undefined) return 'No data';
+            const roundedAvg = Math.round(avg);
+            const moodLabel = moodsConfig[roundedAvg]?.label || 'Unknown';
+            return `${moodLabel} (Avg: ${avg.toFixed(1)})`;
+          },
+          labelColor: (context) => {
+            return {
+              borderColor: context.dataset.borderColor,
+              backgroundColor: context.dataset.borderColor,
+            };
+          },
+        },
+      },
+    },
+  };
+
   const totalCompleted = completedTasks.length;
   const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
   const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
@@ -614,10 +962,26 @@ const StatsTab = () => {
       periodAverage = (periodTotal / totalDays).toFixed(1);
     }
 
-    return { periodName, periodTotal, periodAverage, averagePeriod };
+    // Calculate mood average for period
+    const moodsInPeriod = moodLog.filter(entry => {
+      const entryDate = new Date(entry.date);
+      return entryDate >= startDate && entryDate <= today;
+    });
+
+    const periodMoodAvg = calculateAverageMood(moodsInPeriod);
+    let periodMoodValue = 'N/A';
+    let periodMoodLabel = 'No data';
+    if (periodMoodAvg !== null) {
+      periodMoodValue = periodMoodAvg.toFixed(1);
+      const roundedAvg = Math.round(periodMoodAvg);
+      periodMoodLabel = moodsConfig[roundedAvg]?.label || 'Unknown';
+    }
+
+    return { periodName, periodTotal, periodAverage, averagePeriod, periodMoodValue, periodMoodLabel };
   };
 
   const periodStats = calculatePeriodStats();
+  const allTimeAverageMood = calculateAllTimeAverageMood();
 
   return (
     <div className="h-full p-8 overflow-y-auto">
@@ -798,6 +1162,44 @@ const StatsTab = () => {
               tasks per day
             </p>
           </motion.div>
+
+          {/* Card 9 - All Time Average Mood */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Smile className="text-yellow-500" size={18} />
+              All Time Average Mood
+            </p>
+            <div className="text-4xl font-bold text-yellow-500 mb-1">
+              {allTimeAverageMood.value}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {allTimeAverageMood.label}
+            </p>
+          </motion.div>
+
+          {/* Card 10 - Period Average Mood */}
+          <motion.div
+            key={`period-mood-${timePeriod}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-yellow-500/50"
+          >
+            <p className="text-text-secondary text-sm mb-2">
+              Average Mood ({periodStats.periodName})
+            </p>
+            <div className="text-4xl font-bold text-yellow-500 mb-1">
+              {periodStats.periodMoodValue}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {periodStats.periodMoodLabel}
+            </p>
+          </motion.div>
         </div>
 
         {/* Line Chart Section */}
@@ -838,6 +1240,49 @@ const StatsTab = () => {
               </div>
             ) : (
               <Line data={getChartData()} options={chartOptions} />
+            )}
+          </div>
+        </motion.div>
+
+        {/* Mood Chart Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3, ease: 'easeOut' }}
+          className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary mt-8"
+        >
+          {/* Chart Title */}
+          <h3 className="text-xl font-semibold text-text-primary mb-6 flex items-center gap-3">
+            <Smile className="text-yellow-500" size={24} />
+            Mood Trend - {timePeriod}
+          </h3>
+
+          {/* Chart Container */}
+          <div className="h-[400px]">
+            {moodLog.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-text-secondary text-lg mb-2">
+                    Log moods to see your trend!
+                  </p>
+                  <p className="text-text-tertiary text-sm">
+                    Your mood trend will appear here
+                  </p>
+                </div>
+              </div>
+            ) : timePeriod === 'Semester' && (!localStorage.getItem('semesterStartDate') || !localStorage.getItem('semesterEndDate')) ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-text-secondary text-lg mb-2">
+                    Set semester dates in Settings
+                  </p>
+                  <p className="text-text-tertiary text-sm">
+                    Configure your semester start and end dates to view this chart
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Line data={getMoodChartData()} options={moodChartOptions} />
             )}
           </div>
         </motion.div>
