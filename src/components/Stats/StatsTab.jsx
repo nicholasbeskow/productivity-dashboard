@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, Flame, BookOpen, Home, Smile } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
@@ -97,6 +97,62 @@ const StatsTab = () => {
     2: { label: 'Down', color: '#f97316' },  // orange-500
     1: { label: 'Rocky', color: '#ef4444' }   // red-500
   };
+
+  // Calculate mood/productivity correlation
+  const correlationStats = useMemo(() => {
+    if (!moodLog.length || !completedTasks.length) {
+      return { text: 'Not enough data', value: null };
+    }
+
+    // 1. Get dates for "good" (4,5) and "bad" (1,2) moods
+    const goodMoodDays = new Set();
+    const badMoodDays = new Set();
+
+    moodLog.forEach(entry => {
+      if (entry.level >= 4) goodMoodDays.add(entry.date);
+      else if (entry.level <= 2) badMoodDays.add(entry.date);
+    });
+
+    if (goodMoodDays.size === 0 || badMoodDays.size === 0) {
+      return { text: 'Log more good/bad days to see correlation', value: null };
+    }
+
+    // 2. Count tasks completed on those days
+    let goodDayTaskCount = 0;
+    let badDayTaskCount = 0;
+
+    completedTasks.forEach(task => {
+      const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+      if (goodMoodDays.has(completedDate)) {
+        goodDayTaskCount++;
+      } else if (badMoodDays.has(completedDate)) {
+        badDayTaskCount++;
+      }
+    });
+
+    // 3. Calculate averages
+    const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
+    const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
+
+    // 4. Determine result
+    if (avgTasksOnBadDays > 0) {
+      const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
+      return {
+        text: 'more tasks on good days',
+        value: `${multiplier.toFixed(1)}x`,
+      };
+    }
+
+    if (avgTasksOnGoodDays > 0) {
+      return {
+        text: 'tasks on good days (vs 0 on bad)',
+        value: `${goodDayTaskCount} total`,
+      };
+    }
+
+    return { text: 'No task/mood overlap found', value: null };
+
+  }, [completedTasks, moodLog]);
 
   // Calculate stats
   const calculateCurrentStreak = () => {
@@ -1201,6 +1257,29 @@ const StatsTab = () => {
             </div>
             <p className="text-text-tertiary text-xs">
               {periodStats.periodMoodLabel}
+            </p>
+          </motion.div>
+
+          {/* Card 11 - Mood/Productivity Correlation */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Smile className="text-yellow-500" size={18} />
+              Mood Correlation
+            </p>
+            <div className="text-4xl font-bold text-text-primary mb-1">
+              {correlationStats.value ? (
+                <span className="text-yellow-500">{correlationStats.value}</span>
+              ) : (
+                <span className="text-2xl text-text-tertiary">No Data</span>
+              )}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {correlationStats.text}
             </p>
           </motion.div>
         </div>
