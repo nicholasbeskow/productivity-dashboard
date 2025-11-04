@@ -10,7 +10,7 @@ const pacerVariants = {
   breatheOut: { scale: 1, transition: { duration: 8, ease: 'easeInOut' } },
 };
 
-// Define the 4-7-8 breathing cycle steps (19 seconds total)
+// Define the 4-7-8 breathing cycle steps
 const instructions = [
   { text: 'Breathe In', duration: 4000, variant: 'breatheIn' },
   { text: 'Hold', duration: 7000, variant: 'holdAfterIn' },
@@ -25,10 +25,12 @@ const BreathingTab = () => {
   useEffect(() => {
     if (!isActive) return;
 
+    // Set a timer for the duration of the current step
     const timer = setTimeout(() => {
       setStep(prevStep => (prevStep + 1) % instructions.length);
     }, instructions[step].duration);
 
+    // Clean up the timer if the component unmounts or isActive changes
     return () => clearTimeout(timer);
   }, [isActive, step]);
 
@@ -36,6 +38,7 @@ const BreathingTab = () => {
 
   const toggleActive = () => {
     if (isActive) {
+      // If stopping, reset the step to the beginning
       setStep(0);
     }
     setIsActive(!isActive);
@@ -58,7 +61,7 @@ const BreathingTab = () => {
         {/* Pacer UI */}
         <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary flex flex-col items-center justify-center h-[500px] gap-8 relative overflow-hidden">
 
-          {/* The Animated Circle (FIXED: 'absolute' layering) */}
+          {/* The Animated Circle (MOVED FIRST + 'absolute') */}
           <motion.div
             className="w-64 h-64 rounded-full flex items-center justify-center absolute"
             style={{
@@ -70,17 +73,17 @@ const BreathingTab = () => {
             initial="initial"
           />
 
-          {/* The Animated Text (FIXED: 'z-10', 'text-3xl', 'duration: 0.3', and no 'mode="wait"') */}
-          <AnimatePresence>
+          {/* The Animated Text (FIXED: 'z-10' and smooth fade) */}
+          <AnimatePresence mode="wait">
             <motion.div
               key={isActive ? currentInstruction.text : 'Ready?'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.5 }}
               className="text-center h-16 z-10"
             >
-              <h3 className="text-3xl font-semibold text-text-primary">
+              <h3 className="text-4xl font-semibold text-text-primary">
                 {isActive ? currentInstruction.text : 'Ready?'}
               </h3>
               {isActive && (
