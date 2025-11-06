@@ -10,6 +10,8 @@ const TaskForm = ({ onTaskCreate }) => {
   const [taskType, setTaskType] = useState('academic');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [recurrence, setRecurrence] = useState({ type: 'none' }); // 'none', 'daily', 'weekly'
+  const [weeklyDays, setWeeklyDays] = useState([]); // [0, 1, 2, 3, 4, 5, 6]
 
   // File attachment handlers
   const handleAttachFilesClick = async () => {
@@ -82,6 +84,9 @@ const TaskForm = ({ onTaskCreate }) => {
       createdAt: new Date().toISOString(),
       completedAt: null,
       attachments: attachments, // Use the attachments state
+      recurrence: recurrence.type === 'none'
+        ? null
+        : (recurrence.type === 'weekly' ? { ...recurrence, days: weeklyDays } : recurrence),
       customPriority: 0, // Will be set by parent component based on due date
     };
 
@@ -95,6 +100,8 @@ const TaskForm = ({ onTaskCreate }) => {
     setTime('');
     setTaskType('academic');
     setAttachments([]);
+    setRecurrence({ type: 'none' });
+    setWeeklyDays([]);
   };
 
   return (
@@ -201,6 +208,57 @@ const TaskForm = ({ onTaskCreate }) => {
             </button>
           </div>
         </div>
+
+        {/* Recurrence Selection */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2">
+            Recurrence
+          </label>
+          <select
+            value={recurrence.type}
+            onChange={(e) => setRecurrence({ type: e.target.value })}
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+          >
+            <option value="none">Does not repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </div>
+
+        {/* Weekly Day Picker (Conditional) */}
+        {recurrence.type === 'weekly' && (
+          <div className="p-4 bg-bg-tertiary rounded-lg border border-bg-primary">
+            <label className="block text-sm text-text-secondary mb-3">
+              Repeat on:
+            </label>
+            <div className="flex justify-between gap-1">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => {
+                const isSelected = weeklyDays.includes(index);
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setWeeklyDays(prev => prev.filter(d => d !== index));
+                      } else {
+                        setWeeklyDays(prev => [...prev, index]);
+                      }
+                    }}
+                    className={`w-10 h-10 rounded-full text-sm font-medium transition-all
+                      ${isSelected
+                        ? 'bg-green-glow text-bg-primary'
+                        : 'bg-bg-primary text-text-secondary hover:bg-bg-tertiary'
+                      }
+                    `}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* File Attachments Section */}
         <div>
