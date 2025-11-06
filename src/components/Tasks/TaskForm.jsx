@@ -107,6 +107,9 @@ const TaskForm = ({ onTaskCreate }) => {
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
       <h3 className="text-lg font-semibold text-text-primary mb-4">Create New Task</h3>
+      <div style={{ backgroundColor: 'red', color: 'white', padding: '10px', fontSize: '20px', fontWeight: 'bold', textAlign: 'center' }}>
+        ⚠️ CODE VERSION: 643332c - RECURRENCE ENABLED ⚠️
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
