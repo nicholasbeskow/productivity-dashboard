@@ -1,8 +1,9 @@
 import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
+import { calculateNextDueDate } from '../../utils/taskHelpers';
 
 // Memoized single task card for performance
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
@@ -610,6 +611,13 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                   {formatDateTimeDisplay(task.dueDate, task.time)}
                 </span>
               )}
+              {/* Recurrence Icon */}
+              {task.recurrence && (
+                <span className="flex items-center gap-1 text-blue-400" title={`Repeats ${task.recurrence.type}`}>
+                  <Repeat size={12} />
+                  {task.recurrence.type}
+                </span>
+              )}
               <motion.span
                 className={`px-2 py-1 rounded transition-all ${
                   task.status === 'complete'
@@ -737,11 +745,34 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     };
   }, [openMenuTaskId, setOpenMenuTaskId]);
 
+  const completeTaskNormally = (taskId, completedAt) => {
+    setJustCompletedId(taskId); // Trigger animation
+
+    setTimeout(() => {
+      setJustCompletedId(null);
+
+      const freshAllTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const taskToComplete = freshAllTasks.find(t => t.id === taskId);
+      if (!taskToComplete) return;
+
+      const completedTask = { ...taskToComplete, status: 'complete', completedAt };
+
+      const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+      localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
+
+      const activeTasks = freshAllTasks.filter(t => t.id !== taskId);
+      localStorage.setItem('tasks', JSON.stringify(activeTasks));
+
+      backupManager.saveAutoBackup();
+      setTasks(activeTasks);
+    }, 700);
+  };
+
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
     const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
     const taskIndex = allTasks.findIndex(t => t.id === taskId);
-    if (taskIndex === -1) return; // Task not found
+    if (taskIndex === -1) return;
 
     const task = allTasks[taskIndex];
 
@@ -749,53 +780,67 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     let completedAt = task.completedAt;
 
     if (task.status === 'not-started') newStatus = 'in-progress';
-    else if (task.status === 'in-progress') {
-      newStatus = 'complete';
-      completedAt = new Date().toISOString();
-    } else {
-      newStatus = 'not-started';
-      completedAt = null;
-    }
+    else if (task.status === 'in-progress') newStatus = 'complete';
+    else newStatus = 'not-started';
 
-    if (newStatus === 'complete') {
-      // --- COMPLETION LOGIC ---
+    // --- NEW RECURRENCE LOGIC ---
+    if (newStatus === 'complete' && task.recurrence) {
       setJustCompletedId(taskId); // Trigger animation
 
-      setTimeout(() => {
-        setJustCompletedId(null);
+      const nextDueDate = calculateNextDueDate(task);
 
-        // Find the completed task again from a fresh read
-        const freshAllTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-        const taskToComplete = freshAllTasks.find(t => t.id === taskId);
+      if (nextDueDate) {
+        // --- This is Option 2 ---
+        // 1. Create a copy for the stats
+        const completedInstance = {
+          ...task,
+          status: 'complete',
+          completedAt: new Date().toISOString(),
+          recurrence: null, // Don't make the *completed* instance recurring
+          id: `${task.id}-completed-${Date.now()}` // Unique ID for the stats entry
+        };
 
-        if (!taskToComplete) return; // Safety check
+        // 2. Update the original task for its next run
+        const updatedTask = {
+          ...task,
+          status: 'not-started',
+          dueDate: nextDueDate,
+          completedAt: null,
+        };
 
-        const completedTask = { ...taskToComplete, status: 'complete', completedAt };
-
-        // Add to completedTasks
+        // 3. Update arrays
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-        localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
+        const updatedAllTasks = allTasks.map(t => t.id === taskId ? updatedTask : t);
 
-        // Remove from active tasks
-        const activeTasks = freshAllTasks.filter(t => t.id !== taskId);
-        localStorage.setItem('tasks', JSON.stringify(activeTasks));
+        // 4. Save to localStorage
+        localStorage.setItem('completedTasks', JSON.stringify([completedInstance, ...existingCompleted]));
+        localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
 
-        backupManager.saveAutoBackup();
-        setTasks(activeTasks); // Update UI
-      }, 700); // Wait for animation
+        // Use a short delay to let the animation play, then update UI
+        setTimeout(() => {
+          setTasks(updatedAllTasks);
+          backupManager.saveAutoBackup();
+          setJustCompletedId(null);
+        }, 700);
+
+      } else {
+        // It was recurring, but something failed (e.g. no weekly days).
+        // Just complete it normally.
+        completeTaskNormally(taskId, new Date().toISOString());
+      }
+    }
+    // --- END OF RECURRENCE LOGIC ---
+
+    else if (newStatus === 'complete') {
+      // Non-recurring task completed, call the original logic
+      completeTaskNormally(taskId, new Date().toISOString());
     } else {
       // --- 'IN-PROGRESS' or 'NOT-STARTED' LOGIC ---
-
-      // Update the task in the full array
       const updatedAllTasks = allTasks.map(t =>
-        t.id === taskId ? { ...t, status: newStatus, completedAt } : t
+        t.id === taskId ? { ...t, status: newStatus, completedAt: null } : t
       );
-
-      // 2. Save FULL list back to localStorage
       localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
-      // 3. Trigger backup
       backupManager.saveAutoBackup();
-      // 4. Update UI
       setTasks(updatedAllTasks);
     }
   };
