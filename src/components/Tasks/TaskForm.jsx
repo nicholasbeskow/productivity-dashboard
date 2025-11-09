@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, FileText, UploadCloud, X } from 'lucide-react';
+import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
+import backupManager from '../../utils/backupManager';
 
 const TaskForm = ({ onTaskCreate }) => {
   const [title, setTitle] = useState('');
@@ -10,6 +11,18 @@ const TaskForm = ({ onTaskCreate }) => {
   const [taskType, setTaskType] = useState('academic');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Recurrence state
+  const [recurrence, setRecurrence] = useState('does-not-repeat');
+  const [weeklyDays, setWeeklyDays] = useState({
+    sunday: false,
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+  });
 
   // File attachment handlers
   const handleAttachFilesClick = async () => {
@@ -70,22 +83,53 @@ const TaskForm = ({ onTaskCreate }) => {
       return;
     }
 
-    const newTask = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: title.trim(),
-      description: description.trim(),
-      url: url.trim() || null,
-      dueDate: dueDate || null,
-      time: time || null,
-      status: 'not-started',
-      taskType: taskType,
-      createdAt: new Date().toISOString(),
-      completedAt: null,
-      attachments: attachments, // Use the attachments state
-      customPriority: 0, // Will be set by parent component based on due date
-    };
+    // Check if this is a recurring task
+    if (recurrence !== 'does-not-repeat') {
+      // Create a recurring task template instead of a normal task
+      const template = {
+        id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        time: time || null,
+        taskType: taskType,
+        attachments: attachments,
+        recurrence: recurrence, // 'daily' or 'weekly'
+        weeklyDays: recurrence === 'weekly' ? weeklyDays : null,
+        createdAt: new Date().toISOString(),
+      };
 
-    onTaskCreate(newTask);
+      // Save to recurringTasks in localStorage
+      const existingTemplates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+      existingTemplates.push(template);
+      localStorage.setItem('recurringTasks', JSON.stringify(existingTemplates));
+
+      // Trigger backup
+      backupManager.saveAutoBackup();
+
+      // Dispatch storage event to update UI
+      window.dispatchEvent(new Event('storage'));
+
+      console.log('[TaskForm] Created recurring task template:', template);
+    } else {
+      // Create a normal one-time task
+      const newTask = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        dueDate: dueDate || null,
+        time: time || null,
+        status: 'not-started',
+        taskType: taskType,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        attachments: attachments,
+        customPriority: 0,
+      };
+
+      onTaskCreate(newTask);
+    }
 
     // Clear form
     setTitle('');
@@ -95,6 +139,23 @@ const TaskForm = ({ onTaskCreate }) => {
     setTime('');
     setTaskType('academic');
     setAttachments([]);
+    setRecurrence('does-not-repeat');
+    setWeeklyDays({
+      sunday: false,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+    });
+  };
+
+  const toggleWeeklyDay = (day) => {
+    setWeeklyDays(prev => ({
+      ...prev,
+      [day]: !prev[day]
+    }));
   };
 
   return (
@@ -145,19 +206,36 @@ const TaskForm = ({ onTaskCreate }) => {
           />
         </div>
 
-        {/* Due Date and Time Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-text-secondary mb-2">
-              Due Date
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-            />
+        {/* Due Date and Time Row - Only show if not recurring */}
+        {recurrence === 'does-not-repeat' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Due Date
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Time (optional)
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              />
+            </div>
           </div>
+        )}
+
+        {/* Time input for recurring tasks (no date needed as it's generated daily) */}
+        {recurrence !== 'does-not-repeat' && (
           <div>
             <label className="block text-sm text-text-secondary mb-2">
               Time (optional)
@@ -169,7 +247,7 @@ const TaskForm = ({ onTaskCreate }) => {
               className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             />
           </div>
-        </div>
+        )}
 
         {/* Task Type Toggle */}
         <div>
@@ -200,6 +278,54 @@ const TaskForm = ({ onTaskCreate }) => {
               🏠 Personal
             </button>
           </div>
+        </div>
+
+        {/* Recurrence Section */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2 flex items-center gap-2">
+            <Repeat size={16} />
+            Recurrence
+          </label>
+          <select
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+          >
+            <option value="does-not-repeat">Does not repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+
+          {/* Weekly Day Toggles - Only show when Weekly is selected */}
+          {recurrence === 'weekly' && (
+            <div className="mt-3">
+              <p className="text-xs text-text-tertiary mb-2">Repeat on:</p>
+              <div className="flex gap-2">
+                {[
+                  { key: 'sunday', label: 'S' },
+                  { key: 'monday', label: 'M' },
+                  { key: 'tuesday', label: 'T' },
+                  { key: 'wednesday', label: 'W' },
+                  { key: 'thursday', label: 'T' },
+                  { key: 'friday', label: 'F' },
+                  { key: 'saturday', label: 'S' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleWeeklyDay(key)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      weeklyDays[key]
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* File Attachments Section */}
@@ -274,7 +400,7 @@ const TaskForm = ({ onTaskCreate }) => {
           className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
         >
           <Plus size={20} />
-          Create Task
+          {recurrence !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
         </button>
       </form>
     </div>

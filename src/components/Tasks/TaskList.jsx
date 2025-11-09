@@ -1,11 +1,11 @@
 import { useState, memo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -226,6 +226,16 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
     }
   };
 
+  const toggleWeeklyDay = (day) => {
+    onEditFormChange({
+      ...editForm,
+      weeklyDays: {
+        ...editForm.weeklyDays,
+        [day]: !editForm.weeklyDays[day]
+      }
+    });
+  };
+
   return (
     <motion.div
       layout={!isJustCompleted}
@@ -362,17 +372,18 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             />
           </div>
 
-          {/* Due Date and Time Row */}
+          {/* Due Date and Time Row - Enabled when editing instance, disabled when editing template */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-text-secondary mb-2">
-                Due Date
+                Due Date {isEditingTemplate && <span className="text-xs text-text-tertiary">(set by template)</span>}
               </label>
               <input
                 type="date"
                 value={editForm.dueDate}
                 onChange={(e) => onEditFormChange({ ...editForm, dueDate: e.target.value })}
-                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                disabled={isEditingTemplate}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -419,21 +430,72 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             </div>
           </div>
 
-          {/* Status Select */}
-          <div>
-            <label className="block text-sm text-text-secondary mb-2">
-              Status
-            </label>
-            <select
-              value={editForm.status}
-              onChange={(e) => onEditFormChange({ ...editForm, status: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-            >
-              <option value="not-started">Not Started</option>
-              <option value="in-progress">In Progress</option>
-              <option value="complete">Complete</option>
-            </select>
-          </div>
+          {/* Status Select - Only show when editing instance */}
+          {!isEditingTemplate && (
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Status
+              </label>
+              <select
+                value={editForm.status}
+                onChange={(e) => onEditFormChange({ ...editForm, status: e.target.value })}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+              >
+                <option value="not-started">Not Started</option>
+                <option value="in-progress">In Progress</option>
+                <option value="complete">Complete</option>
+              </select>
+            </div>
+          )}
+
+          {/* Recurrence Section - Only show when editing template */}
+          {isEditingTemplate && (
+            <div>
+              <label className="block text-sm text-text-secondary mb-2 flex items-center gap-2">
+                <Repeat size={16} />
+                Recurrence
+              </label>
+              <select
+                value={editForm.recurrence}
+                onChange={(e) => onEditFormChange({ ...editForm, recurrence: e.target.value })}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+
+              {/* Weekly Day Toggles - Only show when Weekly is selected */}
+              {editForm.recurrence === 'weekly' && (
+                <div className="mt-3">
+                  <p className="text-xs text-text-tertiary mb-2">Repeat on:</p>
+                  <div className="flex gap-2">
+                    {[
+                      { key: 'sunday', label: 'S' },
+                      { key: 'monday', label: 'M' },
+                      { key: 'tuesday', label: 'T' },
+                      { key: 'wednesday', label: 'W' },
+                      { key: 'thursday', label: 'T' },
+                      { key: 'friday', label: 'F' },
+                      { key: 'saturday', label: 'S' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleWeeklyDay(key)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          editForm.weeklyDays?.[key]
+                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* File Attachments */}
           <div>
@@ -585,6 +647,12 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                   OVERDUE
                 </span>
               )}
+              {task.templateId && (
+                <span className="bg-green-glow bg-opacity-20 text-green-glow text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 flex-shrink-0" title="This is a recurring task instance">
+                  <Repeat size={10} />
+                  RECURRING
+                </span>
+              )}
             </div>
 
             {task.description && (
@@ -644,6 +712,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverTask, setDragOverTask] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
@@ -652,7 +721,17 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     time: '',
     status: 'not-started',
     taskType: 'academic',
-    attachments: []
+    attachments: [],
+    recurrence: 'daily',
+    weeklyDays: {
+      sunday: false,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+    }
   });
 
   // Menu position state
@@ -883,22 +962,101 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleStartEdit = (task) => {
-    setEditingTaskId(task.id);
-    setEditForm({
-      title: task.title,
-      description: task.description || '',
-      url: task.url || '',
-      dueDate: task.dueDate || '',
-      time: task.time || '',
-      status: task.status,
-      taskType: task.taskType || 'academic',
-      attachments: task.attachments || []
-    });
+    // Check if this task is an instance of a recurring template
+    if (task.templateId) {
+      // Show popup: Edit instance or template?
+      const editInstance = window.confirm(
+        'Edit this recurring task?\n\n[OK] = Edit just this one instance.\n[Cancel] = Edit the entire series (the template).'
+      );
+
+      if (editInstance) {
+        // Edit just this instance
+        setIsEditingTemplate(false);
+        setEditingTaskId(task.id);
+        setEditForm({
+          title: task.title,
+          description: task.description || '',
+          url: task.url || '',
+          dueDate: task.dueDate || '',
+          time: task.time || '',
+          status: task.status,
+          taskType: task.taskType || 'academic',
+          attachments: task.attachments || [],
+          recurrence: 'daily',
+          weeklyDays: {
+            sunday: false,
+            monday: false,
+            tuesday: false,
+            wednesday: false,
+            thursday: false,
+            friday: false,
+            saturday: false,
+          }
+        });
+      } else {
+        // Edit the template
+        setIsEditingTemplate(true);
+        setEditingTaskId(task.id); // Still track the task ID, but we'll save to template
+
+        // Load the template data
+        const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+        const template = templates.find(t => t.id === task.templateId);
+
+        if (template) {
+          setEditForm({
+            title: template.title,
+            description: template.description || '',
+            url: template.url || '',
+            dueDate: '', // Templates don't have due dates
+            time: template.time || '',
+            status: 'not-started',
+            taskType: template.taskType || 'academic',
+            attachments: template.attachments || [],
+            recurrence: template.recurrence || 'daily',
+            weeklyDays: template.weeklyDays || {
+              sunday: false,
+              monday: false,
+              tuesday: false,
+              wednesday: false,
+              thursday: false,
+              friday: false,
+              saturday: false,
+            }
+          });
+        }
+      }
+    } else {
+      // Normal task (not a recurring instance)
+      setIsEditingTemplate(false);
+      setEditingTaskId(task.id);
+      setEditForm({
+        title: task.title,
+        description: task.description || '',
+        url: task.url || '',
+        dueDate: task.dueDate || '',
+        time: task.time || '',
+        status: task.status,
+        taskType: task.taskType || 'academic',
+        attachments: task.attachments || [],
+        recurrence: 'daily',
+        weeklyDays: {
+          sunday: false,
+          monday: false,
+          tuesday: false,
+          wednesday: false,
+          thursday: false,
+          friday: false,
+          saturday: false,
+        }
+      });
+    }
+
     setOpenMenuTaskId(null); // Close menu when editing starts
   };
 
   const handleCancelEdit = () => {
     setEditingTaskId(null);
+    setIsEditingTemplate(false);
     setEditForm({
       title: '',
       description: '',
@@ -907,43 +1065,85 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       time: '',
       status: 'not-started',
       taskType: 'academic',
-      attachments: []
+      attachments: [],
+      recurrence: 'daily',
+      weeklyDays: {
+        sunday: false,
+        monday: false,
+        tuesday: false,
+        wednesday: false,
+        thursday: false,
+        friday: false,
+        saturday: false,
+      }
     });
   };
 
   const handleSaveEdit = (taskId) => {
     if (!editForm.title.trim()) return;
 
-    // CRITICAL FIX: Read from localStorage to get FULL unfiltered array
-    // Don't map over 'tasks' prop as it may be filtered
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    if (isEditingTemplate) {
+      // Save changes to the template
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || !task.templateId) return;
 
-    const updatedTasks = fullTasksArray.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          title: editForm.title.trim(),
-          description: editForm.description.trim(),
-          url: editForm.url.trim() || null,
-          dueDate: editForm.dueDate || null,
-          time: editForm.time || null,
-          status: editForm.status,
-          taskType: editForm.taskType,
-          attachments: editForm.attachments || []
-        };
-      }
-      return task;
-    });
+      const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+      const updatedTemplates = templates.map(template => {
+        if (template.id === task.templateId) {
+          return {
+            ...template,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            time: editForm.time || null,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || [],
+            recurrence: editForm.recurrence,
+            weeklyDays: editForm.recurrence === 'weekly' ? editForm.weeklyDays : null,
+          };
+        }
+        return template;
+      });
 
-    // Save full array to localStorage first
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+      localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+      backupManager.saveAutoBackup();
+      window.dispatchEvent(new Event('storage'));
 
-    // Backup after save
-    backupManager.saveAutoBackup();
+      console.log('[TaskList] Saved changes to template');
+    } else {
+      // Save changes to the task instance
+      const storedTasks = localStorage.getItem('tasks');
+      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-    // Then update parent state with full array (parent will filter for display)
-    setTasks(updatedTasks);
+      const updatedTasks = fullTasksArray.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            dueDate: editForm.dueDate || null,
+            time: editForm.time || null,
+            status: editForm.status,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || []
+          };
+        }
+        return task;
+      });
+
+      // Save full array to localStorage first
+      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+      // Backup after save
+      backupManager.saveAutoBackup();
+
+      // Then update parent state with full array (parent will filter for display)
+      setTasks(updatedTasks);
+
+      console.log('[TaskList] Saved changes to task instance');
+    }
+
     handleCancelEdit();
   };
 
@@ -962,7 +1162,9 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       completedAt: null,
       createdAt: new Date().toISOString(),
       title: `${taskToDuplicate.title} (Copy)`,
-      customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5 // Place it just below
+      customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5, // Place it just below
+      // IMPORTANT: Remove templateId so the duplicate is not linked to the recurring template
+      templateId: undefined,
     };
 
     // 2. Modify FULL list - add duplicated task after the original
@@ -980,27 +1182,67 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleDelete = (taskId) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this task? This cannot be undone.'
-    );
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
 
-    if (!confirmed) return;
+    // Check if this is a recurring task instance
+    if (task.templateId) {
+      // Show popup: Delete instance or template?
+      const deleteInstance = window.confirm(
+        'Delete this recurring task?\n\n[OK] = Delete just this one instance.\n[Cancel] = Delete the entire series (the template).'
+      );
 
-    // Read from localStorage to get full array
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+      if (deleteInstance) {
+        // Delete just this instance
+        const storedTasks = localStorage.getItem('tasks');
+        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-    // Remove the task
-    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+        const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
 
-    // Save to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        backupManager.saveAutoBackup();
+        setTasks(updatedTasks);
+      } else {
+        // Delete the entire template (with safety confirmation)
+        const confirmDeleteTemplate = window.confirm(
+          `Are you sure you want to delete the entire "${task.title}" template? This will stop it from generating new tasks.`
+        );
 
-    // Backup after save
-    backupManager.saveAutoBackup();
+        if (confirmDeleteTemplate) {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
 
-    // Update parent state
-    setTasks(updatedTasks);
+          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+          backupManager.saveAutoBackup();
+          window.dispatchEvent(new Event('storage'));
+
+          console.log('[TaskList] Deleted recurring template');
+        }
+      }
+    } else {
+      // Normal task - delete with confirmation
+      const confirmed = window.confirm(
+        'Are you sure you want to delete this task? This cannot be undone.'
+      );
+
+      if (!confirmed) return;
+
+      // Read from localStorage to get full array
+      const storedTasks = localStorage.getItem('tasks');
+      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+      // Remove the task
+      const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+      // Save to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+      // Backup after save
+      backupManager.saveAutoBackup();
+
+      // Update parent state
+      setTasks(updatedTasks);
+    }
   };
 
   const handleMenuToggle = useCallback((task, buttonRect) => {
@@ -1122,6 +1364,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               onDelete={handleDelete}
               isMenuOpen={openMenuTaskId === task.id}
               onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
+              isEditingTemplate={isEditingTemplate}
             />
           ))}
         </AnimatePresence>
