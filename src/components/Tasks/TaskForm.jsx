@@ -212,7 +212,7 @@ const TaskForm = ({ onTaskCreate }) => {
         </div>
 
         {/* Recurrence Selection */}
-        <div>
+        <div className="mt-4 pt-4 border-t border-bg-primary">
           <label className="block text-sm text-text-secondary mb-2">
             Recurrence
           </label>
