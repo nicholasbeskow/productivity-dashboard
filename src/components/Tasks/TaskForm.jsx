@@ -13,16 +13,16 @@ const TaskForm = ({ onTaskCreate }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   // Recurrence state
-  const [recurrence, setRecurrence] = useState('does-not-repeat');
-  const [weeklyDays, setWeeklyDays] = useState({
-    sunday: false,
-    monday: false,
-    tuesday: false,
-    wednesday: false,
-    thursday: false,
-    friday: false,
-    saturday: false,
-  });
+  const [recurrenceType, setRecurrenceType] = useState('does-not-repeat');
+  const [weeklyDays, setWeeklyDays] = useState([]);
+
+  const handleWeeklyDayToggle = (dayIndex) => {
+    setWeeklyDays(prev =>
+      prev.includes(dayIndex)
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex]
+    );
+  };
 
   // File attachment handlers
   const handleAttachFilesClick = async () => {
@@ -84,7 +84,7 @@ const TaskForm = ({ onTaskCreate }) => {
     }
 
     // Check if this is a recurring task
-    if (recurrence !== 'does-not-repeat') {
+    if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
       const template = {
         id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -94,8 +94,10 @@ const TaskForm = ({ onTaskCreate }) => {
         time: time || null,
         taskType: taskType,
         attachments: attachments,
-        recurrence: recurrence, // 'daily' or 'weekly'
-        weeklyDays: recurrence === 'weekly' ? weeklyDays : null,
+        recurrence: {
+          type: recurrenceType, // 'daily' or 'weekly'
+          days: recurrenceType === 'weekly' ? weeklyDays : [],
+        },
         createdAt: new Date().toISOString(),
       };
 
@@ -116,14 +118,12 @@ const TaskForm = ({ onTaskCreate }) => {
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
       const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const todayDayName = dayNames[todayDayOfWeek];
 
       let isDueToday = false;
 
-      if (recurrence === 'daily') {
+      if (template.recurrence.type === 'daily') {
         isDueToday = true;
-      } else if (recurrence === 'weekly' && weeklyDays[todayDayName] === true) {
+      } else if (template.recurrence.type === 'weekly' && template.recurrence.days.includes(todayDayOfWeek)) {
         isDueToday = true;
       }
 
@@ -178,23 +178,8 @@ const TaskForm = ({ onTaskCreate }) => {
     setTime('');
     setTaskType('academic');
     setAttachments([]);
-    setRecurrence('does-not-repeat');
-    setWeeklyDays({
-      sunday: false,
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false,
-      saturday: false,
-    });
-  };
-
-  const toggleWeeklyDay = (day) => {
-    setWeeklyDays(prev => ({
-      ...prev,
-      [day]: !prev[day]
-    }));
+    setRecurrenceType('does-not-repeat');
+    setWeeklyDays([]);
   };
 
   return (
@@ -246,7 +231,7 @@ const TaskForm = ({ onTaskCreate }) => {
         </div>
 
         {/* Due Date and Time Row - Only show if not recurring */}
-        {recurrence === 'does-not-repeat' && (
+        {recurrenceType === 'does-not-repeat' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-text-secondary mb-2">
@@ -274,7 +259,7 @@ const TaskForm = ({ onTaskCreate }) => {
         )}
 
         {/* Time input for recurring tasks (no date needed as it's generated daily) */}
-        {recurrence !== 'does-not-repeat' && (
+        {recurrenceType !== 'does-not-repeat' && (
           <div>
             <label className="block text-sm text-text-secondary mb-2">
               Time (optional)
@@ -326,8 +311,8 @@ const TaskForm = ({ onTaskCreate }) => {
             Recurrence
           </label>
           <select
-            value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
+            value={recurrenceType}
+            onChange={(e) => setRecurrenceType(e.target.value)}
             className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
           >
             <option value="does-not-repeat">Does not repeat</option>
@@ -336,25 +321,25 @@ const TaskForm = ({ onTaskCreate }) => {
           </select>
 
           {/* Weekly Day Toggles - Only show when Weekly is selected */}
-          {recurrence === 'weekly' && (
+          {recurrenceType === 'weekly' && (
             <div className="mt-3">
               <p className="text-xs text-text-tertiary mb-2">Repeat on:</p>
               <div className="flex gap-2">
                 {[
-                  { key: 'sunday', label: 'S' },
-                  { key: 'monday', label: 'M' },
-                  { key: 'tuesday', label: 'T' },
-                  { key: 'wednesday', label: 'W' },
-                  { key: 'thursday', label: 'T' },
-                  { key: 'friday', label: 'F' },
-                  { key: 'saturday', label: 'S' },
-                ].map(({ key, label }) => (
+                  { index: 0, label: 'S' },
+                  { index: 1, label: 'M' },
+                  { index: 2, label: 'T' },
+                  { index: 3, label: 'W' },
+                  { index: 4, label: 'T' },
+                  { index: 5, label: 'F' },
+                  { index: 6, label: 'S' },
+                ].map(({ index, label }) => (
                   <button
-                    key={key}
+                    key={index}
                     type="button"
-                    onClick={() => toggleWeeklyDay(key)}
+                    onClick={() => handleWeeklyDayToggle(index)}
                     className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      weeklyDays[key]
+                      weeklyDays.includes(index)
                         ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
                         : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
                     }`}
@@ -439,7 +424,7 @@ const TaskForm = ({ onTaskCreate }) => {
           className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
         >
           <Plus size={20} />
-          {recurrence !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
+          {recurrenceType !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
         </button>
       </form>
     </div>

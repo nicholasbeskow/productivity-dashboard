@@ -1012,16 +1012,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             status: 'not-started',
             taskType: template.taskType || 'academic',
             attachments: template.attachments || [],
-            recurrence: template.recurrence || 'daily',
-            weeklyDays: template.weeklyDays || {
-              sunday: false,
-              monday: false,
-              tuesday: false,
-              wednesday: false,
-              thursday: false,
-              friday: false,
-              saturday: false,
-            }
+            recurrenceType: template.recurrence?.type || 'daily',
+            weeklyDays: template.recurrence?.days || []
           });
         }
       }
@@ -1038,16 +1030,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         status: task.status,
         taskType: task.taskType || 'academic',
         attachments: task.attachments || [],
-        recurrence: 'daily',
-        weeklyDays: {
-          sunday: false,
-          monday: false,
-          tuesday: false,
-          wednesday: false,
-          thursday: false,
-          friday: false,
-          saturday: false,
-        }
+        recurrenceType: 'does-not-repeat',
+        weeklyDays: []
       });
     }
 
@@ -1098,8 +1082,10 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             time: editForm.time || null,
             taskType: editForm.taskType,
             attachments: editForm.attachments || [],
-            recurrence: editForm.recurrence,
-            weeklyDays: editForm.recurrence === 'weekly' ? editForm.weeklyDays : null,
+            recurrence: {
+              type: editForm.recurrenceType,
+              days: editForm.recurrenceType === 'weekly' ? editForm.weeklyDays : [],
+            },
           };
         }
         return template;

@@ -100,16 +100,14 @@ function App() {
           let shouldGenerate = false;
 
           // Check if we should generate a task for today based on recurrence rules
-          if (template.recurrence === 'daily') {
+          if (template.recurrence && template.recurrence.type === 'daily') {
             shouldGenerate = true;
-          } else if (template.recurrence === 'weekly' && template.weeklyDays) {
+          } else if (template.recurrence && template.recurrence.type === 'weekly' && template.recurrence.days) {
             // Get today's day (0 = Sunday, 1 = Monday, etc.)
             const dayOfWeek = today.getDay();
-            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-            const todayDayName = dayNames[dayOfWeek];
 
             // Check if today is one of the selected days
-            shouldGenerate = template.weeklyDays[todayDayName] === true;
+            shouldGenerate = template.recurrence.days.includes(dayOfWeek);
           }
 
           if (!shouldGenerate) {
