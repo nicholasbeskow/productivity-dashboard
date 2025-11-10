@@ -111,6 +111,45 @@ const TaskForm = ({ onTaskCreate }) => {
       window.dispatchEvent(new Event('storage'));
 
       console.log('[TaskForm] Created recurring task template:', template);
+
+      // Check if this template is due today
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const todayDayName = dayNames[todayDayOfWeek];
+
+      let isDueToday = false;
+
+      if (recurrence === 'daily') {
+        isDueToday = true;
+      } else if (recurrence === 'weekly' && weeklyDays[todayDayName] === true) {
+        isDueToday = true;
+      }
+
+      // If due today, generate the instance immediately
+      if (isDueToday) {
+        const generatedTask = {
+          id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
+          title: template.title,
+          description: template.description,
+          url: template.url,
+          dueDate: todayString,
+          time: template.time,
+          status: 'not-started',
+          taskType: template.taskType,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          attachments: template.attachments,
+          customPriority: 0,
+          templateId: template.id, // Link back to the template
+        };
+
+        // Pass this new instance to the main TaskList
+        onTaskCreate(generatedTask);
+
+        console.log('[TaskForm] Generated today\'s instance:', generatedTask);
+      }
     } else {
       // Create a normal one-time task
       const newTask = {
