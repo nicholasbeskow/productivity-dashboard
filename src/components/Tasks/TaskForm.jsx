@@ -119,16 +119,26 @@ const TaskForm = ({ onTaskCreate }) => {
       const todayString = today.toISOString().split('T')[0];
       const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
+      console.log('[TaskForm] Debug - recurrenceType:', recurrenceType);
+      console.log('[TaskForm] Debug - template.recurrence:', template.recurrence);
+      console.log('[TaskForm] Debug - template.recurrence.type:', template.recurrence.type);
+      console.log('[TaskForm] Debug - todayDayOfWeek:', todayDayOfWeek);
+
       let isDueToday = false;
 
       if (template.recurrence.type === 'daily') {
+        console.log('[TaskForm] Debug - Daily task detected, setting isDueToday = true');
         isDueToday = true;
       } else if (template.recurrence.type === 'weekly' && template.recurrence.days.includes(todayDayOfWeek)) {
+        console.log('[TaskForm] Debug - Weekly task matches today, setting isDueToday = true');
         isDueToday = true;
       }
 
+      console.log('[TaskForm] Debug - isDueToday:', isDueToday);
+
       // If due today, generate the instance immediately
       if (isDueToday) {
+        console.log('[TaskForm] Debug - Generating instance for today');
         const generatedTask = {
           id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
           title: template.title,
