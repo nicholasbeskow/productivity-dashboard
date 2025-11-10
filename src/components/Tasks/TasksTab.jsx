@@ -159,7 +159,8 @@ const TasksTab = () => {
     let insertIndex = tasks.length;
 
     if (newTask.dueDate) {
-      const newDueDate = new Date(newTask.dueDate);
+      // Parse date at noon to avoid timezone shift
+      const newDueDate = new Date(newTask.dueDate + 'T12:00:00');
 
       for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
@@ -168,7 +169,8 @@ const TasksTab = () => {
         if (isOverdue(task)) continue;
 
         // If task has no due date or later due date, insert before it
-        if (!task.dueDate || new Date(task.dueDate) > newDueDate) {
+        // Parse existing task date at noon for correct comparison
+        if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
           insertIndex = i;
           break;
         }
