@@ -119,9 +119,14 @@ const CanvasTab = () => {
 
       if (assignment.due_at) {
         const dueDateTime = new Date(assignment.due_at);
-        // Format as YYYY-MM-DD for date
-        dueDate = dueDateTime.toISOString().split('T')[0];
-        // Format as HH:MM for time
+
+        // Extract date using local timezone (not UTC) to avoid date shifts
+        const year = dueDateTime.getFullYear();
+        const month = String(dueDateTime.getMonth() + 1).padStart(2, '0');
+        const day = String(dueDateTime.getDate()).padStart(2, '0');
+        dueDate = `${year}-${month}-${day}`;
+
+        // Extract time using local timezone
         const hours = String(dueDateTime.getHours()).padStart(2, '0');
         const minutes = String(dueDateTime.getMinutes()).padStart(2, '0');
         time = `${hours}:${minutes}`;

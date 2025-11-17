@@ -686,69 +686,228 @@ const Dashboard = ({ setActiveTab }) => {
   };
 
   const handleDeleteTask = (taskId) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this task? This cannot be undone.'
-    );
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
 
-    if (!confirmed) return;
+    // Check if this is a recurring task instance
+    if (task.templateId) {
+      // Show popup: Delete instance or template?
+      const deleteInstance = window.confirm(
+        'Delete this recurring task?\n\n[OK] = Delete just this one instance.\n[Cancel] = Delete the entire series (the template).'
+      );
 
-    // Read from localStorage to get full array
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+      if (deleteInstance) {
+        // Delete just this instance
+        const storedTasks = localStorage.getItem('tasks');
+        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-    // Remove the task
-    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+        const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
 
-    // Save to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        backupManager.saveAutoBackup();
+        setTasks(updatedTasks);
 
-    // Backup after save
-    backupManager.saveAutoBackup();
+        // Close detail view
+        setDetailViewTaskId(null);
+        setIsEditingDetail(false);
 
-    // Update state
-    setTasks(updatedTasks);
+        window.dispatchEvent(new Event('storage'));
+      } else {
+        // Delete the entire template (with safety confirmation)
+        const confirmDeleteTemplate = window.confirm(
+          `Are you sure you want to delete the entire "${task.title}" template? This will stop it from generating new tasks.`
+        );
 
-    // Close detail view
-    setDetailViewTaskId(null);
-    setIsEditingDetail(false);
+        if (confirmDeleteTemplate) {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
 
-    window.dispatchEvent(new Event('storage'));
+          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+          backupManager.saveAutoBackup();
+          window.dispatchEvent(new Event('storage'));
+
+          console.log('[Dashboard] Deleted recurring template');
+
+          // Close detail view
+          setDetailViewTaskId(null);
+          setIsEditingDetail(false);
+        }
+      }
+    } else {
+      // Normal task - delete with confirmation
+      const confirmed = window.confirm(
+        'Are you sure you want to delete this task? This cannot be undone.'
+      );
+
+      if (!confirmed) return;
+
+      // Read from localStorage to get full array
+      const storedTasks = localStorage.getItem('tasks');
+      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+      // Remove the task
+      const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+      // Save to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+      // Backup after save
+      backupManager.saveAutoBackup();
+
+      // Update state
+      setTasks(updatedTasks);
+
+      // Close detail view
+      setDetailViewTaskId(null);
+      setIsEditingDetail(false);
+
+      window.dispatchEvent(new Event('storage'));
+    }
   };
 
   const handleSaveEdit = (taskId) => {
     if (!editForm.title.trim()) return;
 
-    // BULLETPROOF FIX: Always read from localStorage to ensure we have the full array
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
 
-    const updatedTasks = fullTasksArray.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          title: editForm.title.trim(),
-          description: editForm.description.trim(),
-          url: editForm.url.trim() || null,
-          dueDate: editForm.dueDate || null,
-          time: editForm.time || null,
-          status: editForm.status,
-          taskType: editForm.taskType,
-          attachments: editForm.attachments || []
-        };
+    // Check if this is a recurring task instance
+    if (task.templateId) {
+      // Show popup: Edit instance or template?
+      const editInstance = window.confirm(
+        'Edit this recurring task?\n\n[OK] = Edit just this one instance.\n[Cancel] = Edit the entire series (the template).'
+      );
+
+      if (editInstance) {
+        // Edit just this instance
+        const storedTasks = localStorage.getItem('tasks');
+        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+        const updatedTasks = fullTasksArray.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              title: editForm.title.trim(),
+              description: editForm.description.trim(),
+              url: editForm.url.trim() || null,
+              dueDate: editForm.dueDate || null,
+              time: editForm.time || null,
+              status: editForm.status,
+              taskType: editForm.taskType,
+              attachments: editForm.attachments || []
+            };
+          }
+          return t;
+        });
+
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        backupManager.saveAutoBackup();
+        setTasks(updatedTasks);
+        window.dispatchEvent(new Event('storage'));
+
+        console.log('[Dashboard] Saved changes to task instance');
+      } else {
+        // Edit the template
+        const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+        const updatedTemplates = templates.map(template => {
+          if (template.id === task.templateId) {
+            return {
+              ...template,
+              title: editForm.title.trim(),
+              description: editForm.description.trim(),
+              url: editForm.url.trim() || null,
+              time: editForm.time || null,
+              taskType: editForm.taskType,
+              attachments: editForm.attachments || []
+            };
+          }
+          return template;
+        });
+
+        localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+
+        // Also update all existing instances of this template
+        const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+        const updatedTasks = storedTasks.map(t => {
+          if (t.templateId === task.templateId) {
+            return {
+              ...t,
+              title: editForm.title.trim(),
+              description: editForm.description.trim(),
+              url: editForm.url.trim() || null,
+              time: editForm.time || null,
+              taskType: editForm.taskType,
+              attachments: editForm.attachments || [],
+              // Keep instance-specific fields unchanged
+            };
+          }
+          return t;
+        });
+
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+        // Also update completed tasks
+        const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+        const updatedCompletedTasks = completedTasks.map(t => {
+          if (t.templateId === task.templateId) {
+            return {
+              ...t,
+              title: editForm.title.trim(),
+              description: editForm.description.trim(),
+              url: editForm.url.trim() || null,
+              time: editForm.time || null,
+              taskType: editForm.taskType,
+              attachments: editForm.attachments || [],
+              // Keep instance-specific fields unchanged
+            };
+          }
+          return t;
+        });
+
+        localStorage.setItem('completedTasks', JSON.stringify(updatedCompletedTasks));
+
+        // Update parent state
+        setTasks(updatedTasks);
+
+        backupManager.saveAutoBackup();
+        window.dispatchEvent(new Event('storage'));
+
+        console.log('[Dashboard] Saved changes to template and all instances');
       }
-      return task;
-    });
+    } else {
+      // Normal task - save as usual
+      const storedTasks = localStorage.getItem('tasks');
+      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-    // Save full array to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+      const updatedTasks = fullTasksArray.map(t => {
+        if (t.id === taskId) {
+          return {
+            ...t,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            dueDate: editForm.dueDate || null,
+            time: editForm.time || null,
+            status: editForm.status,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || []
+          };
+        }
+        return t;
+      });
 
-    // Backup after save
-    backupManager.saveAutoBackup();
+      // Save full array to localStorage
+      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
 
-    // Update state with full array
-    setTasks(updatedTasks);
+      // Backup after save
+      backupManager.saveAutoBackup();
 
-    window.dispatchEvent(new Event('storage'));
+      // Update state with full array
+      setTasks(updatedTasks);
+
+      window.dispatchEvent(new Event('storage'));
+    }
+
     handleCancelEdit();
   };
 

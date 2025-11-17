@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, FileText, UploadCloud, X } from 'lucide-react';
+import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
+import backupManager from '../../utils/backupManager';
 
 const TaskForm = ({ onTaskCreate }) => {
   const [title, setTitle] = useState('');
@@ -10,6 +11,18 @@ const TaskForm = ({ onTaskCreate }) => {
   const [taskType, setTaskType] = useState('academic');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState('does-not-repeat');
+  const [weeklyDays, setWeeklyDays] = useState([]);
+
+  const handleWeeklyDayToggle = (dayIndex) => {
+    setWeeklyDays(prev =>
+      prev.includes(dayIndex)
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex]
+    );
+  };
 
   // File attachment handlers
   const handleAttachFilesClick = async () => {
@@ -70,22 +83,118 @@ const TaskForm = ({ onTaskCreate }) => {
       return;
     }
 
-    const newTask = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: title.trim(),
-      description: description.trim(),
-      url: url.trim() || null,
-      dueDate: dueDate || null,
-      time: time || null,
-      status: 'not-started',
-      taskType: taskType,
-      createdAt: new Date().toISOString(),
-      completedAt: null,
-      attachments: attachments, // Use the attachments state
-      customPriority: 0, // Will be set by parent component based on due date
-    };
+    // Check if this is a recurring task
+    if (recurrenceType !== 'does-not-repeat') {
+      // Create a recurring task template instead of a normal task
+      const template = {
+        id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        time: time || null,
+        taskType: taskType,
+        attachments: attachments,
+        recurrence: {
+          type: recurrenceType, // 'daily' or 'weekly'
+          days: recurrenceType === 'weekly' ? weeklyDays : [],
+        },
+        createdAt: new Date().toISOString(),
+      };
 
-    onTaskCreate(newTask);
+      // Save to recurringTasks in localStorage
+      const existingTemplates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+      existingTemplates.push(template);
+      localStorage.setItem('recurringTasks', JSON.stringify(existingTemplates));
+
+      // Trigger backup
+      backupManager.saveAutoBackup();
+
+      // Dispatch storage event to update UI
+      window.dispatchEvent(new Event('storage'));
+
+      console.log('[TaskForm] Created recurring task template:', template);
+
+      // For recurring tasks, always generate at least one instance
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+      let instanceDate = todayString;
+
+      if (template.recurrence.type === 'daily') {
+        // Daily tasks are always due today
+        instanceDate = todayString;
+      } else if (template.recurrence.type === 'weekly') {
+        // For weekly tasks, find the next occurrence (could be today or a future day)
+        const selectedDays = template.recurrence.days.sort((a, b) => a - b); // Sort days in order
+
+        // Check if today is one of the selected days
+        if (selectedDays.includes(todayDayOfWeek)) {
+          instanceDate = todayString;
+        } else {
+          // Find the next occurrence
+          let daysUntilNext = null;
+
+          // First, check if there's a day later this week
+          for (const day of selectedDays) {
+            if (day > todayDayOfWeek) {
+              daysUntilNext = day - todayDayOfWeek;
+              break;
+            }
+          }
+
+          // If no day found later this week, use the first day next week
+          if (daysUntilNext === null) {
+            daysUntilNext = 7 - todayDayOfWeek + selectedDays[0];
+          }
+
+          // Calculate the next occurrence date
+          const nextOccurrence = new Date(today);
+          nextOccurrence.setDate(nextOccurrence.getDate() + daysUntilNext);
+          instanceDate = nextOccurrence.toISOString().split('T')[0];
+        }
+      }
+
+      // Generate the instance with the calculated date
+      const generatedTask = {
+        id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
+        title: template.title,
+        description: template.description,
+        url: template.url,
+        dueDate: instanceDate,
+        time: template.time,
+        status: 'not-started',
+        taskType: template.taskType,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        attachments: template.attachments,
+        customPriority: 0,
+        templateId: template.id, // Link back to the template
+      };
+
+      // Pass this new instance to the main TaskList
+      onTaskCreate(generatedTask);
+
+      console.log('[TaskForm] Generated instance for:', instanceDate, generatedTask);
+    } else {
+      // Create a normal one-time task
+      const newTask = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        dueDate: dueDate || null,
+        time: time || null,
+        status: 'not-started',
+        taskType: taskType,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        attachments: attachments,
+        customPriority: 0,
+      };
+
+      onTaskCreate(newTask);
+    }
 
     // Clear form
     setTitle('');
@@ -95,6 +204,8 @@ const TaskForm = ({ onTaskCreate }) => {
     setTime('');
     setTaskType('academic');
     setAttachments([]);
+    setRecurrenceType('does-not-repeat');
+    setWeeklyDays([]);
   };
 
   return (
@@ -145,19 +256,36 @@ const TaskForm = ({ onTaskCreate }) => {
           />
         </div>
 
-        {/* Due Date and Time Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-text-secondary mb-2">
-              Due Date
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-            />
+        {/* Due Date and Time Row - Only show if not recurring */}
+        {recurrenceType === 'does-not-repeat' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Due Date
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                Time (optional)
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              />
+            </div>
           </div>
+        )}
+
+        {/* Time input for recurring tasks (no date needed as it's generated daily) */}
+        {recurrenceType !== 'does-not-repeat' && (
           <div>
             <label className="block text-sm text-text-secondary mb-2">
               Time (optional)
@@ -169,7 +297,7 @@ const TaskForm = ({ onTaskCreate }) => {
               className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
             />
           </div>
-        </div>
+        )}
 
         {/* Task Type Toggle */}
         <div>
@@ -200,6 +328,54 @@ const TaskForm = ({ onTaskCreate }) => {
               🏠 Personal
             </button>
           </div>
+        </div>
+
+        {/* Recurrence Section */}
+        <div>
+          <label className="block text-sm text-text-secondary mb-2 flex items-center gap-2">
+            <Repeat size={16} />
+            Recurrence
+          </label>
+          <select
+            value={recurrenceType}
+            onChange={(e) => setRecurrenceType(e.target.value)}
+            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+          >
+            <option value="does-not-repeat">Does not repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+
+          {/* Weekly Day Toggles - Only show when Weekly is selected */}
+          {recurrenceType === 'weekly' && (
+            <div className="mt-3">
+              <p className="text-xs text-text-tertiary mb-2">Repeat on:</p>
+              <div className="flex gap-2">
+                {[
+                  { index: 0, label: 'S' },
+                  { index: 1, label: 'M' },
+                  { index: 2, label: 'T' },
+                  { index: 3, label: 'W' },
+                  { index: 4, label: 'T' },
+                  { index: 5, label: 'F' },
+                  { index: 6, label: 'S' },
+                ].map(({ index, label }) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleWeeklyDayToggle(index)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      weeklyDays.includes(index)
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* File Attachments Section */}
@@ -274,7 +450,7 @@ const TaskForm = ({ onTaskCreate }) => {
           className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
         >
           <Plus size={20} />
-          Create Task
+          {recurrenceType !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
         </button>
       </form>
     </div>
