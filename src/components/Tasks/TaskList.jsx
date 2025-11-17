@@ -1092,10 +1092,55 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       });
 
       localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+
+      // Also update all existing instances of this template
+      const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const updatedTasks = storedTasks.map(t => {
+        if (t.templateId === task.templateId) {
+          return {
+            ...t,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            time: editForm.time || null,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || [],
+            // Keep instance-specific fields unchanged
+            // dueDate, status, completedAt, customPriority, etc.
+          };
+        }
+        return t;
+      });
+
+      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
+      // Also update completed tasks
+      const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+      const updatedCompletedTasks = completedTasks.map(t => {
+        if (t.templateId === task.templateId) {
+          return {
+            ...t,
+            title: editForm.title.trim(),
+            description: editForm.description.trim(),
+            url: editForm.url.trim() || null,
+            time: editForm.time || null,
+            taskType: editForm.taskType,
+            attachments: editForm.attachments || [],
+            // Keep instance-specific fields unchanged
+          };
+        }
+        return t;
+      });
+
+      localStorage.setItem('completedTasks', JSON.stringify(updatedCompletedTasks));
+
+      // Update parent state
+      setTasks(updatedTasks);
+
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskList] Saved changes to template');
+      console.log('[TaskList] Saved changes to template and all instances');
     } else {
       // Save changes to the task instance
       const storedTasks = localStorage.getItem('tasks');
