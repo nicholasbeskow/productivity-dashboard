@@ -13,7 +13,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     <aside className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col">
       {/* App Title */}
       <div className="p-6 pt-8 border-b border-bg-tertiary">
-        <h1 className="text-2xl font-bold text-green-glow">TEST-WORKS</h1>
+        <h1 className="text-2xl font-bold text-green-glow">Productivity</h1>
         <p className="text-sm text-text-secondary mt-1">Dashboard</p>
       </div>
 

@@ -154,15 +154,7 @@ const TasksTab = () => {
     });
   }, [tasks, taskFilter, searchTerm]);
 
-  // Debug log for sortedTasks
-  useEffect(() => {
-    console.log('[TasksTab] sortedTasks updated:', sortedTasks.length, 'tasks');
-    console.log('[TasksTab] Current taskFilter:', taskFilter);
-    console.log('[TasksTab] Current searchTerm:', searchTerm);
-  }, [sortedTasks, taskFilter, searchTerm]);
-
   const handleTaskCreate = (newTask) => {
-    console.log('[TasksTab] handleTaskCreate called with:', newTask);
     // Find the right position for the new task based on due date
     let insertIndex = tasks.length;
 
@@ -201,10 +193,7 @@ const TasksTab = () => {
       customPriority: updatedTasks.length - index,
     }));
 
-    console.log('[TasksTab] About to setTasks with', tasksWithUpdatedPriorities.length, 'tasks');
-    console.log('[TasksTab] New task added:', tasksWithUpdatedPriorities.find(t => t.id === newTask.id));
     setTasks(tasksWithUpdatedPriorities);
-    console.log('[TasksTab] setTasks completed');
   };
 
   return (
