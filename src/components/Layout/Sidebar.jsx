@@ -1,9 +1,10 @@
-import { Home, CheckSquare, BarChart3, Settings, BookOpen } from 'lucide-react';
+import { Home, CheckSquare, BarChart3, Settings, BookOpen, Calendar } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'canvas', label: 'Canvas', icon: BookOpen },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },

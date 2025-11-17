@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import TasksTab from './components/Tasks/TasksTab';
+import CalendarTab from './components/Calendar/CalendarTab';
 import CanvasTab from './components/Canvas/CanvasTab';
 import StatsTab from './components/Stats/StatsTab';
 import SettingsTab from './components/Settings/SettingsTab';
@@ -224,6 +225,8 @@ function App() {
         return <Dashboard key="dashboard" setActiveTab={setActiveTab} />;
       case 'tasks':
         return <TasksTab key="tasks" />;
+      case 'calendar':
+        return <CalendarTab key="calendar" />;
       case 'canvas':
         return <CanvasTab key="canvas" />;
       case 'stats':
