@@ -114,48 +114,68 @@ const TaskForm = ({ onTaskCreate }) => {
 
       console.log('[TaskForm] Created recurring task template:', template);
 
-      // Check if this template is due today
+      // For recurring tasks, always generate at least one instance
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
       const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
-      let isDueToday = false;
+      let instanceDate = todayString;
 
       if (template.recurrence.type === 'daily') {
-        isDueToday = true;
+        // Daily tasks are always due today
+        instanceDate = todayString;
       } else if (template.recurrence.type === 'weekly') {
-        console.log('[TaskForm] Weekly check - Selected days:', template.recurrence.days, 'Today is:', todayDayOfWeek);
-        if (template.recurrence.days.includes(todayDayOfWeek)) {
-          isDueToday = true;
-          console.log('[TaskForm] Weekly task matches today!');
+        // For weekly tasks, find the next occurrence (could be today or a future day)
+        const selectedDays = template.recurrence.days.sort((a, b) => a - b); // Sort days in order
+
+        // Check if today is one of the selected days
+        if (selectedDays.includes(todayDayOfWeek)) {
+          instanceDate = todayString;
         } else {
-          console.log('[TaskForm] Weekly task does NOT match today');
+          // Find the next occurrence
+          let daysUntilNext = null;
+
+          // First, check if there's a day later this week
+          for (const day of selectedDays) {
+            if (day > todayDayOfWeek) {
+              daysUntilNext = day - todayDayOfWeek;
+              break;
+            }
+          }
+
+          // If no day found later this week, use the first day next week
+          if (daysUntilNext === null) {
+            daysUntilNext = 7 - todayDayOfWeek + selectedDays[0];
+          }
+
+          // Calculate the next occurrence date
+          const nextOccurrence = new Date(today);
+          nextOccurrence.setDate(nextOccurrence.getDate() + daysUntilNext);
+          instanceDate = nextOccurrence.toISOString().split('T')[0];
         }
       }
 
-      // If due today, generate the instance immediately
-      if (isDueToday) {
-        const generatedTask = {
-          id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
-          title: template.title,
-          description: template.description,
-          url: template.url,
-          dueDate: todayString,
-          time: template.time,
-          status: 'not-started',
-          taskType: template.taskType,
-          createdAt: new Date().toISOString(),
-          completedAt: null,
-          attachments: template.attachments,
-          customPriority: 0,
-          templateId: template.id, // Link back to the template
-        };
+      // Generate the instance with the calculated date
+      const generatedTask = {
+        id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
+        title: template.title,
+        description: template.description,
+        url: template.url,
+        dueDate: instanceDate,
+        time: template.time,
+        status: 'not-started',
+        taskType: template.taskType,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        attachments: template.attachments,
+        customPriority: 0,
+        templateId: template.id, // Link back to the template
+      };
 
-        // Pass this new instance to the main TaskList
-        onTaskCreate(generatedTask);
+      // Pass this new instance to the main TaskList
+      onTaskCreate(generatedTask);
 
-        console.log('[TaskForm] Generated today\'s instance:', generatedTask);
-      }
+      console.log('[TaskForm] Generated instance for:', instanceDate, generatedTask);
     } else {
       // Create a normal one-time task
       const newTask = {
