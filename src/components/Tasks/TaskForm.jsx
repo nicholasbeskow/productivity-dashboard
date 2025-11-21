@@ -119,6 +119,10 @@ const TaskForm = ({ onTaskCreate }) => {
       const todayString = today.toISOString().split('T')[0];
       const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
+      // Calculate max priority from active tasks to place new instance at top
+      const activeTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const maxPriority = activeTasks.reduce((max, t) => Math.max(max, t.customPriority || 0), 0);
+
       let instanceDate = todayString;
 
       if (template.recurrence.type === 'daily') {
@@ -168,7 +172,7 @@ const TaskForm = ({ onTaskCreate }) => {
         createdAt: new Date().toISOString(),
         completedAt: null,
         attachments: template.attachments,
-        customPriority: 0,
+        customPriority: maxPriority + 1,
         templateId: template.id, // Link back to the template
       };
 

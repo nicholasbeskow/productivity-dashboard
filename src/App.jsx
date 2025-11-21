@@ -85,15 +85,19 @@ function App() {
 
         // Get existing tasks and completed tasks
         const tasksString = localStorage.getItem('tasks');
-        const tasks = tasksString ? JSON.parse(tasksString) : [];
+        const activeTasks = tasksString ? JSON.parse(tasksString) : [];
 
         const completedString = localStorage.getItem('completedTasks');
         const completedTasks = completedString ? JSON.parse(completedString) : [];
 
         // Combine all existing tasks to check for duplicates
-        const allExistingTasks = [...tasks, ...completedTasks];
+        const allExistingTasks = [...activeTasks, ...completedTasks];
+
+        // Calculate max priority from active tasks to ensure new tasks appear at top
+        const maxPriority = activeTasks.reduce((max, t) => Math.max(max, t.customPriority || 0), 0);
 
         let newTasksGenerated = 0;
+        const newTasksToGenerate = [];
 
         // Process each template
         templates.forEach(template => {
@@ -137,19 +141,22 @@ function App() {
             createdAt: new Date().toISOString(),
             completedAt: null,
             attachments: template.attachments || [],
-            customPriority: 0,
+            customPriority: maxPriority + newTasksGenerated + 1,
             templateId: template.id, // Link to template
             // Note: recurrence property is NOT added to instances
           };
 
-          tasks.push(newTask);
+          newTasksToGenerate.push(newTask);
           newTasksGenerated++;
           console.log(`[Task Generator] Generated task instance for template "${template.title}"`);
         });
 
         if (newTasksGenerated > 0) {
+          // Prepend new tasks to the top of the list
+          const updatedTasks = [...newTasksToGenerate, ...activeTasks];
+
           // Save updated tasks
-          localStorage.setItem('tasks', JSON.stringify(tasks));
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
 
           // Trigger backup
           backupManager.saveAutoBackup();
