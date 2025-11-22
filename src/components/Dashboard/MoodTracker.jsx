@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
-// Mood definitions with icons, colors, and labels
+// Mood definitions
 const moods = [
   {
     level: 5,
     label: 'Great',
     icon: Laugh,
     color: 'text-yellow-500',
-    glowColor: '#eab308',
-    hoverGlow: '0 0 20px rgba(234, 179, 8, 0.6)',
+    glowColor: 'rgba(234, 179, 8, 0.5)', // yellow-500 with opacity
     particleColors: ['#eab308', '#fbbf24', '#facc15']
   },
   {
@@ -20,8 +19,7 @@ const moods = [
     label: 'Good',
     icon: Smile,
     color: 'text-green-glow',
-    glowColor: '#3dd68c',
-    hoverGlow: '0 0 20px rgba(61, 214, 140, 0.6)',
+    glowColor: 'rgba(61, 214, 140, 0.5)', // green-glow with opacity
     particleColors: ['#3dd68c', '#2aba73', '#4fe39f']
   },
   {
@@ -29,8 +27,7 @@ const moods = [
     label: 'Okay',
     icon: Meh,
     color: 'text-blue-400',
-    glowColor: '#60a5fa',
-    hoverGlow: '0 0 20px rgba(96, 165, 250, 0.6)',
+    glowColor: 'rgba(96, 165, 250, 0.5)', // blue-400 with opacity
     particleColors: ['#60a5fa', '#3b82f6', '#93c5fd']
   },
   {
@@ -38,8 +35,7 @@ const moods = [
     label: 'Down',
     icon: Frown,
     color: 'text-orange-500',
-    glowColor: '#f97316',
-    hoverGlow: '0 0 20px rgba(249, 115, 22, 0.6)',
+    glowColor: 'rgba(249, 115, 22, 0.5)', // orange-500 with opacity
     particleColors: ['#f97316', '#fb923c', '#fdba74']
   },
   {
@@ -47,380 +43,385 @@ const moods = [
     label: 'Rocky',
     icon: CloudRain,
     color: 'text-red-500',
-    glowColor: '#ef4444',
-    hoverGlow: '0 0 20px rgba(239, 68, 68, 0.6)',
+    glowColor: 'rgba(239, 68, 68, 0.5)', // red-500 with opacity
     particleColors: ['#ef4444', '#dc2626', '#f87171']
   }
 ];
 
-// Supportive messages based on mood level
 const getMoodMessage = (level) => {
   switch (level) {
-    case 5:
-      return "Keep rocking your day!";
-    case 4:
-      return "Looking good!";
-    case 3:
-      return "One step at a time.";
-    case 2:
-      return "It's okay to have tough days.";
-    case 1:
-      return "Hang in there. Tomorrow is a new day.";
-    default:
-      return "";
+    case 5: return "Keep rocking your day!";
+    case 4: return "Looking good!";
+    case 3: return "One step at a time.";
+    case 2: return "It's okay to have tough days.";
+    case 1: return "Hang in there. Tomorrow is a new day.";
+    default: return "";
   }
 };
 
 const MoodTracker = () => {
-  const [view, setView] = useState('loading'); // 'loading', 'select', 'confirm', 'month'
+  const [view, setView] = useState('loading'); // 'loading', 'select', 'confirm', 'month', 'details'
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [editingDate, setEditingDate] = useState(new Date());
-  const [moodLog, setMoodLog] = useState([]);
-  const [showParticles, setShowParticles] = useState(false);
-  const [selectedMood, setSelectedMood] = useState(null);
 
-  // Helper to get date string in YYYY-MM-DD format
-  const getDateString = (date) => {
-    return format(date, 'yyyy-MM-dd');
+  // Data State
+  const [moodLog, setMoodLog] = useState([]);
+  const [journalLog, setJournalLog] = useState([]);
+
+  // Editing State
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [currentJournalEntry, setCurrentJournalEntry] = useState('');
+  const [showParticles, setShowParticles] = useState(false);
+
+  const getDateString = (date) => format(date, 'yyyy-MM-dd');
+
+  // Load Data
+  useEffect(() => {
+    const loadData = () => {
+      const storedMoods = JSON.parse(localStorage.getItem('moodLog') || '[]');
+      const storedJournal = JSON.parse(localStorage.getItem('journalLog') || '[]');
+      setMoodLog(storedMoods);
+      setJournalLog(storedJournal);
+
+      const todayEntry = storedMoods.find(e => e.date === getDateString(new Date()));
+      // Start in month view by default unless you want to force entry
+      setView(todayEntry ? 'month' : 'select');
+    };
+
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
+  }, []);
+
+  // Particle Effect
+  useEffect(() => {
+    if (view === 'confirm') {
+      setShowParticles(true);
+      const timer = setTimeout(() => setShowParticles(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view]);
+
+  // Navigation Handlers
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  const getMoodForDate = (date) => {
+    const entry = moodLog.find(e => e.date === getDateString(date));
+    return entry ? moods.find(m => m.level === entry.level) : null;
   };
 
-  // Load mood log from localStorage on mount
-  useEffect(() => {
-    const storedLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
-    setMoodLog(storedLog);
+  const getJournalForDate = (date) => {
+    const entry = journalLog.find(e => e.date === getDateString(date));
+    return entry ? entry.text : '';
+  };
 
-    const todayString = getDateString(new Date());
-    const todayEntry = storedLog.find(entry => entry.date === todayString);
+  // Core Logic
+  const handleDayClick = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date > today) return;
 
-    if (todayEntry) {
-      setView('month');
+    setEditingDate(date);
+    const mood = getMoodForDate(date);
+    const journal = getJournalForDate(date);
+
+    setSelectedMood(mood);
+    setCurrentJournalEntry(journal);
+
+    // If data exists, go to Details view. Else, go to Edit view.
+    if (mood) {
+      setView('details');
     } else {
       setView('select');
     }
-  }, []);
+  };
 
-  // Trigger particles when selectedMood is set
-  useEffect(() => {
-    if (selectedMood && view === 'confirm') {
-      setShowParticles(true);
-      const timer = setTimeout(() => {
-        setShowParticles(false);
-      }, 600);
-      return () => clearTimeout(timer);
+  const handleSaveEntry = () => {
+    if (!selectedMood) return;
+
+    const dateStr = getDateString(editingDate);
+
+    // Update Moods
+    const newMoodLog = moodLog.filter(e => e.date !== dateStr);
+    newMoodLog.push({ date: dateStr, level: selectedMood.level });
+    setMoodLog(newMoodLog);
+    localStorage.setItem('moodLog', JSON.stringify(newMoodLog));
+
+    // Update Journal
+    const newJournalLog = journalLog.filter(e => e.date !== dateStr);
+    if (currentJournalEntry.trim()) {
+      newJournalLog.push({ date: dateStr, text: currentJournalEntry.trim() });
     }
-  }, [selectedMood, view]);
+    setJournalLog(newJournalLog);
+    localStorage.setItem('journalLog', JSON.stringify(newJournalLog));
 
-  // Handle mood selection
-  const handleMoodSelect = (mood) => {
-    setSelectedMood(mood);
+    backupManager.saveAutoBackup();
     setView('confirm');
 
-    // Update mood log
-    const editingDateString = getDateString(editingDate);
-    const updatedLog = moodLog.filter(entry => entry.date !== editingDateString);
-    updatedLog.push({
-      date: editingDateString,
-      level: mood.level,
-      label: mood.label
-    });
-
-    setMoodLog(updatedLog);
-    localStorage.setItem('moodLog', JSON.stringify(updatedLog));
-    backupManager.saveAutoBackup();
-
-    // Automatically transition to month view after 2.5 seconds
-    setTimeout(() => {
-      setView('month');
-    }, 2500);
+    setTimeout(() => setView('month'), 2000);
   };
 
-  // Handle day click in monthly view
-  const handleDayClick = (date) => {
-    // Prevent editing future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(date);
-    selectedDate.setHours(0, 0, 0, 0);
+  const handleDeleteEntry = () => {
+    if (!window.confirm('Delete this entry?')) return;
 
-    if (selectedDate > today) {
-      return; // Don't allow clicking future dates
-    }
+    const dateStr = getDateString(editingDate);
+    const newMoodLog = moodLog.filter(e => e.date !== dateStr);
+    const newJournalLog = journalLog.filter(e => e.date !== dateStr);
 
-    setEditingDate(date);
-    setView('select');
-  };
+    setMoodLog(newMoodLog);
+    setJournalLog(newJournalLog);
 
-  // Handle remove mood for editing date
-  const handleRemoveMood = () => {
-    const editingDateString = getDateString(editingDate);
-
-    // Filter out the mood for editingDate
-    const updatedLog = moodLog.filter(entry => entry.date !== editingDateString);
-
-    // Update state and localStorage
-    setMoodLog(updatedLog);
-    localStorage.setItem('moodLog', JSON.stringify(updatedLog));
+    localStorage.setItem('moodLog', JSON.stringify(newMoodLog));
+    localStorage.setItem('journalLog', JSON.stringify(newJournalLog));
     backupManager.saveAutoBackup();
 
-    // Return to month view
     setView('month');
   };
 
-  // Handle previous month navigation
-  const handlePrevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
+  // --- RENDER HELPERS ---
 
-  // Handle next month navigation
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
-
-  // Get mood for a specific date
-  const getMoodForDate = (date) => {
-    const dateString = getDateString(date);
-    const entry = moodLog.find(e => e.date === dateString);
-    if (entry) {
-      return moods.find(m => m.level === entry.level);
-    }
-    return null;
-  };
-
-  // Render monthly calendar view
-  const renderMonthlyView = () => {
+  const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentMonth);
-    const firstDayOfMonth = startOfMonth(currentMonth);
-    const startDayOfWeek = getDay(firstDayOfMonth);
-
+    const startDay = getDay(startOfMonth(currentMonth));
     const days = [];
 
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="h-12" />);
-    }
+    for (let i = 0; i < startDay; i++) days.push(<div key={`empty-${i}`} className="h-12" />);
 
-    // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const mood = getMoodForDate(date);
       const isToday = isSameDay(date, new Date());
-
-      // Check if date is in the future
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const checkDate = new Date(date);
-      checkDate.setHours(0, 0, 0, 0);
-      const isFuture = checkDate > today;
+      const isFuture = date > new Date().setHours(0,0,0,0);
 
       days.push(
         <motion.button
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-lg transition-all ${
-            isFuture
-              ? 'opacity-50 cursor-not-allowed'
-              : isToday
-              ? 'bg-green-glow/20 border border-green-glow'
-              : 'hover:bg-bg-tertiary'
+          className={`h-12 flex items-center justify-center rounded-lg transition-all relative ${
+            isFuture ? 'opacity-30 cursor-not-allowed' :
+            isToday ? 'bg-bg-tertiary border border-green-glow' : 'hover:bg-bg-tertiary'
           }`}
-          whileHover={isFuture ? {} : { scale: 1.05 }}
-          whileTap={isFuture ? {} : { scale: 0.95 }}
+          whileHover={!isFuture ? { scale: 1.05 } : {}}
+          whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {mood ? (
-            (() => {
-              const MoodIcon = mood.icon;
-              return <MoodIcon size={24} className={mood.color} strokeWidth={1.5} />;
-            })()
+            <mood.icon size={24} className={mood.color} strokeWidth={2} />
           ) : (
             <span className="text-text-tertiary text-sm">{day}</span>
+          )}
+          {/* Journal Indicator Dot */}
+          {getJournalForDate(date) && (
+            <div className="absolute bottom-1 w-1 h-1 rounded-full bg-text-tertiary" />
           )}
         </motion.button>
       );
     }
-
-    return (
-      <motion.div
-        key="month"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {/* Month header */}
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={handlePrevMonth}
-            className="p-2 rounded-lg hover:bg-bg-tertiary text-text-primary transition-all"
-            title="Previous month"
-          >
-            <ChevronLeft size={20} />
-          </button>
-
-          <h4 className="text-lg font-semibold text-text-primary">
-            {format(currentMonth, 'MMMM yyyy')}
-          </h4>
-
-          <button
-            onClick={handleNextMonth}
-            disabled={isSameMonth(currentMonth, new Date())}
-            className={`p-2 rounded-lg transition-all ${
-              isSameMonth(currentMonth, new Date())
-                ? 'opacity-50 cursor-not-allowed text-text-tertiary'
-                : 'hover:bg-bg-tertiary text-text-primary'
-            }`}
-            title="Next month"
-          >
-            <ChevronRight size={20} />
-          </button>
-        </div>
-
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-            <div
-              key={index}
-              className="h-8 flex items-center justify-center text-xs font-medium text-text-tertiary"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {days}
-        </div>
-      </motion.div>
-    );
+    return days;
   };
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-xl font-bold text-text-primary mb-4">Mood Tracker</h3>
+    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary h-full flex flex-col">
 
+      {/* --- HEADER --- */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+          {view === 'month' && 'Mood Calendar'}
+          {view === 'select' && 'Log Entry'}
+          {view === 'details' && 'Entry Details'}
+        </h3>
+        {view !== 'month' && view !== 'confirm' && (
+          <button
+            onClick={() => setView('month')}
+            className="text-text-tertiary hover:text-text-primary transition-colors"
+          >
+            <X size={20} />
+          </button>
+        )}
+      </div>
+
+      {/* --- VIEWS --- */}
       <AnimatePresence mode="wait">
+
+        {/* 1. CALENDAR VIEW */}
+        {view === 'month' && (
+          <motion.div
+            key="month"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={handlePrevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
+                <ChevronLeft size={20} />
+              </button>
+              <span className="font-semibold text-text-primary">
+                {format(currentMonth, 'MMMM yyyy')}
+              </span>
+              <button
+                onClick={handleNextMonth}
+                disabled={isSameMonth(currentMonth, new Date())}
+                className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors disabled:opacity-30"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {['S','M','T','W','T','F','S'].map((d, i) => (
+                <div key={i} className="text-center text-xs text-text-tertiary h-8 flex items-center justify-center">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-2">{renderCalendar()}</div>
+          </motion.div>
+        )}
+
+        {/* 2. SELECT / EDIT VIEW */}
         {view === 'select' && (
-          // View A: Select mood
           <motion.div
             key="select"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            className="flex-1 flex flex-col"
           >
-            <p className="text-text-secondary text-center mb-6">
-              {isSameDay(editingDate, new Date())
-                ? 'How are you feeling today?'
-                : `How were you feeling on ${format(editingDate, 'MMM d')}?`}
-            </p>
+            <div className="text-center mb-6">
+              <p className="text-text-secondary">
+                {isSameDay(editingDate, new Date()) ? 'How are you today?' : `How were you on ${format(editingDate, 'MMM d')}?`}
+              </p>
+            </div>
 
-            <div className="flex justify-center gap-4 flex-wrap">
+            {/* Mood Grid */}
+            <div className="flex justify-center gap-3 mb-8">
               {moods.map((mood) => {
-                const MoodIcon = mood.icon;
+                const isSelected = selectedMood?.level === mood.level;
                 return (
                   <motion.button
                     key={mood.level}
-                    onClick={() => handleMoodSelect(mood)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-bg-tertiary border border-bg-primary transition-all ${mood.color}`}
+                    onClick={() => setSelectedMood(mood)}
+                    className={`p-3 rounded-2xl transition-all border-2 ${
+                      isSelected
+                        ? `${mood.color} border-current bg-bg-tertiary`
+                        : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary'
+                    }`}
+                    style={{
+                      boxShadow: isSelected ? `0 0 20px ${mood.glowColor}` : 'none'
+                    }}
                     whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    title={mood.label}
+                    whileTap={{ scale: 0.9 }}
                   >
-                    <MoodIcon size={32} strokeWidth={1.5} />
-                    <span className="text-xs font-medium text-text-secondary">
-                      {mood.label}
-                    </span>
+                    <mood.icon size={32} strokeWidth={isSelected ? 2.5 : 1.5} />
                   </motion.button>
                 );
               })}
             </div>
 
-            <div className="text-center mt-6">
+            {/* Journal Input */}
+            <div className="flex-1">
+              <label className="block text-sm text-text-secondary mb-2">Daily Note</label>
+              <textarea
+                value={currentJournalEntry}
+                onChange={(e) => setCurrentJournalEntry(e.target.value)}
+                placeholder="What's on your mind? (Optional)"
+                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:outline-none resize-none transition-colors"
+              />
+            </div>
+
+            {/* Save Button */}
+            <div className="mt-6">
               <button
-                onClick={handleRemoveMood}
-                className="text-sm text-text-tertiary hover:text-red-500 transition-colors underline"
+                onClick={handleSaveEntry}
+                disabled={!selectedMood}
+                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                  selectedMood
+                    ? 'bg-green-glow text-bg-primary hover:shadow-glow shadow-lg'
+                    : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                }`}
               >
-                Remove Mood
+                <Save size={18} />
+                Save Entry
               </button>
             </div>
           </motion.div>
         )}
 
-        {view === 'confirm' && selectedMood && (
-          // View B: Confirmation
+        {/* 3. DETAILS VIEW (Reading Mode) */}
+        {view === 'details' && selectedMood && (
           <motion.div
-            key="confirm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="relative"
+            key="details"
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 flex flex-col"
           >
-            {/* Particle Effect */}
-            <AnimatePresence>
-              {showParticles && (
-                <div>
-                  {[...Array(12)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                      animate={{
-                        opacity: 0,
-                        x: (Math.random() - 0.5) * 100,
-                        y: (Math.random() - 0.5) * 100,
-                        scale: 0,
-                      }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
-                      className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        background: selectedMood.particleColors[i % 3],
-                        willChange: 'transform, opacity',
-                      }}
-                    />
-                  ))}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 1] }}
-                    transition={{ duration: 0.4 }}
-                    className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-10"
-                  >
-                    <Sparkles className={selectedMood.color} size={20} />
-                  </motion.div>
-                </div>
-              )}
-            </AnimatePresence>
+            <div className="flex items-center gap-2 mb-6 text-text-tertiary text-sm">
+              <button onClick={() => setView('month')} className="hover:text-text-primary flex items-center gap-1">
+                <ArrowLeft size={16} /> Back
+              </button>
+              <span>•</span>
+              <span>{format(editingDate, 'EEEE, MMMM do')}</span>
+            </div>
 
-            <div className="flex flex-col items-center gap-4">
-              <motion.div
-                className={`${selectedMood.color}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                {(() => {
-                  const MoodIcon = selectedMood.icon;
-                  return <MoodIcon size={64} strokeWidth={1.5} />;
-                })()}
-              </motion.div>
+            {/* Mood Card */}
+            <div className="bg-bg-tertiary rounded-2xl p-6 text-center mb-6 border border-bg-primary">
+              <selectedMood.icon size={64} className={`mx-auto mb-4 ${selectedMood.color}`} strokeWidth={1.5} />
+              <h2 className={`text-2xl font-bold ${selectedMood.color}`}>{selectedMood.label}</h2>
+              <p className="text-text-secondary mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
+            </div>
 
-              <div className="text-center">
-                <p className="text-2xl font-bold text-text-primary mb-2">
-                  {selectedMood.label}
-                </p>
-                <p className="text-sm text-text-secondary">
-                  {getMoodMessage(selectedMood.level)}
+            {/* Journal Card */}
+            {currentJournalEntry && (
+              <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
+                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Journal</h4>
+                <p className="text-text-primary whitespace-pre-wrap leading-relaxed">
+                  {currentJournalEntry}
                 </p>
               </div>
+            )}
+
+            {/* Actions */}
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setView('select')}
+                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-text-primary font-medium hover:border-green-glow transition-colors flex items-center justify-center gap-2"
+              >
+                <Edit2 size={16} /> Edit
+              </button>
+              <button
+                onClick={handleDeleteEntry}
+                className="px-4 py-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-colors"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
           </motion.div>
         )}
 
-        {view === 'month' && renderMonthlyView()}
+        {/* 4. CONFIRMATION VIEW */}
+        {view === 'confirm' && selectedMood && (
+          <motion.div
+            key="confirm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center text-center"
+          >
+            {showParticles && (
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(12)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+                    animate={{
+                      x: (Math.random() - 0.5) * 200,
+                      y: (Math.random() - 0.5) * 200,
+                      opacity: 0,
+                      scale: 1
+                    }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full"
+                    style={{ backgroundColor: selectedMood.particleColors[i % 3] }}
+                  />
+                ))}
+              </div>
+            )}
+            <selectedMood.icon size={80} className={selectedMood.color} />
+            <h2 className="text-2xl font-bold text-text-primary mt-6">Entry Saved!</h2>
+          </motion.div>
+        )}
+
       </AnimatePresence>
     </div>
   );
