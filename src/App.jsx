@@ -124,7 +124,8 @@ function App() {
             return; // Skip - already generated
           }
 
-          // Generate a new task instance
+          // Generate a new task instance with customPriority: 0
+          // This allows the task to be sorted by due date automatically
           const newTask = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             title: template.title,
@@ -148,7 +149,7 @@ function App() {
         });
 
         if (newTasksGenerated > 0) {
-          // Save updated tasks
+          // Save updated tasks - sorting by due date is handled by TasksTab
           localStorage.setItem('tasks', JSON.stringify(tasks));
 
           // Trigger backup

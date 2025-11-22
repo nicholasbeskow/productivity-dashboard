@@ -156,6 +156,7 @@ const TaskForm = ({ onTaskCreate }) => {
       }
 
       // Generate the instance with the calculated date
+      // customPriority: 0 allows the task to be sorted by due date automatically
       const generatedTask = {
         id: `${Date.now() + 1}-${Math.random().toString(36).substr(2, 9)}`,
         title: template.title,
