@@ -723,10 +723,19 @@ const Dashboard = ({ setActiveTab }) => {
           const updatedTemplates = templates.filter(t => t.id !== task.templateId);
 
           localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+
+          // Also delete all instances of this template from tasks
+          const storedTasks = localStorage.getItem('tasks');
+          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
+
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+          setTasks(updatedTasks);
+
           backupManager.saveAutoBackup();
           window.dispatchEvent(new Event('storage'));
 
-          console.log('[Dashboard] Deleted recurring template');
+          console.log('[Dashboard] Deleted recurring template and its instances');
 
           // Close detail view
           setDetailViewTaskId(null);
