@@ -3,8 +3,13 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const Store = require('electron-store');
+const { exec } = require('child_process');
 
 const store = new Store();
+
+// Focus Mode settings
+const initialFocusEnabled = store.get('focusModeEnabled', false);
+const initialBlocklistPath = store.get('focusBlocklistPath', '');
 
 let mainWindow;
 let mainWindowRef = null; // Reference for sending timer updates
@@ -205,6 +210,49 @@ function skipTimer() {
   // Auto-start next session
   startTimer();
 }
+
+// ============================================
+// FOCUS MODE (SELFCONTROL) FUNCTIONS
+// ============================================
+
+function triggerSelfControl(durationSeconds) {
+  const enabled = store.get('focusModeEnabled', false);
+  const blocklistPath = store.get('focusBlocklistPath', '');
+  const cliPath = '/Applications/SelfControl.app/Contents/MacOS/selfcontrol-cli';
+
+  if (!enabled || !blocklistPath || !fs.existsSync(cliPath) || !fs.existsSync(blocklistPath)) {
+    console.log('SelfControl trigger skipped: Disabled or invalid paths.');
+    return;
+  }
+
+  // Calculate end date in ISO format
+  const endDate = new Date(Date.now() + durationSeconds * 1000).toISOString();
+
+  // Construct command
+  const command = `"${cliPath}" start --blocklist "${blocklistPath}" --enddate "${endDate}"`;
+
+  console.log('Starting SelfControl:', command);
+  exec(command, (error, stdout, stderr) => {
+    if (error) console.error('SelfControl Error:', error);
+  });
+}
+
+// ============================================
+// FOCUS MODE IPC HANDLERS
+// ============================================
+
+ipcMain.handle('settings:save-focus-config', async (event, { enabled, path }) => {
+  store.set('focusModeEnabled', enabled);
+  store.set('focusBlocklistPath', path);
+  return { success: true };
+});
+
+ipcMain.handle('settings:get-focus-config', async () => {
+  return {
+    enabled: store.get('focusModeEnabled', false),
+    path: store.get('focusBlocklistPath', '')
+  };
+});
 
 // ============================================
 // BACKUP SYSTEM IPC HANDLERS
@@ -472,6 +520,12 @@ ipcMain.on('timer:start', () => {
     timerState.mode = 'work';
     timerState.timeLeft = timerState.workDuration;
   }
+
+  // If starting a WORK session, trigger SelfControl
+  if (timerState.mode === 'work') {
+    triggerSelfControl(timerState.workDuration);
+  }
+
   startTimer();
 });
 
@@ -601,7 +655,9 @@ ipcMain.handle('backup:get-electron-store-data', async () => {
   try {
     const canvasUrl = store.get('canvasUrl');
     const apiToken = store.get('canvasApiToken');
-    return { success: true, data: { canvasUrl, apiToken } };
+    const focusModeEnabled = store.get('focusModeEnabled', false);
+    const focusBlocklistPath = store.get('focusBlocklistPath', '');
+    return { success: true, data: { canvasUrl, apiToken, focusModeEnabled, focusBlocklistPath } };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -615,6 +671,12 @@ ipcMain.handle('backup:restore-electron-store-data', async (event, data) => {
     }
     if (data.apiToken) {
       store.set('canvasApiToken', data.apiToken);
+    }
+    if (data.focusModeEnabled !== undefined) {
+      store.set('focusModeEnabled', data.focusModeEnabled);
+    }
+    if (data.focusBlocklistPath !== undefined) {
+      store.set('focusBlocklistPath', data.focusBlocklistPath);
     }
     return { success: true };
   } catch (error) {

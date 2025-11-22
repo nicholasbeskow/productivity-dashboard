@@ -1,4 +1,4 @@
-import { Settings, Lock } from 'lucide-react';
+import { Settings, Lock, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
 
@@ -17,6 +17,10 @@ const SettingsTab = () => {
   const [apiToken, setApiToken] = useState('');
   const [connectionStatus, setConnectionStatus] = useState(null);
 
+  // Focus Mode (SelfControl) state
+  const [focusEnabled, setFocusEnabled] = useState(false);
+  const [blocklistPath, setBlocklistPath] = useState('');
+
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
@@ -30,6 +34,9 @@ const SettingsTab = () => {
 
     // Load Canvas credentials
     loadCanvasCredentials();
+
+    // Load Focus Mode settings
+    loadFocusConfig();
   }, []);
 
   const loadBackupList = async () => {
@@ -167,6 +174,54 @@ const SettingsTab = () => {
         if (savedToken) setApiToken(savedToken);
       } catch (error) {
         console.error('Error loading Canvas credentials:', error);
+      }
+    }
+  };
+
+  // Focus Mode (SelfControl) Handlers
+  const loadFocusConfig = async () => {
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        const { enabled, path } = await ipcRenderer.invoke('settings:get-focus-config');
+        setFocusEnabled(enabled);
+        setBlocklistPath(path || '');
+      } catch (error) {
+        console.error('Error loading Focus Mode config:', error);
+      }
+    }
+  };
+
+  const saveFocusConfig = async (enabled, path) => {
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        await ipcRenderer.invoke('settings:save-focus-config', { enabled, path });
+        backupManager.saveAutoBackup();
+      } catch (error) {
+        console.error('Error saving Focus Mode config:', error);
+      }
+    }
+  };
+
+  const handleFocusToggle = (e) => {
+    const enabled = e.target.checked;
+    setFocusEnabled(enabled);
+    saveFocusConfig(enabled, blocklistPath);
+  };
+
+  const handleSelectBlocklist = async () => {
+    if (window.require) {
+      try {
+        const { ipcRenderer } = window.require('electron');
+        const result = await ipcRenderer.invoke('dialog:show-open-dialog');
+        if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+          const path = result.filePaths[0];
+          setBlocklistPath(path);
+          saveFocusConfig(focusEnabled, path);
+        }
+      } catch (error) {
+        console.error('Error selecting blocklist file:', error);
       }
     }
   };
@@ -337,6 +392,55 @@ const SettingsTab = () => {
             <p className="text-xs text-text-tertiary mt-4">
               Changes take effect immediately when you reset or start a new session
             </p>
+          </div>
+
+          {/* Focus Mode (SelfControl) */}
+          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <Shield size={20} className="text-green-glow" />
+              Focus Mode (SelfControl)
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={focusEnabled}
+                  onChange={handleFocusToggle}
+                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
+                />
+                <span className="text-text-secondary">Enable Focus Mode</span>
+              </label>
+
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">
+                  SelfControl Blocklist File
+                </label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={blocklistPath}
+                    readOnly
+                    placeholder="No file selected"
+                    className="flex-1 bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary"
+                  />
+                  <button
+                    onClick={handleSelectBlocklist}
+                    className="px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-opacity-80 transition-all border border-bg-primary"
+                  >
+                    Select File
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm">
+                <p className="font-semibold mb-1">How to use:</p>
+                <p>Open SelfControl, add your sites, go to File → Save Blocklist, and select that file here.</p>
+              </div>
+
+              <p className="text-xs text-text-tertiary">
+                When enabled, starting a Work session will automatically block distracting websites for the session duration. macOS only.
+              </p>
+            </div>
           </div>
 
           {/* Notifications Placeholder */}
