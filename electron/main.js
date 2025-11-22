@@ -222,28 +222,25 @@ function triggerSelfControl(durationSeconds) {
 
   // 1. Validation checks
   if (!enabled) {
-    console.log('[FocusMode] Skipped: Disabled in settings');
     return;
   }
-  if (!blocklistPath) {
-    console.error('[FocusMode] Error: No blocklist file selected');
+  if (!blocklistPath || !fs.existsSync(blocklistPath)) {
+    console.error('[FocusMode] Error: Blocklist file not found at', blocklistPath);
     return;
   }
   if (!fs.existsSync(cliPath)) {
     console.error('[FocusMode] Error: SelfControl app not found at', cliPath);
     return;
   }
-  if (!fs.existsSync(blocklistPath)) {
-    console.error('[FocusMode] Error: Blocklist file not found at', blocklistPath);
-    return;
-  }
 
   console.log('[FocusMode] Attempting to start...');
 
-  // 2. Calculate end date in ISO format
-  const endDate = new Date(Date.now() + durationSeconds * 1000).toISOString();
+  // 2. Calculate End Date (Strict ISO 8601 format without milliseconds)
+  // Example: "2023-11-22T15:30:00Z"
+  const futureDate = new Date(Date.now() + durationSeconds * 1000);
+  const endDate = futureDate.toISOString().split('.')[0] + "Z";
 
-  // 3. Construct command
+  // 3. Build Command
   const command = `"${cliPath}" start --blocklist "${blocklistPath}" --enddate "${endDate}"`;
 
   console.log('[FocusMode] Executing:', command);
@@ -254,11 +251,13 @@ function triggerSelfControl(durationSeconds) {
       console.error(`[FocusMode] Execution Error: ${error.message}`);
       return;
     }
+    // SelfControl often outputs to stderr even on success, so we just log it
     if (stderr) {
-      console.error(`[FocusMode] Stderr: ${stderr}`);
-      return;
+      console.log(`[FocusMode] Output: ${stderr}`);
     }
-    console.log(`[FocusMode] Success: ${stdout}`);
+    if (stdout) {
+      console.log(`[FocusMode] Success: ${stdout}`);
+    }
     sendNotification('Focus Mode Activated', 'Distracting sites are blocked.');
   });
 }
