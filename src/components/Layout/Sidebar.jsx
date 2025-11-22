@@ -1,4 +1,5 @@
 import { Home, CheckSquare, BarChart3, Settings, BookOpen } from 'lucide-react';
+import logo from '../../logo.png';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
@@ -11,10 +12,13 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
   return (
     <aside className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col">
-      {/* App Title */}
-      <div className="p-6 pt-8 border-b border-bg-tertiary">
-        <h1 className="text-2xl font-bold text-green-glow">Productivity</h1>
-        <p className="text-sm text-text-secondary mt-1">Dashboard</p>
+      {/* App Title / Logo Area */}
+      <div className="p-6 pt-8 border-b border-bg-tertiary flex justify-center items-center">
+        <img
+          src={logo}
+          alt="Productivity Dashboard Logo"
+          className="w-full h-auto object-contain max-h-[80px]"
+        />
       </div>
 
       {/* Navigation */}
