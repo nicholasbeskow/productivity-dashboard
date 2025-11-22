@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, X, Trash2 } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
@@ -11,7 +11,7 @@ const moods = [
     label: 'Great',
     icon: Laugh,
     color: 'text-yellow-500',
-    glowColor: '#eab308',
+    glowColor: 'rgba(234, 179, 8, 0.5)', // yellow-500 with opacity
     particleColors: ['#eab308', '#fbbf24', '#facc15']
   },
   {
@@ -19,7 +19,7 @@ const moods = [
     label: 'Good',
     icon: Smile,
     color: 'text-green-glow',
-    glowColor: '#3dd68c',
+    glowColor: 'rgba(61, 214, 140, 0.5)', // green-glow with opacity
     particleColors: ['#3dd68c', '#2aba73', '#4fe39f']
   },
   {
@@ -27,7 +27,7 @@ const moods = [
     label: 'Okay',
     icon: Meh,
     color: 'text-blue-400',
-    glowColor: '#60a5fa',
+    glowColor: 'rgba(96, 165, 250, 0.5)', // blue-400 with opacity
     particleColors: ['#60a5fa', '#3b82f6', '#93c5fd']
   },
   {
@@ -35,7 +35,7 @@ const moods = [
     label: 'Down',
     icon: Frown,
     color: 'text-orange-500',
-    glowColor: '#f97316',
+    glowColor: 'rgba(249, 115, 22, 0.5)', // orange-500 with opacity
     particleColors: ['#f97316', '#fb923c', '#fdba74']
   },
   {
@@ -43,7 +43,7 @@ const moods = [
     label: 'Rocky',
     icon: CloudRain,
     color: 'text-red-500',
-    glowColor: '#ef4444',
+    glowColor: 'rgba(239, 68, 68, 0.5)', // red-500 with opacity
     particleColors: ['#ef4444', '#dc2626', '#f87171']
   }
 ];
@@ -84,6 +84,7 @@ const MoodTracker = () => {
       setJournalLog(storedJournal);
 
       const todayEntry = storedMoods.find(e => e.date === getDateString(new Date()));
+      // Start in month view by default unless you want to force entry
       setView(todayEntry ? 'month' : 'select');
     };
 
@@ -296,9 +297,12 @@ const MoodTracker = () => {
                     onClick={() => setSelectedMood(mood)}
                     className={`p-3 rounded-2xl transition-all border-2 ${
                       isSelected
-                        ? `${mood.color} border-current bg-bg-tertiary shadow-glow`
+                        ? `${mood.color} border-current bg-bg-tertiary`
                         : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary'
                     }`}
+                    style={{
+                      boxShadow: isSelected ? `0 0 20px ${mood.glowColor}` : 'none'
+                    }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
