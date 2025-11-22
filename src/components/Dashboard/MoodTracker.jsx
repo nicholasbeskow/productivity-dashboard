@@ -78,19 +78,29 @@ const MoodTracker = () => {
   const [moodLog, setMoodLog] = useState([]);
   const [showParticles, setShowParticles] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
+  const [journalLog, setJournalLog] = useState([]);
+  const [currentJournalEntry, setCurrentJournalEntry] = useState('');
 
   // Helper to get date string in YYYY-MM-DD format
   const getDateString = (date) => {
     return format(date, 'yyyy-MM-dd');
   };
 
-  // Load mood log from localStorage on mount
+  // Load mood log and journal log from localStorage on mount
   useEffect(() => {
     const storedLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
     setMoodLog(storedLog);
 
+    const storedJournalLog = JSON.parse(localStorage.getItem('journalLog') || '[]');
+    setJournalLog(storedJournalLog);
+
     const todayString = getDateString(new Date());
     const todayEntry = storedLog.find(entry => entry.date === todayString);
+    const todayJournalEntry = storedJournalLog.find(entry => entry.date === todayString);
+
+    if (todayJournalEntry) {
+      setCurrentJournalEntry(todayJournalEntry.text);
+    }
 
     if (todayEntry) {
       setView('month');
@@ -112,11 +122,22 @@ const MoodTracker = () => {
 
   // Handle mood selection
   const handleMoodSelect = (mood) => {
+    // Save journal entry first (before view transition)
+    const editingDateString = getDateString(editingDate);
+    const updatedJournalLog = journalLog.filter(entry => entry.date !== editingDateString);
+    if (currentJournalEntry.trim()) {
+      updatedJournalLog.push({
+        date: editingDateString,
+        text: currentJournalEntry
+      });
+    }
+    setJournalLog(updatedJournalLog);
+    localStorage.setItem('journalLog', JSON.stringify(updatedJournalLog));
+
     setSelectedMood(mood);
     setView('confirm');
 
     // Update mood log
-    const editingDateString = getDateString(editingDate);
     const updatedLog = moodLog.filter(entry => entry.date !== editingDateString);
     updatedLog.push({
       date: editingDateString,
@@ -144,6 +165,15 @@ const MoodTracker = () => {
 
     if (selectedDate > today) {
       return; // Don't allow clicking future dates
+    }
+
+    // Load journal entry for the selected date
+    const dateString = getDateString(date);
+    const existingJournalEntry = journalLog.find(entry => entry.date === dateString);
+    if (existingJournalEntry) {
+      setCurrentJournalEntry(existingJournalEntry.text);
+    } else {
+      setCurrentJournalEntry('');
     }
 
     setEditingDate(date);
@@ -335,6 +365,14 @@ const MoodTracker = () => {
                 );
               })}
             </div>
+
+            <textarea
+              rows="3"
+              placeholder="Why are you feeling this way?"
+              value={currentJournalEntry}
+              onChange={(e) => setCurrentJournalEntry(e.target.value)}
+              className="w-full mt-6 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-all resize-none text-sm"
+            />
 
             <div className="text-center mt-6">
               <button
