@@ -214,7 +214,11 @@ const SettingsTab = () => {
     if (window.require) {
       try {
         const { ipcRenderer } = window.require('electron');
-        const result = await ipcRenderer.invoke('dialog:show-open-dialog');
+        const result = await ipcRenderer.invoke('dialog:show-open-dialog', {
+          title: 'Select SelfControl Blocklist',
+          properties: ['openFile'],
+          filters: [{ name: 'SelfControl Blocklist', extensions: ['selfcontrol'] }]
+        });
         if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
           const path = result.filePaths[0];
           setBlocklistPath(path);
@@ -438,7 +442,19 @@ const SettingsTab = () => {
               </div>
 
               <p className="text-xs text-text-tertiary">
-                When enabled, starting a Work session will automatically block distracting websites for the session duration. macOS only.
+                When enabled, starting a Work session will automatically block distracting websites for the session duration.
+              </p>
+              <p className="text-xs text-text-tertiary mt-2">
+                <strong>Note:</strong> Requires the{' '}
+                <a
+                  href="https://selfcontrolapp.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-text-secondary"
+                >
+                  SelfControl app
+                </a>{' '}
+                installed in your Applications folder (macOS only).
               </p>
             </div>
           </div>

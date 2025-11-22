@@ -220,20 +220,46 @@ function triggerSelfControl(durationSeconds) {
   const blocklistPath = store.get('focusBlocklistPath', '');
   const cliPath = '/Applications/SelfControl.app/Contents/MacOS/selfcontrol-cli';
 
-  if (!enabled || !blocklistPath || !fs.existsSync(cliPath) || !fs.existsSync(blocklistPath)) {
-    console.log('SelfControl trigger skipped: Disabled or invalid paths.');
+  // 1. Validation checks
+  if (!enabled) {
+    console.log('[FocusMode] Skipped: Disabled in settings');
+    return;
+  }
+  if (!blocklistPath) {
+    console.error('[FocusMode] Error: No blocklist file selected');
+    return;
+  }
+  if (!fs.existsSync(cliPath)) {
+    console.error('[FocusMode] Error: SelfControl app not found at', cliPath);
+    return;
+  }
+  if (!fs.existsSync(blocklistPath)) {
+    console.error('[FocusMode] Error: Blocklist file not found at', blocklistPath);
     return;
   }
 
-  // Calculate end date in ISO format
+  console.log('[FocusMode] Attempting to start...');
+
+  // 2. Calculate end date in ISO format
   const endDate = new Date(Date.now() + durationSeconds * 1000).toISOString();
 
-  // Construct command
+  // 3. Construct command
   const command = `"${cliPath}" start --blocklist "${blocklistPath}" --enddate "${endDate}"`;
 
-  console.log('Starting SelfControl:', command);
+  console.log('[FocusMode] Executing:', command);
+
+  // 4. Execute
   exec(command, (error, stdout, stderr) => {
-    if (error) console.error('SelfControl Error:', error);
+    if (error) {
+      console.error(`[FocusMode] Execution Error: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`[FocusMode] Stderr: ${stderr}`);
+      return;
+    }
+    console.log(`[FocusMode] Success: ${stdout}`);
+    sendNotification('Focus Mode Activated', 'Distracting sites are blocked.');
   });
 }
 
@@ -454,12 +480,15 @@ ipcMain.handle('backup:delete', async (event, fileName) => {
 // ============================================
 
 // Show open dialog for selecting files
-ipcMain.handle('dialog:show-open-dialog', async () => {
+ipcMain.handle('dialog:show-open-dialog', async (event, options = {}) => {
   try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select File to Attach',
-      properties: ['openFile', 'multiSelections']
-    });
+    const dialogOptions = {
+      title: options.title || 'Select File to Attach',
+      properties: options.properties || ['openFile', 'multiSelections'],
+      filters: options.filters || undefined
+    };
+
+    const result = await dialog.showOpenDialog(mainWindow, dialogOptions);
 
     return result;
   } catch (error) {
@@ -523,6 +552,7 @@ ipcMain.on('timer:start', () => {
 
   // If starting a WORK session, trigger SelfControl
   if (timerState.mode === 'work') {
+    console.log('Starting Work Session - Checking Focus Mode...');
     triggerSelfControl(timerState.workDuration);
   }
 
