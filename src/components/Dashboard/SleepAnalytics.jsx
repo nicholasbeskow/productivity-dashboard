@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, TrendingUp, TrendingDown, AlertTriangle, Trophy, Target, Zap, Lock, Sparkles, Star, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Moon, TrendingUp, TrendingDown, AlertTriangle, Trophy, Target, Zap, Lock, Sparkles, Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -64,8 +63,6 @@ const SleepAnalytics = () => {
   const [moodLog, setMoodLog] = useState([]);
   const [completedTasks, setCompletedTasks] = useState([]);
   const [timePeriod, setTimePeriod] = useState('Week');
-  const [showTierUnlock, setShowTierUnlock] = useState(null);
-  const [previousTier, setPreviousTier] = useState(null);
 
   // Load data
   useEffect(() => {
@@ -108,15 +105,6 @@ const SleepAnalytics = () => {
     if (daysLogged >= TIER_THRESHOLDS.TIER_2) return 2;
     return 1;
   }, [daysLogged]);
-
-  // Check for tier unlock
-  useEffect(() => {
-    if (previousTier !== null && currentTier > previousTier) {
-      setShowTierUnlock(currentTier);
-      setTimeout(() => setShowTierUnlock(null), 4000);
-    }
-    setPreviousTier(currentTier);
-  }, [currentTier, previousTier]);
 
   // Get tier info
   const getTierInfo = (tier) => {
@@ -570,12 +558,12 @@ const SleepAnalytics = () => {
     // Quality order: Excellent first (most positive)
     const qualities = [4, 3, 2, 1];
 
-    // Gradient color pairs for each quality level
+    // Gradient color pairs for each quality level (matching mood tracker colors)
     const gradientColors = {
-      4: { start: '#4ade80', end: '#22c55e' }, // green - Excellent
-      3: { start: '#fde047', end: '#eab308' }, // yellow - Good
-      2: { start: '#fb923c', end: '#f97316' }, // orange - Fair
-      1: { start: '#f87171', end: '#ef4444' }  // red - Poor
+      4: { start: '#4fe39f', end: '#3dd68c' }, // green-glow - Excellent (matches mood "Good")
+      3: { start: '#fbbf24', end: '#eab308' }, // yellow-500 - Good (matches mood "Great")
+      2: { start: '#fb923c', end: '#f97316' }, // orange-500 - Fair (matches mood "Down")
+      1: { start: '#f87171', end: '#ef4444' }  // red-500 - Poor (matches mood "Rocky")
     };
 
     // Calculate pie segments
@@ -858,25 +846,6 @@ const SleepAnalytics = () => {
 
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      {/* Tier Unlock Celebration */}
-      <AnimatePresence>
-        {showTierUnlock && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-purple-600 to-green-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3"
-          >
-            <Sparkles className="text-yellow-300" size={24} />
-            <div>
-              <p className="font-bold">Tier {showTierUnlock} Unlocked!</p>
-              <p className="text-sm opacity-90">{getTierInfo(showTierUnlock).name}</p>
-            </div>
-            <Star className="text-yellow-300" size={24} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Header with Time Period Selector */}
       <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
         <div className="flex items-center gap-3">
