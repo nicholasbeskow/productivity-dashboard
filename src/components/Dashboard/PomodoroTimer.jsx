@@ -199,86 +199,6 @@ const PomodoroTimer = () => {
     glowColor: currentGlowColor
   };
 
-  // Fullscreen overlay component
-  const FullscreenOverlay = () => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-50 bg-bg-primary flex flex-col items-center justify-center"
-    >
-      {/* Minimize button */}
-      <motion.button
-        onClick={() => setIsFullscreen(false)}
-        className="absolute top-6 right-6 p-3 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        title="Exit fullscreen"
-      >
-        <Minimize2 size={24} />
-      </motion.button>
-
-      {/* Large Timer Display */}
-      <div className="flex items-center justify-center mb-12">
-        <TimerDisplay
-          size={400}
-          strokeWidth={20}
-          fontSize="4.5rem"
-          {...timerDisplayProps}
-        />
-      </div>
-
-      {/* Large Control Buttons */}
-      <div className="flex items-center justify-center gap-6">
-        {/* Start/Pause Button */}
-        <motion.button
-          onClick={handleStartPause}
-          className="p-6 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          title={isActive ? 'Pause' : 'Start'}
-        >
-          {isActive ? <Pause size={36} /> : <Play size={36} className="ml-1" />}
-        </motion.button>
-
-        {/* Reset Button */}
-        <motion.button
-          onClick={handleReset}
-          className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          title="Reset"
-          disabled={mode === 'idle'}
-        >
-          <RotateCcw size={28} />
-        </motion.button>
-
-        {/* Skip Button */}
-        <motion.button
-          onClick={handleSkip}
-          className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          title="Skip"
-          disabled={mode === 'idle'}
-        >
-          <SkipForward size={28} />
-        </motion.button>
-      </div>
-
-      {/* Status indicator */}
-      {isActive && (
-        <div className="mt-8 text-center">
-          <span className="inline-flex items-center gap-2 text-sm text-text-tertiary">
-            <span className="w-3 h-3 rounded-full bg-green-glow animate-pulse" />
-            Timer running
-          </span>
-        </div>
-      )}
-    </motion.div>
-  );
-
   return (
     <>
       <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
@@ -360,7 +280,85 @@ const PomodoroTimer = () => {
       {/* Fullscreen overlay rendered via portal */}
       {createPortal(
         <AnimatePresence>
-          {isFullscreen && <FullscreenOverlay />}
+          {isFullscreen && (
+            <motion.div
+              key="fullscreen-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 z-50 bg-bg-primary flex flex-col items-center justify-center"
+            >
+              {/* Minimize button */}
+              <motion.button
+                onClick={() => setIsFullscreen(false)}
+                className="absolute top-6 right-6 p-3 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title="Exit fullscreen"
+              >
+                <Minimize2 size={24} />
+              </motion.button>
+
+              {/* Large Timer Display */}
+              <div className="flex items-center justify-center mb-12">
+                <TimerDisplay
+                  size={400}
+                  strokeWidth={20}
+                  fontSize="4.5rem"
+                  {...timerDisplayProps}
+                />
+              </div>
+
+              {/* Large Control Buttons */}
+              <div className="flex items-center justify-center gap-6">
+                {/* Start/Pause Button */}
+                <motion.button
+                  onClick={handleStartPause}
+                  className="p-6 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={isActive ? 'Pause' : 'Start'}
+                >
+                  {isActive ? <Pause size={36} /> : <Play size={36} className="ml-1" />}
+                </motion.button>
+
+                {/* Reset Button */}
+                <motion.button
+                  onClick={handleReset}
+                  className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Reset"
+                  disabled={mode === 'idle'}
+                >
+                  <RotateCcw size={28} />
+                </motion.button>
+
+                {/* Skip Button */}
+                <motion.button
+                  onClick={handleSkip}
+                  className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Skip"
+                  disabled={mode === 'idle'}
+                >
+                  <SkipForward size={28} />
+                </motion.button>
+              </div>
+
+              {/* Status indicator */}
+              {isActive && (
+                <div className="mt-8 text-center">
+                  <span className="inline-flex items-center gap-2 text-sm text-text-tertiary">
+                    <span className="w-3 h-3 rounded-full bg-green-glow animate-pulse" />
+                    Timer running
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>,
         document.body
       )}
