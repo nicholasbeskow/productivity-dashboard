@@ -48,6 +48,11 @@
     "directories": {
       "buildResources": "resources"
     },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
     "mac": {
       "icon": "resources/icon.png"
     },

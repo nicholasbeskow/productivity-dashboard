@@ -50,15 +50,17 @@ function createWindow() {
     frame: true,
   });
 
-  // Check if dist folder exists to determine if we're in dev or production
-  const distPath = path.join(__dirname, '../dist/index.html');
-  const isDev = !fs.existsSync(distPath);
+  // Use app.isPackaged to reliably detect production vs development
+  // fs.existsSync doesn't work reliably with asar archives in packaged apps
+  const isDev = !app.isPackaged;
 
   // Load the app
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
+    // In production, load from the dist folder bundled with the app
+    const distPath = path.join(__dirname, '../dist/index.html');
     mainWindow.loadFile(distPath);
   }
 
