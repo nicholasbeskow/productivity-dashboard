@@ -254,8 +254,9 @@ const MoodTracker = () => {
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+          <Smile className="text-yellow-500" size={24} />
           {view === 'month' && 'Mood Calendar'}
-          {view === 'select' && 'Log Entry'}
+          {view === 'select' && 'Log Mood'}
           {view === 'details' && 'Entry Details'}
         </h3>
         {view !== 'month' && view !== 'confirm' && (
@@ -346,7 +347,7 @@ const MoodTracker = () => {
                 value={currentJournalEntry}
                 onChange={(e) => setCurrentJournalEntry(e.target.value)}
                 placeholder="What's on your mind? (Optional)"
-                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:outline-none resize-none transition-colors"
+                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
               />
             </div>
 
