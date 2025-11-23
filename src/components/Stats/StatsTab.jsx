@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Flame, BookOpen, Home, Smile } from 'lucide-react';
+import { BarChart3, Flame, BookOpen, Home, Smile, Moon, TrendingUp, TrendingDown, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
 import {
@@ -12,6 +12,7 @@ import {
   Tooltip,
   Filler
 } from 'chart.js';
+import { subDays, format } from 'date-fns';
 
 // Register Chart.js components
 ChartJS.register(
@@ -24,9 +25,13 @@ ChartJS.register(
   Filler
 );
 
+// Sleep target hours
+const SLEEP_TARGET = 7.5;
+
 const StatsTab = () => {
   const [completedTasks, setCompletedTasks] = useState([]);
   const [moodLog, setMoodLog] = useState([]);
+  const [sleepLog, setSleepLog] = useState([]);
   const [timePeriod, setTimePeriod] = useState('Week');
 
   // Load completed tasks from localStorage
@@ -87,6 +92,28 @@ const StatsTab = () => {
     return () => {
       window.removeEventListener('storage', loadMoodLog);
     };
+  }, []);
+
+  // Load sleep log from localStorage
+  useEffect(() => {
+    const loadSleepLog = () => {
+      const stored = localStorage.getItem('sleepLog');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setSleepLog(parsed);
+        } catch (error) {
+          console.error('Error loading sleep log:', error);
+          setSleepLog([]);
+        }
+      } else {
+        setSleepLog([]);
+      }
+    };
+
+    loadSleepLog();
+    window.addEventListener('storage', loadSleepLog);
+    return () => window.removeEventListener('storage', loadSleepLog);
   }, []);
 
   // Moods configuration
@@ -153,6 +180,114 @@ const StatsTab = () => {
     return { text: 'No task/mood overlap found', value: null };
 
   }, [completedTasks, moodLog]);
+
+  // Calculate sleep statistics
+  const sleepStats = useMemo(() => {
+    if (sleepLog.length === 0) {
+      return null;
+    }
+
+    const today = new Date();
+    let startDate = new Date();
+    let daysToAnalyze = 7;
+
+    switch (timePeriod) {
+      case 'Day':
+        startDate = subDays(today, 1);
+        daysToAnalyze = 1;
+        break;
+      case 'Week':
+        startDate = subDays(today, 7);
+        daysToAnalyze = 7;
+        break;
+      case 'Month':
+        startDate = subDays(today, 30);
+        daysToAnalyze = 30;
+        break;
+      case 'Semester':
+      case 'All Time':
+        startDate = new Date(0);
+        daysToAnalyze = sleepLog.length;
+        break;
+      default:
+        break;
+    }
+
+    const startDateStr = format(startDate, 'yyyy-MM-dd');
+    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr);
+
+    if (filteredSleep.length === 0) return null;
+
+    // Calculate averages
+    const totalHours = filteredSleep.reduce((acc, e) => acc + e.hours, 0);
+    const avgHours = totalHours / filteredSleep.length;
+
+    const totalQuality = filteredSleep.reduce((acc, e) => acc + e.quality, 0);
+    const avgQuality = totalQuality / filteredSleep.length;
+
+    // Calculate sleep debt
+    const targetTotal = filteredSleep.length * SLEEP_TARGET;
+    const sleepDebt = Math.max(0, targetTotal - totalHours);
+
+    // Calculate streak
+    let currentStreak = 0;
+    const sortedSleep = [...filteredSleep].sort((a, b) => b.date.localeCompare(a.date));
+    for (const entry of sortedSleep) {
+      if (entry.hours >= 7) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      avgHours: avgHours.toFixed(1),
+      avgQuality: avgQuality.toFixed(1),
+      sleepDebt: sleepDebt.toFixed(1),
+      daysTracked: filteredSleep.length,
+      currentStreak
+    };
+  }, [sleepLog, timePeriod]);
+
+  // Sleep-Mood Correlation
+  const sleepMoodCorrelation = useMemo(() => {
+    if (sleepLog.length === 0 || moodLog.length === 0) {
+      return { text: 'Not enough data', avgHappySleep: null, avgStressedSleep: null };
+    }
+
+    const moodByDate = {};
+    moodLog.forEach(entry => {
+      moodByDate[entry.date] = entry.level;
+    });
+
+    const happyDaysSleep = [];
+    const stressedDaysSleep = [];
+
+    sleepLog.forEach(sleepEntry => {
+      const mood = moodByDate[sleepEntry.date];
+      if (mood !== undefined) {
+        if (mood >= 4) {
+          happyDaysSleep.push(sleepEntry.hours);
+        } else if (mood <= 2) {
+          stressedDaysSleep.push(sleepEntry.hours);
+        }
+      }
+    });
+
+    if (happyDaysSleep.length === 0 || stressedDaysSleep.length === 0) {
+      return { text: 'Log more entries for correlation', avgHappySleep: null, avgStressedSleep: null };
+    }
+
+    const avgHappySleep = happyDaysSleep.reduce((a, b) => a + b, 0) / happyDaysSleep.length;
+    const avgStressedSleep = stressedDaysSleep.reduce((a, b) => a + b, 0) / stressedDaysSleep.length;
+
+    return {
+      text: `${avgHappySleep.toFixed(1)}h on good vs ${avgStressedSleep.toFixed(1)}h on bad days`,
+      avgHappySleep: avgHappySleep.toFixed(1),
+      avgStressedSleep: avgStressedSleep.toFixed(1),
+      difference: (avgHappySleep - avgStressedSleep).toFixed(1)
+    };
+  }, [sleepLog, moodLog]);
 
   // Calculate stats
   const calculateCurrentStreak = () => {
@@ -1281,6 +1416,99 @@ const StatsTab = () => {
             <p className="text-text-tertiary text-xs">
               {correlationStats.text}
             </p>
+          </motion.div>
+
+          {/* Card 12 - Average Sleep */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Moon className="text-purple-400" size={18} />
+              Average Sleep
+            </p>
+            <div className="text-4xl font-bold text-purple-400 mb-1">
+              {sleepStats ? `${sleepStats.avgHours}h` : 'N/A'}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              {sleepStats ? `${sleepStats.daysTracked} nights tracked` : 'Start logging sleep'}
+            </p>
+          </motion.div>
+
+          {/* Card 13 - Sleep Debt */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <TrendingDown className="text-orange-500" size={18} />
+              Sleep Debt
+            </p>
+            <div className={`text-4xl font-bold mb-1 ${
+              sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
+              sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-green-glow'
+            }`}>
+              {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              vs {SLEEP_TARGET}h target
+            </p>
+          </motion.div>
+
+          {/* Card 14 - Sleep Streak */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Trophy className="text-yellow-500" size={18} />
+              Sleep Goal Streak
+            </p>
+            <div className="text-4xl font-bold text-yellow-500 mb-1">
+              {sleepStats ? sleepStats.currentStreak : 0}
+            </div>
+            <p className="text-text-tertiary text-xs">
+              nights at 7+ hours
+            </p>
+          </motion.div>
+
+          {/* Card 15 - Sleep-Mood Correlation */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-bg-secondary rounded-xl p-6 border border-purple-500/50"
+          >
+            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+              <Moon className="text-purple-400" size={18} />
+              Sleep-Mood Link
+            </p>
+            {sleepMoodCorrelation.avgHappySleep ? (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-green-glow font-bold">{sleepMoodCorrelation.avgHappySleep}h</span>
+                  <span className="text-text-tertiary text-xs">happy</span>
+                  <span className="text-text-tertiary mx-1">vs</span>
+                  <span className="text-red-500 font-bold">{sleepMoodCorrelation.avgStressedSleep}h</span>
+                  <span className="text-text-tertiary text-xs">stressed</span>
+                </div>
+                <p className="text-text-tertiary text-xs flex items-center gap-1">
+                  {parseFloat(sleepMoodCorrelation.difference) > 0 ? (
+                    <><TrendingUp size={12} className="text-green-glow" /> {sleepMoodCorrelation.difference}h more on good days</>
+                  ) : (
+                    'No clear pattern'
+                  )}
+                </p>
+              </>
+            ) : (
+              <p className="text-text-tertiary text-sm">{sleepMoodCorrelation.text}</p>
+            )}
           </motion.div>
         </div>
 
