@@ -5,6 +5,8 @@ const axios = require('axios');
 const Store = require('electron-store');
 const { exec } = require('child_process');
 
+app.setName('Peak Productivity');
+
 const store = new Store();
 
 // Focus Mode settings

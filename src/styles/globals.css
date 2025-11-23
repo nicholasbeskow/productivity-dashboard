@@ -70,3 +70,12 @@ body {
 .glow-pulse {
   animation: glow-pulse 2s ease-in-out infinite;
 }
+
+/* Electron window drag regions */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
