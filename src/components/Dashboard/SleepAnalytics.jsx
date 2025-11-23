@@ -556,6 +556,7 @@ const SleepAnalytics = () => {
   };
 
   // Quality Rings Component - matches Pomodoro timer aesthetic
+  // No strokeDashoffset animation - renders instantly for snappy performance
   const QualityRings = ({ distribution, total }) => {
     if (!distribution || total === 0) return null;
 
@@ -588,8 +589,8 @@ const SleepAnalytics = () => {
                     strokeWidth={strokeWidth}
                     fill="none"
                   />
-                  {/* Progress circle */}
-                  <motion.circle
+                  {/* Progress circle - no animation for instant render */}
+                  <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
@@ -597,9 +598,7 @@ const SleepAnalytics = () => {
                     strokeWidth={strokeWidth}
                     fill="none"
                     strokeDasharray={circumference}
-                    initial={{ strokeDashoffset: circumference }}
-                    animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: 'easeOut', delay: index * 0.1 }}
+                    strokeDashoffset={offset}
                     strokeLinecap="round"
                     style={{
                       filter: `drop-shadow(0 0 6px ${color}60)`,
@@ -659,18 +658,17 @@ const SleepAnalytics = () => {
   );
 
   // Progress bar component with inline styles (fixes Tailwind dynamic class issue)
+  // No width animation - renders instantly for snappy performance
   const ProgressBar = ({ current, target, tierLevel = 1 }) => {
     const percentage = Math.min((current / target) * 100, 100);
     const barColor = tierColors[tierLevel] || tierColors[1];
 
     return (
       <div className="w-full h-2.5 bg-bg-primary rounded-full overflow-hidden relative">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+        <div
           className="h-full rounded-full"
           style={{
+            width: `${percentage}%`,
             backgroundColor: barColor,
             boxShadow: `0 0 10px ${barColor}60, 0 0 20px ${barColor}30`,
           }}
