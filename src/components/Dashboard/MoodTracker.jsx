@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X, Moon } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
@@ -67,6 +67,7 @@ const MoodTracker = () => {
   // Data State
   const [moodLog, setMoodLog] = useState([]);
   const [journalLog, setJournalLog] = useState([]);
+  const [sleepLog, setSleepLog] = useState([]);
 
   // Editing State
   const [selectedMood, setSelectedMood] = useState(null);
@@ -80,8 +81,10 @@ const MoodTracker = () => {
     const loadData = () => {
       const storedMoods = JSON.parse(localStorage.getItem('moodLog') || '[]');
       const storedJournal = JSON.parse(localStorage.getItem('journalLog') || '[]');
+      const storedSleep = JSON.parse(localStorage.getItem('sleepLog') || '[]');
       setMoodLog(storedMoods);
       setJournalLog(storedJournal);
+      setSleepLog(storedSleep);
 
       const todayEntry = storedMoods.find(e => e.date === getDateString(new Date()));
       // Start in month view by default unless you want to force entry
@@ -114,6 +117,22 @@ const MoodTracker = () => {
   const getJournalForDate = (date) => {
     const entry = journalLog.find(e => e.date === getDateString(date));
     return entry ? entry.text : '';
+  };
+
+  const getSleepForDate = (date) => {
+    const entry = sleepLog.find(e => e.date === getDateString(date));
+    return entry || null;
+  };
+
+  // Get sleep quality color for indicator
+  const getSleepQualityColor = (quality) => {
+    switch (quality) {
+      case 4: return 'bg-green-glow';
+      case 3: return 'bg-yellow-500';
+      case 2: return 'bg-orange-500';
+      case 1: return 'bg-red-500';
+      default: return 'bg-text-tertiary';
+    }
   };
 
   // Core Logic
@@ -191,6 +210,7 @@ const MoodTracker = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const mood = getMoodForDate(date);
+      const sleepEntry = getSleepForDate(date);
       const isToday = isSameDay(date, new Date());
       const isFuture = date > new Date().setHours(0,0,0,0);
 
@@ -210,6 +230,13 @@ const MoodTracker = () => {
             <mood.icon size={24} className={mood.color} strokeWidth={2} />
           ) : (
             <span className="text-text-tertiary text-sm">{day}</span>
+          )}
+          {/* Sleep Indicator (top-right) */}
+          {sleepEntry && (
+            <div className={`absolute top-0.5 right-0.5 flex items-center gap-0.5 px-1 py-0.5 rounded ${getSleepQualityColor(sleepEntry.quality)} bg-opacity-20`}>
+              <Moon size={8} className="text-purple-400" />
+              <span className="text-[8px] text-purple-400 font-medium">{sleepEntry.hours}</span>
+            </div>
           )}
           {/* Journal Indicator Dot */}
           {getJournalForDate(date) && (

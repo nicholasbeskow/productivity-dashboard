@@ -119,6 +119,15 @@ function startTimer() {
     clearInterval(timerInterval);
   }
 
+  // --- FOCUS MODE TRIGGER (Moved Here) ---
+  // Trigger ONLY if we are in 'work' mode
+  if (timerState.mode === 'work') {
+    console.log(`[FocusMode] Starting Work Session (${timerState.timeLeft}s) - Checking triggers...`);
+    // Use timeLeft so pauses/resumes are accurate
+    triggerSelfControl(timerState.timeLeft);
+  }
+  // ---------------------------------------
+
   timerState.isActive = true;
   sendTimerUpdate();
 
@@ -558,13 +567,6 @@ ipcMain.on('timer:start', () => {
     timerState.mode = 'work';
     timerState.timeLeft = timerState.workDuration;
   }
-
-  // If starting a WORK session, trigger SelfControl
-  if (timerState.mode === 'work') {
-    console.log('Starting Work Session - Checking Focus Mode...');
-    triggerSelfControl(timerState.workDuration);
-  }
-
   startTimer();
 });
 

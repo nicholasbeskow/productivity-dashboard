@@ -30,6 +30,7 @@ class BackupManager {
       completedTasks: JSON.parse(localStorage.getItem('completedTasks') || '[]'),
       moodLog: JSON.parse(localStorage.getItem('moodLog') || '[]'),
       journalLog: JSON.parse(localStorage.getItem('journalLog') || '[]'),
+      sleepLog: JSON.parse(localStorage.getItem('sleepLog') || '[]'),
       userName: localStorage.getItem('userName') || '',
       semesterStartDate: localStorage.getItem('semesterStartDate') || '',
       semesterEndDate: localStorage.getItem('semesterEndDate') || '',
@@ -73,6 +74,7 @@ class BackupManager {
       if (data.completedTasks) localStorage.setItem('completedTasks', JSON.stringify(data.completedTasks));
       if (data.moodLog) localStorage.setItem('moodLog', JSON.stringify(data.moodLog));
       if (data.journalLog) localStorage.setItem('journalLog', JSON.stringify(data.journalLog));
+      if (data.sleepLog) localStorage.setItem('sleepLog', JSON.stringify(data.sleepLog));
       if (data.userName) localStorage.setItem('userName', data.userName);
       if (data.semesterStartDate) localStorage.setItem('semesterStartDate', data.semesterStartDate);
       if (data.semesterEndDate) localStorage.setItem('semesterEndDate', data.semesterEndDate);

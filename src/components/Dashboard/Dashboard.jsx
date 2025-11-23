@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
 import PomodoroTimer from './PomodoroTimer';
 import MoodTracker from './MoodTracker';
+import SleepTracker from './SleepTracker';
+import SleepAnalytics from './SleepAnalytics';
 import backupManager from '../../utils/backupManager';
 
 // Memoized task card component for performance
@@ -1616,9 +1618,18 @@ const Dashboard = ({ setActiveTab }) => {
             {/* Pomodoro Timer */}
             <PomodoroTimer />
 
-            {/* Mood Tracker */}
-            <div className="lg:col-span-3">
+            {/* Mood and Sleep Row */}
+            <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Mood Tracker */}
               <MoodTracker />
+
+              {/* Sleep Tracker */}
+              <SleepTracker />
+            </div>
+
+            {/* Sleep Analytics - Full Width */}
+            <div className="lg:col-span-3">
+              <SleepAnalytics />
             </div>
           </div>
         </div>
