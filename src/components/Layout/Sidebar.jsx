@@ -18,6 +18,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           src={logo}
           alt="Productivity Dashboard Logo"
           className="w-44 h-auto"
+          style={{ filter: 'drop-shadow(0 0 12px rgba(61, 214, 140, 0.5))' }}
         />
       </div>
 
