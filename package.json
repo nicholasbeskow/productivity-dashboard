@@ -1,6 +1,6 @@
 {
   "name": "productivity-dashboard",
-  "productName": "Peak Productivity",
+  "productName": "Pinnacle",
   "version": "1.5.0",
   "description": "Personal productivity dashboard for pre-med students",
   "main": "electron/main.js",

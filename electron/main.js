@@ -5,7 +5,7 @@ const axios = require('axios');
 const Store = require('electron-store');
 const { exec } = require('child_process');
 
-app.setName('Peak Productivity');
+app.setName('Pinnacle');
 
 const store = new Store();
 
