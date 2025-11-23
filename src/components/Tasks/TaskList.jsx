@@ -4,6 +4,71 @@ import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
+/**
+ * Calculate the next due date for a recurring task based on its template's recurrence pattern.
+ * Always calculates from the original due date to maintain consistent schedules
+ * (handles early and late completions correctly).
+ *
+ * @param {string} currentDueDate - The current task's due date (YYYY-MM-DD)
+ * @param {Object} template - The recurring task template
+ * @returns {string} - The next due date (YYYY-MM-DD)
+ */
+const calculateNextDueDate = (currentDueDate, template) => {
+  // Parse the current due date at noon to avoid timezone issues
+  const dueDate = new Date(currentDueDate + 'T12:00:00');
+
+  if (!template || !template.recurrence) {
+    // Fallback: add 1 day if no template info
+    dueDate.setDate(dueDate.getDate() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  const recurrenceType = template.recurrence.type;
+  const selectedDays = template.recurrence.days || [];
+
+  if (recurrenceType === 'daily') {
+    // Daily: simply add 1 day from the original due date
+    dueDate.setDate(dueDate.getDate() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  if (recurrenceType === 'weekly' && selectedDays.length > 0) {
+    // Weekly with specific days: find the next occurrence day
+    const sortedDays = [...selectedDays].sort((a, b) => a - b);
+    const currentDayOfWeek = dueDate.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Find the next day in the pattern after the current due date's day
+    let daysToAdd = null;
+
+    // First, look for a day later in the current week
+    for (const day of sortedDays) {
+      if (day > currentDayOfWeek) {
+        daysToAdd = day - currentDayOfWeek;
+        break;
+      }
+    }
+
+    // If no day found later this week, use the first day next week
+    if (daysToAdd === null) {
+      // Days until next week's first selected day
+      daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
+    }
+
+    dueDate.setDate(dueDate.getDate() + daysToAdd);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  // Fallback for weekly without days: add 7 days
+  if (recurrenceType === 'weekly') {
+    dueDate.setDate(dueDate.getDate() + 7);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  // Default fallback: add 1 day
+  dueDate.setDate(dueDate.getDate() + 1);
+  return dueDate.toISOString().split('T')[0];
+};
+
 // Memoized single task card for performance
 const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
   // State for attachment drag-and-drop
@@ -851,12 +916,75 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
         const completedTask = { ...taskToComplete, status: 'complete', completedAt };
 
-        // Add to completedTasks
+        // Add to completedTasks (for stats tracking)
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
         localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
         // Remove from active tasks
-        const activeTasks = freshAllTasks.filter(t => t.id !== taskId);
+        let activeTasks = freshAllTasks.filter(t => t.id !== taskId);
+
+        // --- RECURRING TASK: Create next occurrence ---
+        if (taskToComplete.templateId) {
+          // Get the recurring task template
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const template = templates.find(t => t.id === taskToComplete.templateId);
+
+          if (template) {
+            // Calculate the next due date based on the original task's due date
+            // This ensures consistent scheduling even for early/late completions
+            const nextDueDate = calculateNextDueDate(taskToComplete.dueDate, template);
+
+            // Create the new task instance for the next occurrence
+            const nextOccurrence = {
+              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              title: template.title,
+              description: template.description || '',
+              url: template.url || null,
+              dueDate: nextDueDate,
+              time: template.time || null,
+              status: 'not-started',
+              taskType: template.taskType || 'academic',
+              createdAt: new Date().toISOString(),
+              completedAt: null,
+              attachments: template.attachments || [],
+              templateId: template.id,
+            };
+
+            // Helper to check if a task is overdue
+            const isTaskOverdue = (task) => {
+              if (!task.dueDate || task.status === 'complete') return false;
+              const now = new Date();
+              now.setHours(12, 0, 0, 0);
+              const dueDate = new Date(task.dueDate + 'T12:00:00');
+              return dueDate < now;
+            };
+
+            // Find the right position for the new task based on due date
+            let insertIndex = activeTasks.length;
+            const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+            for (let i = 0; i < activeTasks.length; i++) {
+              const task = activeTasks[i];
+              if (isTaskOverdue(task)) continue;
+              if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
+                insertIndex = i;
+                break;
+              }
+            }
+
+            // Insert at the right position
+            activeTasks.splice(insertIndex, 0, nextOccurrence);
+
+            // Recalculate all priorities to maintain order
+            activeTasks = activeTasks.map((task, index) => ({
+              ...task,
+              customPriority: activeTasks.length - index,
+            }));
+
+            console.log(`[TaskList] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
+          }
+        }
+
         localStorage.setItem('tasks', JSON.stringify(activeTasks));
 
         backupManager.saveAutoBackup();
