@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, TrendingUp, TrendingDown, AlertTriangle, Trophy, Target, Zap, Lock, Sparkles, Star, Calendar, Clock, ArrowRight } from 'lucide-react';
-import { Line, Pie } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,9 +10,7 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Filler,
-  ArcElement,
-  Legend
+  Filler
 } from 'chart.js';
 import { subDays, format, startOfWeek, subMonths, differenceInDays } from 'date-fns';
 
@@ -24,9 +22,7 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Filler,
-  ArcElement,
-  Legend
+  Filler
 );
 
 // Sleep target hours
@@ -53,6 +49,14 @@ const qualityColors = {
   3: '#eab308', // yellow
   2: '#f97316', // orange
   1: '#ef4444'  // red
+};
+
+// Tier colors for inline styles (fixes dynamic Tailwind class issue)
+const tierColors = {
+  1: '#60a5fa', // blue-400
+  2: '#eab308', // yellow-500
+  3: '#a855f7', // purple-400
+  4: '#3dd68c'  // green-glow
 };
 
 const SleepAnalytics = () => {
@@ -456,30 +460,6 @@ const SleepAnalytics = () => {
     };
   };
 
-  // Quality distribution pie chart data
-  const getQualityPieData = () => {
-    if (!stats) return null;
-
-    return {
-      labels: ['Poor', 'Fair', 'Good', 'Excellent'],
-      datasets: [{
-        data: [
-          stats.qualityDistribution[1] || 0,
-          stats.qualityDistribution[2] || 0,
-          stats.qualityDistribution[3] || 0,
-          stats.qualityDistribution[4] || 0
-        ],
-        backgroundColor: [
-          qualityColors[1],
-          qualityColors[2],
-          qualityColors[3],
-          qualityColors[4]
-        ],
-        borderWidth: 0
-      }]
-    };
-  };
-
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -559,26 +539,91 @@ const SleepAnalytics = () => {
     },
   };
 
-  const pieOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'bottom',
-        labels: {
-          color: '#9195a0',
-          padding: 15,
-          font: { size: 11 }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(10, 14, 20, 0.95)',
-        titleColor: '#9195a0',
-        padding: 10,
-        cornerRadius: 8
-      }
-    }
+  // Quality Rings Component - matches Pomodoro timer aesthetic
+  const QualityRings = ({ distribution, total }) => {
+    if (!distribution || total === 0) return null;
+
+    const size = 160;
+    const strokeWidth = 10;
+    const gap = 14;
+    const qualities = [4, 3, 2, 1]; // Order: Excellent, Good, Fair, Poor
+
+    return (
+      <div className="flex items-center gap-6">
+        {/* Stacked Rings */}
+        <div className="relative" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
+            {qualities.map((quality, index) => {
+              const radius = (size - strokeWidth) / 2 - (index * gap);
+              const circumference = 2 * Math.PI * radius;
+              const count = distribution[quality] || 0;
+              const percentage = (count / total) * 100;
+              const offset = circumference - (percentage / 100) * circumference;
+              const color = qualityColors[quality];
+
+              return (
+                <g key={quality}>
+                  {/* Background circle */}
+                  <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="#1a1f2e"
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                  />
+                  {/* Progress circle */}
+                  <motion.circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1, ease: 'easeOut', delay: index * 0.1 }}
+                    strokeLinecap="round"
+                    style={{
+                      filter: `drop-shadow(0 0 6px ${color}60)`,
+                    }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+          {/* Center text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-text-primary">{total}</span>
+            <span className="text-xs text-text-tertiary">nights</span>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-col gap-2">
+          {qualities.map((quality) => {
+            const count = distribution[quality] || 0;
+            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+            const color = qualityColors[quality];
+
+            return (
+              <div key={quality} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: `0 0 6px ${color}60`
+                  }}
+                />
+                <span className="text-xs text-text-secondary w-16">{qualityLabels[quality]}</span>
+                <span className="text-xs font-medium" style={{ color }}>{percentage}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Locked feature card component
@@ -597,16 +642,22 @@ const SleepAnalytics = () => {
     </div>
   );
 
-  // Progress bar component
-  const ProgressBar = ({ current, target, color = 'bg-green-glow' }) => {
+  // Progress bar component with inline styles (fixes Tailwind dynamic class issue)
+  const ProgressBar = ({ current, target, tierLevel = 1 }) => {
     const percentage = Math.min((current / target) * 100, 100);
+    const barColor = tierColors[tierLevel] || tierColors[1];
+
     return (
-      <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden">
+      <div className="w-full h-2.5 bg-bg-primary rounded-full overflow-hidden relative">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className={`h-full ${color} rounded-full`}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="h-full rounded-full"
+          style={{
+            backgroundColor: barColor,
+            boxShadow: `0 0 10px ${barColor}60, 0 0 20px ${barColor}30`,
+          }}
         />
       </div>
     );
@@ -725,7 +776,7 @@ const SleepAnalytics = () => {
                   <span>Progress to next tier</span>
                   <span>{daysLogged}/{tierInfo.nextAt} days</span>
                 </div>
-                <ProgressBar current={daysLogged} target={tierInfo.nextAt} color={tierInfo.color.replace('text-', 'bg-')} />
+                <ProgressBar current={daysLogged} target={tierInfo.nextAt} tierLevel={currentTier} />
                 <p className="text-xs text-text-tertiary mt-2 flex items-center gap-1">
                   <ArrowRight size={12} />
                   Next unlock: {tierInfo.nextUnlock}
@@ -808,17 +859,20 @@ const SleepAnalytics = () => {
 
       {/* Tier 1: Quality Distribution & Recent Log */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Quality Pie Chart - Always shown */}
-        {stats && getQualityPieData() && (
+        {/* Quality Rings - Always shown */}
+        {stats && stats.qualityDistribution && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
           >
-            <h4 className="text-sm font-medium text-text-primary mb-3">Sleep Quality Distribution</h4>
-            <div className="h-[180px]">
-              <Pie data={getQualityPieData()} options={pieOptions} />
+            <h4 className="text-sm font-medium text-text-primary mb-4">Sleep Quality Distribution</h4>
+            <div className="flex justify-center">
+              <QualityRings
+                distribution={stats.qualityDistribution}
+                total={stats.daysTracked}
+              />
             </div>
           </motion.div>
         )}
