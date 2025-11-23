@@ -8,6 +8,55 @@ import SleepTracker from './SleepTracker';
 import backupManager from '../../utils/backupManager';
 import { ArrowRight, Moon } from 'lucide-react';
 
+/**
+ * Calculate the next due date for a recurring task based on its template's recurrence pattern.
+ * Always calculates from the original due date to maintain consistent schedules.
+ */
+const calculateNextDueDate = (currentDueDate, template) => {
+  const dueDate = new Date(currentDueDate + 'T12:00:00');
+
+  if (!template || !template.recurrence) {
+    dueDate.setDate(dueDate.getDate() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  const recurrenceType = template.recurrence.type;
+  const selectedDays = template.recurrence.days || [];
+
+  if (recurrenceType === 'daily') {
+    dueDate.setDate(dueDate.getDate() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  if (recurrenceType === 'weekly' && selectedDays.length > 0) {
+    const sortedDays = [...selectedDays].sort((a, b) => a - b);
+    const currentDayOfWeek = dueDate.getDay();
+    let daysToAdd = null;
+
+    for (const day of sortedDays) {
+      if (day > currentDayOfWeek) {
+        daysToAdd = day - currentDayOfWeek;
+        break;
+      }
+    }
+
+    if (daysToAdd === null) {
+      daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
+    }
+
+    dueDate.setDate(dueDate.getDate() + daysToAdd);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  if (recurrenceType === 'weekly') {
+    dueDate.setDate(dueDate.getDate() + 7);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  dueDate.setDate(dueDate.getDate() + 1);
+  return dueDate.toISOString().split('T')[0];
+};
+
 // Memoized task card component for performance
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
   const isOverdue = (task) => {
@@ -468,7 +517,42 @@ const Dashboard = ({ setActiveTab }) => {
         localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
         // Remove from active tasks
-        const updatedTasks = tasks.filter(t => t.id !== taskId);
+        let updatedTasks = tasks.filter(t => t.id !== taskId);
+
+        // --- RECURRING TASK: Create next occurrence ---
+        if (task.templateId) {
+          // Get the recurring task template
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const template = templates.find(t => t.id === task.templateId);
+
+          if (template) {
+            // Calculate the next due date based on the original task's due date
+            const nextDueDate = calculateNextDueDate(task.dueDate, template);
+
+            // Create the new task instance for the next occurrence
+            const nextOccurrence = {
+              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              title: template.title,
+              description: template.description || '',
+              url: template.url || null,
+              dueDate: nextDueDate,
+              time: template.time || null,
+              status: 'not-started',
+              taskType: template.taskType || 'academic',
+              createdAt: new Date().toISOString(),
+              completedAt: null,
+              attachments: template.attachments || [],
+              customPriority: 0,
+              templateId: template.id,
+            };
+
+            // Add the next occurrence to active tasks
+            updatedTasks.push(nextOccurrence);
+
+            console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate}`);
+          }
+        }
+
         setTasks(updatedTasks);
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
 
