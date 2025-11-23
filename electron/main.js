@@ -38,6 +38,7 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     backgroundColor: '#0a0e14',
+    icon: path.join(__dirname, '../resources/icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -70,6 +71,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Set dock icon on macOS
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(path.join(__dirname, '../resources/icon.png'));
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
