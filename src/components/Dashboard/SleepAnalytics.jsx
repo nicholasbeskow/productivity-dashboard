@@ -178,7 +178,9 @@ const SleepAnalytics = () => {
     }
 
     const startDateStr = format(startDate, 'yyyy-MM-dd');
-    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr);
+    const todayStr = format(today, 'yyyy-MM-dd');
+    // Exclude today since tonight's sleep hasn't happened yet (matches SleepTracker calculation)
+    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date < todayStr);
 
     if (filteredSleep.length === 0) return null;
 
@@ -256,9 +258,10 @@ const SleepAnalytics = () => {
     let monthComparison = null;
     if (currentTier >= 4) {
       const lastMonthStart = format(subMonths(today, 1), 'yyyy-MM-dd');
-      const lastMonthEnd = format(subDays(subMonths(today, 0), 1), 'yyyy-MM-dd');
-      const thisMonthSleep = sleepLog.filter(e => e.date >= format(subDays(today, 30), 'yyyy-MM-dd'));
-      const lastMonthSleep = sleepLog.filter(e => e.date >= lastMonthStart && e.date < format(subDays(today, 30), 'yyyy-MM-dd'));
+      const thisMonthStart = format(subDays(today, 30), 'yyyy-MM-dd');
+      // Exclude today from this month's calculation
+      const thisMonthSleep = sleepLog.filter(e => e.date >= thisMonthStart && e.date < todayStr);
+      const lastMonthSleep = sleepLog.filter(e => e.date >= lastMonthStart && e.date < thisMonthStart);
 
       if (thisMonthSleep.length > 0 && lastMonthSleep.length > 0) {
         const thisMonthAvg = thisMonthSleep.reduce((a, e) => a + (e.totalSleep ?? e.hours), 0) / thisMonthSleep.length;
