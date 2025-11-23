@@ -4,35 +4,35 @@ import { Moon, ChevronLeft, ChevronRight, Save, Edit2, ArrowLeft, Trash2, X, Sun
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth, subDays } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
-// Sleep quality definitions
+// Sleep quality definitions (colors match mood tracker)
 const sleepQualities = [
   {
     level: 4,
     label: 'Excellent',
-    color: 'text-green-glow',
-    bgColor: 'bg-green-glow',
-    glowColor: 'rgba(61, 214, 140, 0.5)',
+    color: 'text-yellow-500',
+    bgColor: 'bg-yellow-500',
+    glowColor: 'rgba(234, 179, 8, 0.5)', // matches mood "Great"
   },
   {
     level: 3,
     label: 'Good',
-    color: 'text-yellow-500',
-    bgColor: 'bg-yellow-500',
-    glowColor: 'rgba(234, 179, 8, 0.5)',
+    color: 'text-green-glow',
+    bgColor: 'bg-green-glow',
+    glowColor: 'rgba(61, 214, 140, 0.5)', // matches mood "Good"
   },
   {
     level: 2,
     label: 'Fair',
     color: 'text-orange-500',
     bgColor: 'bg-orange-500',
-    glowColor: 'rgba(249, 115, 22, 0.5)',
+    glowColor: 'rgba(249, 115, 22, 0.5)', // matches mood "Down"
   },
   {
     level: 1,
     label: 'Poor',
     color: 'text-red-500',
     bgColor: 'bg-red-500',
-    glowColor: 'rgba(239, 68, 68, 0.5)',
+    glowColor: 'rgba(239, 68, 68, 0.5)', // matches mood "Rocky"
   }
 ];
 
@@ -60,9 +60,13 @@ const SleepTracker = () => {
 
   // Form State
   const [selectedHours, setSelectedHours] = useState(7.5);
+  const [napDuration, setNapDuration] = useState(0);
   const [selectedQuality, setSelectedQuality] = useState(null);
   const [sleepNotes, setSleepNotes] = useState('');
   const [showParticles, setShowParticles] = useState(false);
+
+  // Calculate total sleep (night + nap)
+  const totalSleep = selectedHours + napDuration;
 
   // Warning state
   const [sleepWarning, setSleepWarning] = useState(null);
@@ -104,7 +108,8 @@ const SleepTracker = () => {
     }
 
     if (last3Nights.length >= 3) {
-      const avgSleep = last3Nights.reduce((acc, e) => acc + e.hours, 0) / last3Nights.length;
+      // Use totalSleep if available (new format), otherwise fall back to hours (legacy)
+      const avgSleep = last3Nights.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0) / last3Nights.length;
       if (avgSleep < 6) {
         setSleepWarning({
           type: 'critical',
@@ -147,13 +152,13 @@ const SleepTracker = () => {
     return entry || null;
   };
 
-  // Get quality color for calendar indicator
+  // Get quality color for calendar indicator (matches mood tracker colors)
   const getQualityColor = (quality) => {
     switch (quality) {
-      case 4: return 'bg-green-glow';
-      case 3: return 'bg-yellow-500';
-      case 2: return 'bg-orange-500';
-      case 1: return 'bg-red-500';
+      case 4: return 'bg-yellow-500';  // Excellent (matches mood "Great")
+      case 3: return 'bg-green-glow';  // Good (matches mood "Good")
+      case 2: return 'bg-orange-500';  // Fair (matches mood "Down")
+      case 1: return 'bg-red-500';     // Poor (matches mood "Rocky")
       default: return 'bg-text-tertiary';
     }
   };
@@ -168,12 +173,15 @@ const SleepTracker = () => {
     const sleepEntry = getSleepForDate(date);
 
     if (sleepEntry) {
-      setSelectedHours(sleepEntry.hours);
+      // Support both new format (nightSleep) and legacy format (hours)
+      setSelectedHours(sleepEntry.nightSleep ?? sleepEntry.hours);
+      setNapDuration(sleepEntry.napDuration ?? 0);
       setSelectedQuality(sleepQualities.find(q => q.level === sleepEntry.quality));
       setSleepNotes(sleepEntry.notes || '');
       setView('details');
     } else {
       setSelectedHours(7.5);
+      setNapDuration(0);
       setSelectedQuality(null);
       setSleepNotes('');
       setView('log');
@@ -184,18 +192,25 @@ const SleepTracker = () => {
     if (!selectedQuality) return;
 
     const dateStr = getDateString(editingDate);
+    const calculatedTotal = selectedHours + napDuration;
 
-    // Update Sleep Log
+    // Update Sleep Log with new data structure
     const newSleepLog = sleepLog.filter(e => e.date !== dateStr);
     newSleepLog.push({
       date: dateStr,
-      hours: selectedHours,
+      nightSleep: selectedHours,
+      napDuration: napDuration,
+      totalSleep: calculatedTotal,
+      hours: calculatedTotal, // Keep for backwards compatibility
       quality: selectedQuality.level,
       notes: sleepNotes.trim(),
       loggedAt: new Date().toISOString()
     });
     setSleepLog(newSleepLog);
     localStorage.setItem('sleepLog', JSON.stringify(newSleepLog));
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
 
     backupManager.saveAutoBackup();
     setView('confirm');
@@ -214,31 +229,41 @@ const SleepTracker = () => {
 
     setSleepLog(newSleepLog);
     localStorage.setItem('sleepLog', JSON.stringify(newSleepLog));
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+
     backupManager.saveAutoBackup();
 
     setView('month');
   };
 
-  // Calculate sleep debt
+  // Calculate sleep debt using total sleep (7 days including today)
   const calculateSleepDebt = () => {
     const last7Days = [];
     const today = new Date();
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 0; i <= 6; i++) { // 7 days including today
       const dateStr = getDateString(subDays(today, i));
       const entry = sleepLog.find(e => e.date === dateStr);
-      if (entry) last7Days.push(entry.hours);
+      // Use totalSleep if available (new format), otherwise fall back to hours (legacy)
+      if (entry) last7Days.push(entry.totalSleep ?? entry.hours);
     }
 
     if (last7Days.length === 0) return null;
 
-    const avgSleep = last7Days.reduce((a, b) => a + b, 0) / last7Days.length;
+    const totalSleepHours = last7Days.reduce((a, b) => a + b, 0);
+    const avgSleep = totalSleepHours / last7Days.length;
     const targetSleep = (SLEEP_TARGET_MIN + SLEEP_TARGET_MAX) / 2;
-    const debt = (targetSleep - avgSleep) * last7Days.length;
+    // Weekly debt = target for days tracked - actual hours slept
+    const targetTotal = targetSleep * last7Days.length;
+    const debt = targetTotal - totalSleepHours;
 
     return {
       avgSleep: avgSleep.toFixed(1),
-      debt: Math.max(0, debt).toFixed(1),
-      daysTracked: last7Days.length
+      debt: debt.toFixed(1), // Can be negative (surplus)
+      hasSurplus: debt < 0,
+      daysTracked: last7Days.length,
+      targetPerNight: targetSleep
     };
   };
 
@@ -274,7 +299,7 @@ const SleepTracker = () => {
           {sleepEntry ? (
             <>
               <Moon size={16} className="text-purple-400" />
-              <span className="text-[10px] text-text-secondary mt-0.5">{sleepEntry.hours}h</span>
+              <span className="text-[10px] text-text-secondary mt-0.5">{(sleepEntry.totalSleep ?? sleepEntry.hours)}h</span>
               {/* Quality indicator dot */}
               <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${getQualityColor(sleepEntry.quality)}`} />
             </>
@@ -335,12 +360,18 @@ const SleepTracker = () => {
           <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">7-Day Average</p>
             <p className="text-lg font-bold text-purple-400">{sleepDebt.avgSleep}h</p>
+            <p className="text-[10px] text-text-tertiary">{sleepDebt.daysTracked} days tracked</p>
           </div>
           <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
-            <p className="text-xs text-text-tertiary mb-1">Sleep Debt</p>
-            <p className={`text-lg font-bold ${parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'}`}>
-              {sleepDebt.debt}h
+            <p className="text-xs text-text-tertiary mb-1">Weekly Sleep Debt</p>
+            <p className={`text-lg font-bold ${
+              sleepDebt.hasSurplus ? 'text-green-glow' :
+              parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
+              parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'
+            }`}>
+              {sleepDebt.hasSurplus ? `+${Math.abs(parseFloat(sleepDebt.debt)).toFixed(1)}h` : `${sleepDebt.debt}h`}
             </p>
+            <p className="text-[10px] text-text-tertiary">vs {sleepDebt.targetPerNight}h/night target</p>
           </div>
         </div>
       )}
@@ -394,10 +425,10 @@ const SleepTracker = () => {
               </p>
             </div>
 
-            {/* Hours Slider */}
-            <div className="mb-6">
+            {/* Night Sleep Slider */}
+            <div className="mb-4">
               <label className="block text-sm text-text-secondary mb-3">
-                Hours Slept: <span className="text-purple-400 font-bold">{selectedHours}h</span>
+                Night Sleep: <span className="text-purple-400 font-bold">{selectedHours}h</span>
               </label>
               <input
                 type="range"
@@ -412,6 +443,31 @@ const SleepTracker = () => {
                 <span>0h</span>
                 <span className="text-green-glow">7-8h (ideal)</span>
                 <span>12h</span>
+              </div>
+            </div>
+
+            {/* Nap Duration */}
+            <div className="mb-6">
+              <label className="block text-sm text-text-tertiary mb-2">
+                Nap Duration <span className="text-text-tertiary/60">(optional)</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={napDuration || ''}
+                  onChange={(e) => setNapDuration(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary placeholder-text-tertiary focus:border-purple-500 focus:outline-none transition-colors text-center"
+                />
+                <span className="text-sm text-text-tertiary">hours</span>
+                {napDuration > 0 && (
+                  <span className="text-xs text-purple-400 ml-auto">
+                    Total: {totalSleep}h
+                  </span>
+                )}
               </div>
             </div>
 
@@ -493,7 +549,12 @@ const SleepTracker = () => {
                 <Moon size={48} className="text-purple-400" />
                 <Sun size={32} className="text-yellow-500" />
               </div>
-              <h2 className="text-3xl font-bold text-purple-400 mb-1">{selectedHours} hours</h2>
+              <h2 className="text-3xl font-bold text-purple-400 mb-1">{totalSleep} hours</h2>
+              {napDuration > 0 && (
+                <p className="text-xs text-text-tertiary mb-2">
+                  {selectedHours}h night + {napDuration}h nap
+                </p>
+              )}
               <p className={`text-lg font-semibold ${selectedQuality.color}`}>{selectedQuality.label}</p>
               <p className="text-text-secondary mt-2 text-sm">{getQualityMessage(selectedQuality.level)}</p>
             </div>
@@ -555,7 +616,9 @@ const SleepTracker = () => {
             <Moon size={64} className="text-purple-400 mb-4" />
             <Sparkles size={32} className="text-yellow-500 mb-4" />
             <h2 className="text-2xl font-bold text-text-primary">Sleep Logged!</h2>
-            <p className="text-text-secondary mt-2">{selectedHours}h • {selectedQuality.label}</p>
+            <p className="text-text-secondary mt-2">
+              {totalSleep}h{napDuration > 0 && ` (${selectedHours}h + ${napDuration}h nap)`} • {selectedQuality.label}
+            </p>
           </motion.div>
         )}
 

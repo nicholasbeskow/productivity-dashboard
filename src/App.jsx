@@ -4,6 +4,7 @@ import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import TasksTab from './components/Tasks/TasksTab';
 import CanvasTab from './components/Canvas/CanvasTab';
+import SleepTab from './components/Sleep/SleepTab';
 import StatsTab from './components/Stats/StatsTab';
 import SettingsTab from './components/Settings/SettingsTab';
 import backupManager from './utils/backupManager';
@@ -227,6 +228,8 @@ function App() {
         return <TasksTab key="tasks" />;
       case 'canvas':
         return <CanvasTab key="canvas" />;
+      case 'sleep':
+        return <SleepTab key="sleep" />;
       case 'stats':
         return <StatsTab key="stats" />;
       case 'settings':

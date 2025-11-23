@@ -88,9 +88,11 @@ const StatsTab = () => {
 
     // Listen for storage changes
     window.addEventListener('storage', loadMoodLog);
+    window.addEventListener('moodDataUpdated', loadMoodLog);
 
     return () => {
       window.removeEventListener('storage', loadMoodLog);
+      window.removeEventListener('moodDataUpdated', loadMoodLog);
     };
   }, []);
 
@@ -113,7 +115,11 @@ const StatsTab = () => {
 
     loadSleepLog();
     window.addEventListener('storage', loadSleepLog);
-    return () => window.removeEventListener('storage', loadSleepLog);
+    window.addEventListener('sleepDataUpdated', loadSleepLog);
+    return () => {
+      window.removeEventListener('storage', loadSleepLog);
+      window.removeEventListener('sleepDataUpdated', loadSleepLog);
+    };
   }, []);
 
   // Moods configuration
@@ -197,11 +203,11 @@ const StatsTab = () => {
         daysToAnalyze = 1;
         break;
       case 'Week':
-        startDate = subDays(today, 7);
+        startDate = subDays(today, 6); // 7 days including today
         daysToAnalyze = 7;
         break;
       case 'Month':
-        startDate = subDays(today, 30);
+        startDate = subDays(today, 29); // 30 days including today
         daysToAnalyze = 30;
         break;
       case 'Semester':
@@ -214,12 +220,14 @@ const StatsTab = () => {
     }
 
     const startDateStr = format(startDate, 'yyyy-MM-dd');
-    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr);
+    const todayStr = format(today, 'yyyy-MM-dd');
+    // Include today if logged, 7 days total (today + 6 days ago)
+    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date <= todayStr);
 
     if (filteredSleep.length === 0) return null;
 
-    // Calculate averages
-    const totalHours = filteredSleep.reduce((acc, e) => acc + e.hours, 0);
+    // Calculate averages (use totalSleep for new entries, fall back to hours for legacy)
+    const totalHours = filteredSleep.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0);
     const avgHours = totalHours / filteredSleep.length;
 
     const totalQuality = filteredSleep.reduce((acc, e) => acc + e.quality, 0);
@@ -233,7 +241,7 @@ const StatsTab = () => {
     let currentStreak = 0;
     const sortedSleep = [...filteredSleep].sort((a, b) => b.date.localeCompare(a.date));
     for (const entry of sortedSleep) {
-      if (entry.hours >= 7) {
+      if ((entry.totalSleep ?? entry.hours) >= 7) {
         currentStreak++;
       } else {
         break;
@@ -265,11 +273,12 @@ const StatsTab = () => {
 
     sleepLog.forEach(sleepEntry => {
       const mood = moodByDate[sleepEntry.date];
+      const sleep = sleepEntry.totalSleep ?? sleepEntry.hours;
       if (mood !== undefined) {
         if (mood >= 4) {
-          happyDaysSleep.push(sleepEntry.hours);
+          happyDaysSleep.push(sleep);
         } else if (mood <= 2) {
-          stressedDaysSleep.push(sleepEntry.hours);
+          stressedDaysSleep.push(sleep);
         }
       }
     });

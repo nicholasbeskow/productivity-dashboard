@@ -5,8 +5,8 @@ import CircularProgress from './CircularProgress';
 import PomodoroTimer from './PomodoroTimer';
 import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
-import SleepAnalytics from './SleepAnalytics';
 import backupManager from '../../utils/backupManager';
+import { ArrowRight, Moon } from 'lucide-react';
 
 // Memoized task card component for performance
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
@@ -1627,9 +1627,25 @@ const Dashboard = ({ setActiveTab }) => {
               <SleepTracker />
             </div>
 
-            {/* Sleep Analytics - Full Width */}
+            {/* View Sleep Analytics Link */}
             <div className="lg:col-span-3">
-              <SleepAnalytics />
+              <button
+                onClick={() => setActiveTab('sleep')}
+                className="w-full bg-bg-secondary hover:bg-bg-tertiary border border-bg-tertiary hover:border-purple-500/50 rounded-xl p-4 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-500/10 rounded-lg">
+                      <Moon size={20} className="text-purple-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-text-primary font-medium">Sleep Insights</p>
+                      <p className="text-text-tertiary text-sm">View detailed analytics, correlations & trends</p>
+                    </div>
+                  </div>
+                  <ArrowRight size={20} className="text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </button>
             </div>
           </div>
         </div>
