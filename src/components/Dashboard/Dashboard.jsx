@@ -542,14 +542,41 @@ const Dashboard = ({ setActiveTab }) => {
               createdAt: new Date().toISOString(),
               completedAt: null,
               attachments: template.attachments || [],
-              customPriority: 0,
               templateId: template.id,
             };
 
-            // Add the next occurrence to active tasks
-            updatedTasks.push(nextOccurrence);
+            // Helper to check if a task is overdue
+            const isTaskOverdue = (t) => {
+              if (!t.dueDate || t.status === 'complete') return false;
+              const now = new Date();
+              now.setHours(12, 0, 0, 0);
+              const dueDate = new Date(t.dueDate + 'T12:00:00');
+              return dueDate < now;
+            };
 
-            console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate}`);
+            // Find the right position for the new task based on due date
+            let insertIndex = updatedTasks.length;
+            const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+            for (let i = 0; i < updatedTasks.length; i++) {
+              const t = updatedTasks[i];
+              if (isTaskOverdue(t)) continue;
+              if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
+                insertIndex = i;
+                break;
+              }
+            }
+
+            // Insert at the right position
+            updatedTasks.splice(insertIndex, 0, nextOccurrence);
+
+            // Recalculate all priorities to maintain order
+            updatedTasks = updatedTasks.map((t, index) => ({
+              ...t,
+              customPriority: updatedTasks.length - index,
+            }));
+
+            console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
           }
         }
 

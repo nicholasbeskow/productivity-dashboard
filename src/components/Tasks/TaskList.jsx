@@ -947,14 +947,41 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               createdAt: new Date().toISOString(),
               completedAt: null,
               attachments: template.attachments || [],
-              customPriority: 0, // Allow natural sorting by due date
               templateId: template.id,
             };
 
-            // Add the next occurrence to active tasks
-            activeTasks.push(nextOccurrence);
+            // Helper to check if a task is overdue
+            const isTaskOverdue = (task) => {
+              if (!task.dueDate || task.status === 'complete') return false;
+              const now = new Date();
+              now.setHours(12, 0, 0, 0);
+              const dueDate = new Date(task.dueDate + 'T12:00:00');
+              return dueDate < now;
+            };
 
-            console.log(`[TaskList] Recurring task completed. Next occurrence: ${nextDueDate}`);
+            // Find the right position for the new task based on due date
+            let insertIndex = activeTasks.length;
+            const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+            for (let i = 0; i < activeTasks.length; i++) {
+              const task = activeTasks[i];
+              if (isTaskOverdue(task)) continue;
+              if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
+                insertIndex = i;
+                break;
+              }
+            }
+
+            // Insert at the right position
+            activeTasks.splice(insertIndex, 0, nextOccurrence);
+
+            // Recalculate all priorities to maintain order
+            activeTasks = activeTasks.map((task, index) => ({
+              ...task,
+              customPriority: activeTasks.length - index,
+            }));
+
+            console.log(`[TaskList] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
           }
         }
 
