@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X, Moon } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
@@ -233,9 +233,8 @@ const MoodTracker = () => {
           )}
           {/* Sleep Indicator (top-right) */}
           {sleepEntry && (
-            <div className={`absolute top-0.5 right-0.5 flex items-center gap-0.5 px-1 py-0.5 rounded ${getSleepQualityColor(sleepEntry.quality)} bg-opacity-20`}>
-              <Moon size={8} className="text-purple-400" />
-              <span className="text-[8px] text-purple-400 font-medium">{sleepEntry.hours}</span>
+            <div className="absolute -top-0.5 -right-0.5 px-1 py-0.5 rounded bg-purple-500/20">
+              <span className="text-[8px] text-purple-400 font-medium">{sleepEntry.hours}h</span>
             </div>
           )}
           {/* Journal Indicator Dot */}
@@ -363,7 +362,7 @@ const MoodTracker = () => {
                 }`}
               >
                 <Save size={18} />
-                Save Entry
+                Log Mood
               </button>
             </div>
           </motion.div>
