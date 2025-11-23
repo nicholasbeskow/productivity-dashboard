@@ -560,7 +560,7 @@ const SleepAnalytics = () => {
     const size = 180;
     const center = size / 2;
     const radius = 70;
-    const innerRadius = 40; // Donut hole for modern look
+    const innerRadius = 0; // Full pie chart (no center hole)
 
     // Quality order: Excellent first (most positive)
     const qualities = [4, 3, 2, 1];
@@ -674,12 +674,6 @@ const SleepAnalytics = () => {
               r={radius}
               fill="#1a1f2e"
             />
-            <circle
-              cx={center}
-              cy={center}
-              r={innerRadius}
-              fill="#0d1117"
-            />
 
             {/* Pie segments */}
             {segments.map((segment, index) => {
@@ -702,20 +696,7 @@ const SleepAnalytics = () => {
               );
             })}
 
-            {/* Inner circle overlay for clean donut look */}
-            <circle
-              cx={center}
-              cy={center}
-              r={innerRadius - 1}
-              fill="#0d1117"
-            />
           </svg>
-
-          {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-text-primary">{total}</span>
-            <span className="text-xs text-text-tertiary">nights</span>
-          </div>
         </div>
 
         {/* Legend with hover interaction */}
