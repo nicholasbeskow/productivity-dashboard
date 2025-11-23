@@ -197,6 +197,9 @@ const SleepTracker = () => {
     setSleepLog(newSleepLog);
     localStorage.setItem('sleepLog', JSON.stringify(newSleepLog));
 
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+
     backupManager.saveAutoBackup();
     setView('confirm');
 
@@ -214,6 +217,10 @@ const SleepTracker = () => {
 
     setSleepLog(newSleepLog);
     localStorage.setItem('sleepLog', JSON.stringify(newSleepLog));
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+
     backupManager.saveAutoBackup();
 
     setView('month');

@@ -88,9 +88,11 @@ const StatsTab = () => {
 
     // Listen for storage changes
     window.addEventListener('storage', loadMoodLog);
+    window.addEventListener('moodDataUpdated', loadMoodLog);
 
     return () => {
       window.removeEventListener('storage', loadMoodLog);
+      window.removeEventListener('moodDataUpdated', loadMoodLog);
     };
   }, []);
 
@@ -113,7 +115,11 @@ const StatsTab = () => {
 
     loadSleepLog();
     window.addEventListener('storage', loadSleepLog);
-    return () => window.removeEventListener('storage', loadSleepLog);
+    window.addEventListener('sleepDataUpdated', loadSleepLog);
+    return () => {
+      window.removeEventListener('storage', loadSleepLog);
+      window.removeEventListener('sleepDataUpdated', loadSleepLog);
+    };
   }, []);
 
   // Moods configuration

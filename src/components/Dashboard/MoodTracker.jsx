@@ -93,7 +93,13 @@ const MoodTracker = () => {
 
     loadData();
     window.addEventListener('storage', loadData);
-    return () => window.removeEventListener('storage', loadData);
+    window.addEventListener('sleepDataUpdated', loadData);
+    window.addEventListener('moodDataUpdated', loadData);
+    return () => {
+      window.removeEventListener('storage', loadData);
+      window.removeEventListener('sleepDataUpdated', loadData);
+      window.removeEventListener('moodDataUpdated', loadData);
+    };
   }, []);
 
   // Particle Effect
@@ -175,6 +181,9 @@ const MoodTracker = () => {
     setJournalLog(newJournalLog);
     localStorage.setItem('journalLog', JSON.stringify(newJournalLog));
 
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('moodDataUpdated'));
+
     backupManager.saveAutoBackup();
     setView('confirm');
 
@@ -193,6 +202,10 @@ const MoodTracker = () => {
 
     localStorage.setItem('moodLog', JSON.stringify(newMoodLog));
     localStorage.setItem('journalLog', JSON.stringify(newJournalLog));
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('moodDataUpdated'));
+
     backupManager.saveAutoBackup();
 
     setView('month');
