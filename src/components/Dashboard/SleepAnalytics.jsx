@@ -555,59 +555,167 @@ const SleepAnalytics = () => {
     },
   };
 
-  // Quality Rings Component - matches Pomodoro timer aesthetic
-  // No strokeDashoffset animation - renders instantly for snappy performance
-  const QualityRings = ({ distribution, total }) => {
+  // Quality Pie Chart Component - premium styling with gradients and glow
+  // No animation - renders instantly for snappy performance
+  const QualityPieChart = ({ distribution, total }) => {
+    const [hoveredSegment, setHoveredSegment] = useState(null);
+
     if (!distribution || total === 0) return null;
 
-    const size = 160;
-    const strokeWidth = 10;
-    const gap = 14;
-    const qualities = [4, 3, 2, 1]; // Order: Excellent, Good, Fair, Poor
+    const size = 180;
+    const center = size / 2;
+    const radius = 70;
+    const innerRadius = 40; // Donut hole for modern look
+
+    // Quality order: Excellent first (most positive)
+    const qualities = [4, 3, 2, 1];
+
+    // Gradient color pairs for each quality level
+    const gradientColors = {
+      4: { start: '#4ade80', end: '#22c55e' }, // green - Excellent
+      3: { start: '#fde047', end: '#eab308' }, // yellow - Good
+      2: { start: '#fb923c', end: '#f97316' }, // orange - Fair
+      1: { start: '#f87171', end: '#ef4444' }  // red - Poor
+    };
+
+    // Calculate pie segments
+    const segments = [];
+    let currentAngle = -90; // Start from top
+
+    qualities.forEach((quality) => {
+      const count = distribution[quality] || 0;
+      if (count === 0) return;
+
+      const percentage = (count / total) * 100;
+      const angle = (percentage / 100) * 360;
+
+      segments.push({
+        quality,
+        count,
+        percentage,
+        startAngle: currentAngle,
+        endAngle: currentAngle + angle,
+        color: qualityColors[quality],
+        gradient: gradientColors[quality]
+      });
+
+      currentAngle += angle;
+    });
+
+    // Convert angle to radians
+    const toRadians = (angle) => (angle * Math.PI) / 180;
+
+    // Create arc path for pie segment
+    const createArcPath = (startAngle, endAngle, outerR, innerR) => {
+      const startOuter = {
+        x: center + outerR * Math.cos(toRadians(startAngle)),
+        y: center + outerR * Math.sin(toRadians(startAngle))
+      };
+      const endOuter = {
+        x: center + outerR * Math.cos(toRadians(endAngle)),
+        y: center + outerR * Math.sin(toRadians(endAngle))
+      };
+      const startInner = {
+        x: center + innerR * Math.cos(toRadians(endAngle)),
+        y: center + innerR * Math.sin(toRadians(endAngle))
+      };
+      const endInner = {
+        x: center + innerR * Math.cos(toRadians(startAngle)),
+        y: center + innerR * Math.sin(toRadians(startAngle))
+      };
+
+      const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+      return `
+        M ${startOuter.x} ${startOuter.y}
+        A ${outerR} ${outerR} 0 ${largeArcFlag} 1 ${endOuter.x} ${endOuter.y}
+        L ${startInner.x} ${startInner.y}
+        A ${innerR} ${innerR} 0 ${largeArcFlag} 0 ${endInner.x} ${endInner.y}
+        Z
+      `;
+    };
 
     return (
       <div className="flex items-center gap-6">
-        {/* Stacked Rings */}
-        <div className="relative" style={{ width: size, height: size }}>
-          <svg width={size} height={size} className="transform -rotate-90">
-            {qualities.map((quality, index) => {
-              const radius = (size - strokeWidth) / 2 - (index * gap);
-              const circumference = 2 * Math.PI * radius;
-              const count = distribution[quality] || 0;
-              const percentage = (count / total) * 100;
-              const offset = circumference - (percentage / 100) * circumference;
-              const color = qualityColors[quality];
+        {/* Pie Chart with glow container */}
+        <div
+          className="relative"
+          style={{
+            width: size,
+            height: size,
+            filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.15))'
+          }}
+        >
+          <svg width={size} height={size}>
+            {/* Gradient definitions */}
+            <defs>
+              {qualities.map((quality) => (
+                <linearGradient
+                  key={`gradient-${quality}`}
+                  id={`pieGradient-${quality}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor={gradientColors[quality].start} />
+                  <stop offset="100%" stopColor={gradientColors[quality].end} />
+                </linearGradient>
+              ))}
+              {/* Glow filter for hover */}
+              <filter id="pieGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Background circle for empty space */}
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="#1a1f2e"
+            />
+            <circle
+              cx={center}
+              cy={center}
+              r={innerRadius}
+              fill="#0d1117"
+            />
+
+            {/* Pie segments */}
+            {segments.map((segment, index) => {
+              const isHovered = hoveredSegment === segment.quality;
+              const hoverRadius = isHovered ? radius + 4 : radius;
 
               return (
-                <g key={quality}>
-                  {/* Background circle */}
-                  <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="#1a1f2e"
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                  />
-                  {/* Progress circle - no animation for instant render */}
-                  <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke={color}
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    style={{
-                      filter: `drop-shadow(0 0 6px ${color}60)`,
-                    }}
-                  />
-                </g>
+                <path
+                  key={segment.quality}
+                  d={createArcPath(segment.startAngle, segment.endAngle, hoverRadius, innerRadius)}
+                  fill={`url(#pieGradient-${segment.quality})`}
+                  style={{
+                    filter: isHovered ? `drop-shadow(0 0 12px ${segment.color}80)` : `drop-shadow(0 0 6px ${segment.color}40)`,
+                    cursor: 'pointer',
+                    transition: 'filter 0.2s ease-out'
+                  }}
+                  onMouseEnter={() => setHoveredSegment(segment.quality)}
+                  onMouseLeave={() => setHoveredSegment(null)}
+                />
               );
             })}
+
+            {/* Inner circle overlay for clean donut look */}
+            <circle
+              cx={center}
+              cy={center}
+              r={innerRadius - 1}
+              fill="#0d1117"
+            />
           </svg>
+
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold text-text-primary">{total}</span>
@@ -615,24 +723,45 @@ const SleepAnalytics = () => {
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-col gap-2">
+        {/* Legend with hover interaction */}
+        <div className="flex flex-col gap-2.5">
           {qualities.map((quality) => {
             const count = distribution[quality] || 0;
             const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
             const color = qualityColors[quality];
+            const isHovered = hoveredSegment === quality;
 
             return (
-              <div key={quality} className="flex items-center gap-2">
+              <div
+                key={quality}
+                className={`flex items-center gap-2.5 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer ${isHovered ? 'bg-bg-primary' : ''}`}
+                onMouseEnter={() => setHoveredSegment(quality)}
+                onMouseLeave={() => setHoveredSegment(null)}
+              >
                 <div
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-full transition-all duration-200"
                   style={{
-                    backgroundColor: color,
-                    boxShadow: `0 0 6px ${color}60`
+                    background: `linear-gradient(135deg, ${gradientColors[quality].start}, ${gradientColors[quality].end})`,
+                    boxShadow: isHovered ? `0 0 10px ${color}80` : `0 0 4px ${color}40`
                   }}
                 />
-                <span className="text-xs text-text-secondary w-16">{qualityLabels[quality]}</span>
-                <span className="text-xs font-medium" style={{ color }}>{percentage}%</span>
+                <span className={`text-xs w-16 transition-colors duration-200 ${isHovered ? 'text-text-primary' : 'text-text-secondary'}`}>
+                  {qualityLabels[quality]}
+                </span>
+                <span
+                  className="text-xs font-semibold transition-all duration-200"
+                  style={{
+                    color: isHovered ? color : `${color}cc`,
+                    textShadow: isHovered ? `0 0 8px ${color}60` : 'none'
+                  }}
+                >
+                  {percentage}%
+                </span>
+                {isHovered && count > 0 && (
+                  <span className="text-[10px] text-text-tertiary ml-1">
+                    ({count} {count === 1 ? 'night' : 'nights'})
+                  </span>
+                )}
               </div>
             );
           })}
@@ -853,7 +982,7 @@ const SleepAnalytics = () => {
           <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <h4 className="text-sm font-medium text-text-primary mb-4">Sleep Quality Distribution</h4>
             <div className="flex justify-center">
-              <QualityRings
+              <QualityPieChart
                 distribution={stats.qualityDistribution}
                 total={stats.daysTracked}
               />
