@@ -203,11 +203,11 @@ const StatsTab = () => {
         daysToAnalyze = 1;
         break;
       case 'Week':
-        startDate = subDays(today, 7);
+        startDate = subDays(today, 6); // 7 days including today
         daysToAnalyze = 7;
         break;
       case 'Month':
-        startDate = subDays(today, 30);
+        startDate = subDays(today, 29); // 30 days including today
         daysToAnalyze = 30;
         break;
       case 'Semester':
@@ -221,8 +221,8 @@ const StatsTab = () => {
 
     const startDateStr = format(startDate, 'yyyy-MM-dd');
     const todayStr = format(today, 'yyyy-MM-dd');
-    // Exclude today since tonight's sleep hasn't happened yet (matches SleepTracker calculation)
-    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date < todayStr);
+    // Include today if logged, 7 days total (today + 6 days ago)
+    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date <= todayStr);
 
     if (filteredSleep.length === 0) return null;
 

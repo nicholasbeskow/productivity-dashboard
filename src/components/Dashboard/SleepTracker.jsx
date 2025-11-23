@@ -238,11 +238,11 @@ const SleepTracker = () => {
     setView('month');
   };
 
-  // Calculate sleep debt using total sleep
+  // Calculate sleep debt using total sleep (7 days including today)
   const calculateSleepDebt = () => {
     const last7Days = [];
     const today = new Date();
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 0; i <= 6; i++) { // 7 days including today
       const dateStr = getDateString(subDays(today, i));
       const entry = sleepLog.find(e => e.date === dateStr);
       // Use totalSleep if available (new format), otherwise fall back to hours (legacy)

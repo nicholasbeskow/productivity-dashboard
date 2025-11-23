@@ -165,10 +165,10 @@ const SleepAnalytics = () => {
 
     switch (timePeriod) {
       case 'Week':
-        startDate = subDays(today, 7);
+        startDate = subDays(today, 6); // 7 days including today
         break;
       case 'Month':
-        startDate = subDays(today, 30);
+        startDate = subDays(today, 29); // 30 days including today
         break;
       case 'All Time':
         startDate = new Date(0);
@@ -179,8 +179,8 @@ const SleepAnalytics = () => {
 
     const startDateStr = format(startDate, 'yyyy-MM-dd');
     const todayStr = format(today, 'yyyy-MM-dd');
-    // Exclude today since tonight's sleep hasn't happened yet (matches SleepTracker calculation)
-    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date < todayStr);
+    // Include today if logged, 7 days total (today + 6 days ago)
+    const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date <= todayStr);
 
     if (filteredSleep.length === 0) return null;
 
@@ -258,9 +258,9 @@ const SleepAnalytics = () => {
     let monthComparison = null;
     if (currentTier >= 4) {
       const lastMonthStart = format(subMonths(today, 1), 'yyyy-MM-dd');
-      const thisMonthStart = format(subDays(today, 30), 'yyyy-MM-dd');
-      // Exclude today from this month's calculation
-      const thisMonthSleep = sleepLog.filter(e => e.date >= thisMonthStart && e.date < todayStr);
+      const thisMonthStart = format(subDays(today, 29), 'yyyy-MM-dd'); // 30 days including today
+      // Include today if logged
+      const thisMonthSleep = sleepLog.filter(e => e.date >= thisMonthStart && e.date <= todayStr);
       const lastMonthSleep = sleepLog.filter(e => e.date >= lastMonthStart && e.date < thisMonthStart);
 
       if (thisMonthSleep.length > 0 && lastMonthSleep.length > 0) {
