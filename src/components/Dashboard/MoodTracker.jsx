@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X, Moon } from 'lucide-react';
+import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
@@ -231,16 +231,13 @@ const MoodTracker = () => {
           ) : (
             <span className="text-text-tertiary text-sm">{day}</span>
           )}
-          {/* Sleep Indicator (top-right) */}
+          {/* Sleep Indicator (top-right corner, inside cell) */}
           {sleepEntry && (
-            <div className={`absolute top-0.5 right-0.5 flex items-center gap-0.5 px-1 py-0.5 rounded ${getSleepQualityColor(sleepEntry.quality)} bg-opacity-20`}>
-              <Moon size={8} className="text-purple-400" />
-              <span className="text-[8px] text-purple-400 font-medium">{sleepEntry.hours}</span>
-            </div>
+            <span className="absolute top-0 right-0.5 text-[8px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
           )}
           {/* Journal Indicator Dot */}
           {getJournalForDate(date) && (
-            <div className="absolute bottom-1 w-1 h-1 rounded-full bg-text-tertiary" />
+            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-text-tertiary" />
           )}
         </motion.button>
       );
@@ -254,8 +251,9 @@ const MoodTracker = () => {
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+          <Smile className="text-yellow-500" size={24} />
           {view === 'month' && 'Mood Calendar'}
-          {view === 'select' && 'Log Entry'}
+          {view === 'select' && 'Log Mood'}
           {view === 'details' && 'Entry Details'}
         </h3>
         {view !== 'month' && view !== 'confirm' && (
@@ -346,7 +344,7 @@ const MoodTracker = () => {
                 value={currentJournalEntry}
                 onChange={(e) => setCurrentJournalEntry(e.target.value)}
                 placeholder="What's on your mind? (Optional)"
-                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:outline-none resize-none transition-colors"
+                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -362,7 +360,7 @@ const MoodTracker = () => {
                 }`}
               >
                 <Save size={18} />
-                Save Entry
+                Log Mood
               </button>
             </div>
           </motion.div>
