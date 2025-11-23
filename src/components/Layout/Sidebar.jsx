@@ -54,7 +54,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       {/* Footer */}
       <div className="p-4 border-t border-bg-tertiary">
         <p className="text-xs text-text-tertiary text-center">
-          v1.5.0 • Phase 2
+          Made with Love by Nick
         </p>
       </div>
     </aside>
