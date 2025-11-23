@@ -227,13 +227,13 @@ const MoodTracker = () => {
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {mood ? (
-            <mood.icon size={20} className={mood.color} strokeWidth={2} />
+            <mood.icon size={24} className={mood.color} strokeWidth={2} />
           ) : (
             <span className="text-text-tertiary text-sm">{day}</span>
           )}
           {/* Sleep Indicator (top-right corner, inside cell) */}
           {sleepEntry && (
-            <span className="absolute top-0 right-0.5 text-[6px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
+            <span className="absolute top-0 right-0.5 text-[8px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
           )}
           {/* Journal Indicator Dot */}
           {getJournalForDate(date) && (
