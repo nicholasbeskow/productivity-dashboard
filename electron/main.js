@@ -5,6 +5,8 @@ const axios = require('axios');
 const Store = require('electron-store');
 const { exec } = require('child_process');
 
+app.setName('Peak Productivity');
+
 const store = new Store();
 
 // Focus Mode settings
@@ -35,8 +37,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 1200,
-    minHeight: 700,
+    minWidth: 600,
+    minHeight: 600,
     backgroundColor: '#0a0e14',
     icon: path.join(__dirname, '../resources/icon.png'),
     webPreferences: {

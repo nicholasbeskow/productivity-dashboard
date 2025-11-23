@@ -13,11 +13,11 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   return (
     <aside className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col">
       {/* App Title / Logo Area */}
-      <div className="py-5 px-4 border-b border-bg-tertiary flex justify-center items-center">
+      <div className="py-5 px-4 border-b border-bg-tertiary flex justify-center items-center drag-region">
         <img
           src={logo}
           alt="Productivity Dashboard Logo"
-          className="w-[72px] h-auto"
+          className="w-[72px] h-auto no-drag"
           style={{ filter: 'drop-shadow(0 0 12px rgba(61, 214, 140, 0.5))' }}
         />
       </div>

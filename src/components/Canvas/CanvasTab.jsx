@@ -98,6 +98,22 @@ const CanvasTab = () => {
     backupManager.saveAutoBackup();
   };
 
+  // Helper to check if a task is overdue
+  const isOverdue = (task) => {
+    if (!task.dueDate || task.status === 'complete') return false;
+
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDateObj = new Date(task.dueDate + 'T12:00:00');
+      return dueDateObj < now;
+    }
+  };
+
   // Handle adding assignment to tasks
   const handleAddTask = (assignment) => {
     try {
@@ -132,6 +148,26 @@ const CanvasTab = () => {
         time = `${hours}:${minutes}`;
       }
 
+      // Find the right position for the new task based on due date
+      let insertIndex = tasks.length;
+
+      if (dueDate) {
+        const newDueDate = new Date(dueDate + 'T12:00:00');
+
+        for (let i = 0; i < tasks.length; i++) {
+          const task = tasks[i];
+
+          // Skip overdue tasks
+          if (isOverdue(task)) continue;
+
+          // If task has no due date or later due date, insert before it
+          if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
+            insertIndex = i;
+            break;
+          }
+        }
+      }
+
       // Create new task
       const newTask = {
         id: taskId,
@@ -144,13 +180,21 @@ const CanvasTab = () => {
         taskType: 'academic',
         createdAt: new Date().toISOString(),
         completedAt: null,
-        customPriority: 0,
+        customPriority: tasks.length - insertIndex + 1,
         attachments: [],
       };
 
-      // Add task to list
-      tasks.push(newTask);
-      localStorage.setItem('tasks', JSON.stringify(tasks));
+      // Insert task at the right position
+      const updatedTasks = [...tasks];
+      updatedTasks.splice(insertIndex, 0, newTask);
+
+      // Recalculate all priorities to maintain order
+      const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
+        ...task,
+        customPriority: updatedTasks.length - index,
+      }));
+
+      localStorage.setItem('tasks', JSON.stringify(tasksWithUpdatedPriorities));
 
       // Save backup and trigger updates
       backupManager.saveAutoBackup();
