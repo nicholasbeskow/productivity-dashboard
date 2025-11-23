@@ -1,4 +1,4 @@
-import { Home, CheckSquare, BarChart3, Settings, BookOpen } from 'lucide-react';
+import { Home, CheckSquare, BarChart3, Settings, BookOpen, Moon } from 'lucide-react';
 import logo from '../../logo.png';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -6,6 +6,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
     { id: 'canvas', label: 'Canvas', icon: BookOpen },
+    { id: 'sleep', label: 'Sleep', icon: Moon },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
