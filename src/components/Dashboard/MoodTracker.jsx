@@ -233,9 +233,7 @@ const MoodTracker = () => {
           )}
           {/* Sleep Indicator (top-right corner, inside cell) */}
           {sleepEntry && (
-            <div className="absolute top-0 right-0 px-1 rounded-bl bg-purple-500/30">
-              <span className="text-[7px] text-purple-400 font-semibold leading-tight">{sleepEntry.hours}h</span>
-            </div>
+            <span className="absolute top-0 right-0.5 text-[6px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
           )}
           {/* Journal Indicator Dot */}
           {getJournalForDate(date) && (
