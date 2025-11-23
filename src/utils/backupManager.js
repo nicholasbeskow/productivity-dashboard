@@ -86,7 +86,9 @@ class BackupManager {
           const { ipcRenderer } = window.require('electron');
           const mainData = {
             canvasUrl: data.canvasUrl,
-            apiToken: data.apiToken
+            apiToken: data.apiToken,
+            focusModeEnabled: data.focusModeEnabled,
+            focusBlocklistPath: data.focusBlocklistPath
           };
           await ipcRenderer.invoke('backup:restore-electron-store-data', mainData);
         } catch (error) {

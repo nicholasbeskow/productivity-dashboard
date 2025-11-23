@@ -3,8 +3,13 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const Store = require('electron-store');
+const { exec } = require('child_process');
 
 const store = new Store();
+
+// Focus Mode settings
+const initialFocusEnabled = store.get('focusModeEnabled', false);
+const initialBlocklistPath = store.get('focusBlocklistPath', '');
 
 let mainWindow;
 let mainWindowRef = null; // Reference for sending timer updates
@@ -207,6 +212,74 @@ function skipTimer() {
 }
 
 // ============================================
+// FOCUS MODE (SELFCONTROL) FUNCTIONS
+// ============================================
+
+function triggerSelfControl(durationSeconds) {
+  const enabled = store.get('focusModeEnabled', false);
+  const blocklistPath = store.get('focusBlocklistPath', '');
+  const cliPath = '/Applications/SelfControl.app/Contents/MacOS/selfcontrol-cli';
+
+  // 1. Validation checks
+  if (!enabled) {
+    return;
+  }
+  if (!blocklistPath || !fs.existsSync(blocklistPath)) {
+    console.error('[FocusMode] Error: Blocklist file not found at', blocklistPath);
+    return;
+  }
+  if (!fs.existsSync(cliPath)) {
+    console.error('[FocusMode] Error: SelfControl app not found at', cliPath);
+    return;
+  }
+
+  console.log('[FocusMode] Attempting to start...');
+
+  // 2. Calculate End Date (Strict ISO 8601 format without milliseconds)
+  // Example: "2023-11-22T15:30:00Z"
+  const futureDate = new Date(Date.now() + durationSeconds * 1000);
+  const endDate = futureDate.toISOString().split('.')[0] + "Z";
+
+  // 3. Build Command
+  const command = `"${cliPath}" start --blocklist "${blocklistPath}" --enddate "${endDate}"`;
+
+  console.log('[FocusMode] Executing:', command);
+
+  // 4. Execute
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`[FocusMode] Execution Error: ${error.message}`);
+      return;
+    }
+    // SelfControl often outputs to stderr even on success, so we just log it
+    if (stderr) {
+      console.log(`[FocusMode] Output: ${stderr}`);
+    }
+    if (stdout) {
+      console.log(`[FocusMode] Success: ${stdout}`);
+    }
+    sendNotification('Focus Mode Activated', 'Distracting sites are blocked.');
+  });
+}
+
+// ============================================
+// FOCUS MODE IPC HANDLERS
+// ============================================
+
+ipcMain.handle('settings:save-focus-config', async (event, { enabled, path }) => {
+  store.set('focusModeEnabled', enabled);
+  store.set('focusBlocklistPath', path);
+  return { success: true };
+});
+
+ipcMain.handle('settings:get-focus-config', async () => {
+  return {
+    enabled: store.get('focusModeEnabled', false),
+    path: store.get('focusBlocklistPath', '')
+  };
+});
+
+// ============================================
 // BACKUP SYSTEM IPC HANDLERS
 // ============================================
 
@@ -406,12 +479,15 @@ ipcMain.handle('backup:delete', async (event, fileName) => {
 // ============================================
 
 // Show open dialog for selecting files
-ipcMain.handle('dialog:show-open-dialog', async () => {
+ipcMain.handle('dialog:show-open-dialog', async (event, options = {}) => {
   try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select File to Attach',
-      properties: ['openFile', 'multiSelections']
-    });
+    const dialogOptions = {
+      title: options.title || 'Select File to Attach',
+      properties: options.properties || ['openFile', 'multiSelections'],
+      filters: options.filters || undefined
+    };
+
+    const result = await dialog.showOpenDialog(mainWindow, dialogOptions);
 
     return result;
   } catch (error) {
@@ -472,6 +548,13 @@ ipcMain.on('timer:start', () => {
     timerState.mode = 'work';
     timerState.timeLeft = timerState.workDuration;
   }
+
+  // If starting a WORK session, trigger SelfControl
+  if (timerState.mode === 'work') {
+    console.log('Starting Work Session - Checking Focus Mode...');
+    triggerSelfControl(timerState.workDuration);
+  }
+
   startTimer();
 });
 
@@ -601,7 +684,9 @@ ipcMain.handle('backup:get-electron-store-data', async () => {
   try {
     const canvasUrl = store.get('canvasUrl');
     const apiToken = store.get('canvasApiToken');
-    return { success: true, data: { canvasUrl, apiToken } };
+    const focusModeEnabled = store.get('focusModeEnabled', false);
+    const focusBlocklistPath = store.get('focusBlocklistPath', '');
+    return { success: true, data: { canvasUrl, apiToken, focusModeEnabled, focusBlocklistPath } };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -615,6 +700,12 @@ ipcMain.handle('backup:restore-electron-store-data', async (event, data) => {
     }
     if (data.apiToken) {
       store.set('canvasApiToken', data.apiToken);
+    }
+    if (data.focusModeEnabled !== undefined) {
+      store.set('focusModeEnabled', data.focusModeEnabled);
+    }
+    if (data.focusBlocklistPath !== undefined) {
+      store.set('focusBlocklistPath', data.focusBlocklistPath);
     }
     return { success: true };
   } catch (error) {
