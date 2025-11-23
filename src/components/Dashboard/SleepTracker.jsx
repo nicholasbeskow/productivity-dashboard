@@ -4,35 +4,35 @@ import { Moon, ChevronLeft, ChevronRight, Save, Edit2, ArrowLeft, Trash2, X, Sun
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth, subDays } from 'date-fns';
 import backupManager from '../../utils/backupManager';
 
-// Sleep quality definitions
+// Sleep quality definitions (colors match mood tracker)
 const sleepQualities = [
   {
     level: 4,
     label: 'Excellent',
-    color: 'text-green-glow',
-    bgColor: 'bg-green-glow',
-    glowColor: 'rgba(61, 214, 140, 0.5)',
+    color: 'text-yellow-500',
+    bgColor: 'bg-yellow-500',
+    glowColor: 'rgba(234, 179, 8, 0.5)', // matches mood "Great"
   },
   {
     level: 3,
     label: 'Good',
-    color: 'text-yellow-500',
-    bgColor: 'bg-yellow-500',
-    glowColor: 'rgba(234, 179, 8, 0.5)',
+    color: 'text-green-glow',
+    bgColor: 'bg-green-glow',
+    glowColor: 'rgba(61, 214, 140, 0.5)', // matches mood "Good"
   },
   {
     level: 2,
     label: 'Fair',
     color: 'text-orange-500',
     bgColor: 'bg-orange-500',
-    glowColor: 'rgba(249, 115, 22, 0.5)',
+    glowColor: 'rgba(249, 115, 22, 0.5)', // matches mood "Down"
   },
   {
     level: 1,
     label: 'Poor',
     color: 'text-red-500',
     bgColor: 'bg-red-500',
-    glowColor: 'rgba(239, 68, 68, 0.5)',
+    glowColor: 'rgba(239, 68, 68, 0.5)', // matches mood "Rocky"
   }
 ];
 

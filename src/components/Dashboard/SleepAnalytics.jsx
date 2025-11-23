@@ -44,10 +44,10 @@ const qualityLabels = {
 };
 
 const qualityColors = {
-  4: '#3dd68c', // green
-  3: '#eab308', // yellow
-  2: '#f97316', // orange
-  1: '#ef4444'  // red
+  4: '#eab308', // yellow - Excellent (matches mood "Great")
+  3: '#3dd68c', // green - Good (matches mood "Good")
+  2: '#f97316', // orange - Fair (matches mood "Down")
+  1: '#ef4444'  // red - Poor (matches mood "Rocky")
 };
 
 // Tier colors for inline styles (fixes dynamic Tailwind class issue)
@@ -560,10 +560,10 @@ const SleepAnalytics = () => {
 
     // Gradient color pairs for each quality level (matching mood tracker colors)
     const gradientColors = {
-      4: { start: '#4fe39f', end: '#3dd68c' }, // green-glow - Excellent (matches mood "Good")
-      3: { start: '#fbbf24', end: '#eab308' }, // yellow-500 - Good (matches mood "Great")
-      2: { start: '#fb923c', end: '#f97316' }, // orange-500 - Fair (matches mood "Down")
-      1: { start: '#f87171', end: '#ef4444' }  // red-500 - Poor (matches mood "Rocky")
+      4: { start: '#fbbf24', end: '#eab308' }, // yellow - Excellent (matches mood "Great")
+      3: { start: '#4fe39f', end: '#3dd68c' }, // green - Good (matches mood "Good")
+      2: { start: '#fb923c', end: '#f97316' }, // orange - Fair (matches mood "Down")
+      1: { start: '#f87171', end: '#ef4444' }  // red - Poor (matches mood "Rocky")
     };
 
     // Calculate pie segments
