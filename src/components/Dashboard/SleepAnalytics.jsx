@@ -12,7 +12,7 @@ import {
   Tooltip,
   Filler
 } from 'chart.js';
-import { subDays, format, startOfWeek, subMonths, differenceInDays } from 'date-fns';
+import { subDays, format, startOfWeek, subMonths } from 'date-fns';
 
 // Register Chart.js components
 ChartJS.register(
@@ -778,9 +778,7 @@ const SleepAnalytics = () => {
       </div>
 
       {/* Tier Progress Banner */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className={`mb-6 p-4 rounded-xl ${tierInfo.bgColor} border ${tierInfo.borderColor}`}
       >
         <div className="flex items-start justify-between gap-4">
@@ -804,72 +802,49 @@ const SleepAnalytics = () => {
             <Trophy size={32} className="text-yellow-500" />
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Tier 3+ Sleep Warning */}
       {currentTier >= 3 && stats?.sleepWarning && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3"
-        >
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3">
           <AlertTriangle size={20} className="text-red-500 mt-0.5" />
           <p className="text-sm text-red-400">{stats.sleepWarning}</p>
-        </motion.div>
+        </div>
       )}
 
       {/* Stats Cards - Always shown */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-          >
+          <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">Avg Sleep</p>
             <p className="text-2xl font-bold text-purple-400">{stats.avgHours}h</p>
             <p className="text-xs text-text-tertiary">{stats.daysTracked} days tracked</p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-          >
+          <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">Sleep Debt</p>
             <p className={`text-2xl font-bold ${parseFloat(stats.sleepDebt) > 5 ? 'text-red-500' : parseFloat(stats.sleepDebt) > 0 ? 'text-orange-500' : 'text-green-glow'}`}>
               {stats.sleepDebt}h
             </p>
             <p className="text-xs text-text-tertiary">vs {SLEEP_TARGET}h target</p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-          >
+          <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1 flex items-center gap-1">
               <Trophy size={12} className="text-yellow-500" />
               Goal Streak
             </p>
             <p className="text-2xl font-bold text-yellow-500">{stats.currentStreak}</p>
             <p className="text-xs text-text-tertiary">nights at 7+ hours</p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-          >
+          <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">Avg Quality</p>
             <p className="text-2xl font-bold text-text-primary">{stats.avgQuality}/4</p>
             <p className="text-xs text-text-tertiary">
               {parseFloat(stats.avgQuality) >= 3 ? 'Good' : parseFloat(stats.avgQuality) >= 2 ? 'Fair' : 'Needs work'}
             </p>
-          </motion.div>
+          </div>
         </div>
       )}
 
@@ -877,12 +852,7 @@ const SleepAnalytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Quality Rings - Always shown */}
         {stats && stats.qualityDistribution && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-          >
+          <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
             <h4 className="text-sm font-medium text-text-primary mb-4">Sleep Quality Distribution</h4>
             <div className="flex justify-center">
               <QualityRings
@@ -890,17 +860,13 @@ const SleepAnalytics = () => {
                 total={stats.daysTracked}
               />
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Recent Sleep Log - Always shown */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
+        <div>
           <RecentSleepLog />
-        </motion.div>
+        </div>
       </div>
 
       {/* Tier 2+: Correlation Cards */}
@@ -908,12 +874,7 @@ const SleepAnalytics = () => {
         {currentTier >= 2 ? (
           <>
             {/* Sleep-Mood Correlation */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary relative"
-            >
+            <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary relative">
               {currentTier === 2 && (
                 <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full">
                   Limited data
@@ -946,15 +907,10 @@ const SleepAnalytics = () => {
               ) : (
                 <p className="text-xs text-text-tertiary">{correlation.text}</p>
               )}
-            </motion.div>
+            </div>
 
             {/* Sleep-Productivity Correlation */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary relative"
-            >
+            <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary relative">
               {currentTier === 2 && (
                 <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full">
                   Limited data
@@ -987,7 +943,7 @@ const SleepAnalytics = () => {
               ) : (
                 <p className="text-xs text-text-tertiary">{productivityCorrelation.text}</p>
               )}
-            </motion.div>
+            </div>
           </>
         ) : (
           <>
@@ -1000,33 +956,23 @@ const SleepAnalytics = () => {
       {/* Tier 3+: Best/Worst Weeks & Sleep Debt Tracking */}
       {currentTier >= 3 && stats && stats.bestWeek && (
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="bg-green-glow/10 rounded-xl p-4 border border-green-glow/30"
-          >
+          <div className="bg-green-glow/10 rounded-xl p-4 border border-green-glow/30">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp size={16} className="text-green-glow" />
               <p className="text-xs text-green-glow font-medium">Best Week</p>
             </div>
             <p className="text-lg font-bold text-green-glow">{stats.bestWeekAvg}h avg</p>
             <p className="text-xs text-text-tertiary">Week of {stats.bestWeek}</p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
-            className="bg-red-500/10 rounded-xl p-4 border border-red-500/30"
-          >
+          <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/30">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown size={16} className="text-red-500" />
               <p className="text-xs text-red-500 font-medium">Worst Week</p>
             </div>
             <p className="text-lg font-bold text-red-500">{stats.worstWeekAvg}h avg</p>
             <p className="text-xs text-text-tertiary">Week of {stats.worstWeek}</p>
-          </motion.div>
+          </div>
         </div>
       )}
 
@@ -1039,12 +985,7 @@ const SleepAnalytics = () => {
 
       {/* Tier 4: Monthly Comparison */}
       {currentTier >= 4 && stats?.monthComparison && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-          className="mb-6 bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-        >
+        <div className="mb-6 bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
           <div className="flex items-center gap-2 mb-3">
             <Calendar size={16} className="text-purple-400" />
             <p className="text-sm font-medium text-text-primary">Month-over-Month</p>
@@ -1066,32 +1007,22 @@ const SleepAnalytics = () => {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Chart - Tier 2+ gets mood overlay */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.1 }}
-        className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary"
-      >
+      <div className="bg-bg-tertiary rounded-xl p-4 border border-bg-primary">
         <h4 className="text-sm font-medium text-text-primary mb-4">
           {currentTier >= 2 ? 'Sleep & Mood Trends' : 'Sleep Trends'}
         </h4>
         <div className="h-[250px]">
           <Line data={getChartData()} options={chartOptions} />
         </div>
-      </motion.div>
+      </div>
 
       {/* Tier 1: What's Coming */}
       {currentTier === 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2 }}
-          className="mt-6 p-4 bg-bg-tertiary rounded-xl border border-bg-primary"
-        >
+        <div className="mt-6 p-4 bg-bg-tertiary rounded-xl border border-bg-primary">
           <h4 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
             <Sparkles size={14} className="text-yellow-500" />
             Coming Soon as You Track More
@@ -1114,7 +1045,7 @@ const SleepAnalytics = () => {
               <span>Monthly Trends (30 days)</span>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );
