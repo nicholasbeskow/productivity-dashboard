@@ -1,10 +1,85 @@
-import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Play, Pause, RotateCcw, SkipForward, Maximize2, Minimize2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import useTimerStore from '../../stores/timerStore';
 
 // Color constants for different modes
 const WORK_COLOR = '#f97316'; // orange-500
 const BREAK_COLOR = '#facc15'; // yellow-400
+
+// Reusable TimerDisplay sub-component
+const TimerDisplay = ({
+  size = 240,
+  strokeWidth = 12,
+  fontSize = '2.25rem',
+  timeText,
+  modeLabel,
+  progressPercentage,
+  currentColor,
+  glowColor
+}) => {
+  const radius = (size - strokeWidth) / 2 - 10;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
+  const center = size / 2;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+      >
+        {/* Background circle - NO GLOW */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#1a1f2e"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Progress circle - GLOW APPLIED HERE */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke={currentColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          style={{
+            filter: `drop-shadow(0 0 8px ${glowColor})`,
+            transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out, filter 0.5s ease-in-out'
+          }}
+        />
+      </svg>
+
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div
+          className="font-bold text-text-primary mb-2 font-sans"
+          style={{ fontSize }}
+        >
+          {timeText}
+        </div>
+        <div
+          className="text-sm font-medium uppercase tracking-wider"
+          style={{
+            color: currentColor,
+            transition: 'color 0.5s ease-in-out',
+            fontSize: size > 300 ? '1rem' : '0.875rem'
+          }}
+        >
+          {modeLabel}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PomodoroTimer = () => {
   // Get state and actions from Zustand store
@@ -19,6 +94,9 @@ const PomodoroTimer = () => {
     skipTimer,
     startWork
   } = useTimerStore();
+
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Check if essential data is loaded
   if (workDuration === undefined || timeLeft === undefined) {
@@ -104,9 +182,6 @@ const PomodoroTimer = () => {
     : 0;
 
   const currentColor = getCurrentColor();
-  const radius = 90;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
 
   // Dynamic glow color based on mode
   const currentGlowColor = mode === 'work'
@@ -115,111 +190,181 @@ const PomodoroTimer = () => {
     ? 'rgba(250, 204, 21, 0.4)'  // yellow-400 glow
     : 'rgba(0, 0, 0, 0)';         // no glow when idle
 
-  return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-xl font-semibold text-text-primary mb-4">
-        Pomodoro Timer
-      </h3>
+  // Common props for TimerDisplay
+  const timerDisplayProps = {
+    timeText: formatTime(timeLeft),
+    modeLabel: getModeLabel(),
+    progressPercentage,
+    currentColor,
+    glowColor: currentGlowColor
+  };
 
-      {/* Circular Progress */}
-      <div className="flex items-center justify-center mb-6">
-        <div className="relative" style={{ width: 240, height: 240 }}>
-          {/* SVG Circle */}
-          <svg
-            width="240"
-            height="240"
-            className="transform -rotate-90"
-          >
-            {/* Background circle - NO GLOW */}
-            <circle
-              cx="120"
-              cy="120"
-              r={radius}
-              stroke="#1a1f2e"
-              strokeWidth="12"
-              fill="none"
-            />
-            {/* Progress circle - GLOW APPLIED HERE */}
-            <circle
-              cx="120"
-              cy="120"
-              r={radius}
-              stroke={currentColor}
-              strokeWidth="12"
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              style={{
-                filter: `drop-shadow(0 0 8px ${currentGlowColor})`,
-                transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out, filter 0.5s ease-in-out'
-              }}
-            />
-          </svg>
+  // Fullscreen overlay component
+  const FullscreenOverlay = () => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 z-50 bg-bg-primary flex flex-col items-center justify-center"
+    >
+      {/* Minimize button */}
+      <motion.button
+        onClick={() => setIsFullscreen(false)}
+        className="absolute top-6 right-6 p-3 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        title="Exit fullscreen"
+      >
+        <Minimize2 size={24} />
+      </motion.button>
 
-          {/* Center content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-4xl font-bold text-text-primary mb-2 font-sans">
-              {formatTime(timeLeft)}
-            </div>
-            <div
-              className="text-sm font-medium uppercase tracking-wider"
-              style={{ color: currentColor, transition: 'color 0.5s ease-in-out' }}
-            >
-              {getModeLabel()}
-            </div>
-          </div>
-        </div>
+      {/* Large Timer Display */}
+      <div className="flex items-center justify-center mb-12">
+        <TimerDisplay
+          size={400}
+          strokeWidth={20}
+          fontSize="4.5rem"
+          {...timerDisplayProps}
+        />
       </div>
 
-      {/* Control Buttons */}
-      <div className="flex items-center justify-center gap-3">
+      {/* Large Control Buttons */}
+      <div className="flex items-center justify-center gap-6">
         {/* Start/Pause Button */}
         <motion.button
           onClick={handleStartPause}
-          className="p-4 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
+          className="p-6 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title={isActive ? 'Pause' : 'Start'}
         >
-          {isActive ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
+          {isActive ? <Pause size={36} /> : <Play size={36} className="ml-1" />}
         </motion.button>
 
         {/* Reset Button */}
         <motion.button
           onClick={handleReset}
-          className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+          className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Reset"
           disabled={mode === 'idle'}
         >
-          <RotateCcw size={20} />
+          <RotateCcw size={28} />
         </motion.button>
 
         {/* Skip Button */}
         <motion.button
           onClick={handleSkip}
-          className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+          className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Skip"
           disabled={mode === 'idle'}
         >
-          <SkipForward size={20} />
+          <SkipForward size={28} />
         </motion.button>
       </div>
 
-      {/* Status indicator (optional) */}
+      {/* Status indicator */}
       {isActive && (
-        <div className="mt-4 text-center">
-          <span className="inline-flex items-center gap-2 text-xs text-text-tertiary">
-            <span className="w-2 h-2 rounded-full bg-green-glow animate-pulse" />
+        <div className="mt-8 text-center">
+          <span className="inline-flex items-center gap-2 text-sm text-text-tertiary">
+            <span className="w-3 h-3 rounded-full bg-green-glow animate-pulse" />
             Timer running
           </span>
         </div>
       )}
-    </div>
+    </motion.div>
+  );
+
+  return (
+    <>
+      <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+        {/* Header with Maximize button */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-text-primary">
+            Pomodoro Timer
+          </h3>
+          <motion.button
+            onClick={() => setIsFullscreen(true)}
+            className="p-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Fullscreen mode"
+          >
+            <Maximize2 size={18} />
+          </motion.button>
+        </div>
+
+        {/* Circular Progress using TimerDisplay */}
+        <div className="flex items-center justify-center mb-6">
+          <TimerDisplay
+            size={240}
+            strokeWidth={12}
+            fontSize="2.25rem"
+            {...timerDisplayProps}
+          />
+        </div>
+
+        {/* Control Buttons */}
+        <div className="flex items-center justify-center gap-3">
+          {/* Start/Pause Button */}
+          <motion.button
+            onClick={handleStartPause}
+            className="p-4 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title={isActive ? 'Pause' : 'Start'}
+          >
+            {isActive ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
+          </motion.button>
+
+          {/* Reset Button */}
+          <motion.button
+            onClick={handleReset}
+            className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Reset"
+            disabled={mode === 'idle'}
+          >
+            <RotateCcw size={20} />
+          </motion.button>
+
+          {/* Skip Button */}
+          <motion.button
+            onClick={handleSkip}
+            className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Skip"
+            disabled={mode === 'idle'}
+          >
+            <SkipForward size={20} />
+          </motion.button>
+        </div>
+
+        {/* Status indicator (optional) */}
+        {isActive && (
+          <div className="mt-4 text-center">
+            <span className="inline-flex items-center gap-2 text-xs text-text-tertiary">
+              <span className="w-2 h-2 rounded-full bg-green-glow animate-pulse" />
+              Timer running
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Fullscreen overlay rendered via portal */}
+      {createPortal(
+        <AnimatePresence>
+          {isFullscreen && <FullscreenOverlay />}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   );
 };
 
