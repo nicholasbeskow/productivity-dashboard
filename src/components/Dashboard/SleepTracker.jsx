@@ -251,14 +251,19 @@ const SleepTracker = () => {
 
     if (last7Days.length === 0) return null;
 
-    const avgSleep = last7Days.reduce((a, b) => a + b, 0) / last7Days.length;
+    const totalSleepHours = last7Days.reduce((a, b) => a + b, 0);
+    const avgSleep = totalSleepHours / last7Days.length;
     const targetSleep = (SLEEP_TARGET_MIN + SLEEP_TARGET_MAX) / 2;
-    const debt = (targetSleep - avgSleep) * last7Days.length;
+    // Weekly debt = target for days tracked - actual hours slept
+    const targetTotal = targetSleep * last7Days.length;
+    const debt = targetTotal - totalSleepHours;
 
     return {
       avgSleep: avgSleep.toFixed(1),
-      debt: Math.max(0, debt).toFixed(1),
-      daysTracked: last7Days.length
+      debt: debt.toFixed(1), // Can be negative (surplus)
+      hasSurplus: debt < 0,
+      daysTracked: last7Days.length,
+      targetPerNight: targetSleep
     };
   };
 
@@ -355,12 +360,18 @@ const SleepTracker = () => {
           <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">7-Day Average</p>
             <p className="text-lg font-bold text-purple-400">{sleepDebt.avgSleep}h</p>
+            <p className="text-[10px] text-text-tertiary">{sleepDebt.daysTracked} days tracked</p>
           </div>
           <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
-            <p className="text-xs text-text-tertiary mb-1">Sleep Debt</p>
-            <p className={`text-lg font-bold ${parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'}`}>
-              {sleepDebt.debt}h
+            <p className="text-xs text-text-tertiary mb-1">Weekly Sleep Debt</p>
+            <p className={`text-lg font-bold ${
+              sleepDebt.hasSurplus ? 'text-green-glow' :
+              parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
+              parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'
+            }`}>
+              {sleepDebt.hasSurplus ? `+${Math.abs(parseFloat(sleepDebt.debt)).toFixed(1)}h` : `${sleepDebt.debt}h`}
             </p>
+            <p className="text-[10px] text-text-tertiary">vs {sleepDebt.targetPerNight}h/night target</p>
           </div>
         </div>
       )}
