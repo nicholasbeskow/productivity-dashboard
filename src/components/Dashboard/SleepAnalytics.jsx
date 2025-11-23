@@ -182,8 +182,8 @@ const SleepAnalytics = () => {
 
     if (filteredSleep.length === 0) return null;
 
-    // Calculate averages
-    const totalHours = filteredSleep.reduce((acc, e) => acc + e.hours, 0);
+    // Calculate averages (use totalSleep for new entries, fall back to hours for legacy)
+    const totalHours = filteredSleep.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0);
     const avgHours = totalHours / filteredSleep.length;
 
     const totalQuality = filteredSleep.reduce((acc, e) => acc + e.quality, 0);
@@ -200,7 +200,7 @@ const SleepAnalytics = () => {
       if (!weeklyAverages[weekStart]) {
         weeklyAverages[weekStart] = { hours: [], quality: [] };
       }
-      weeklyAverages[weekStart].hours.push(entry.hours);
+      weeklyAverages[weekStart].hours.push(entry.totalSleep ?? entry.hours);
       weeklyAverages[weekStart].quality.push(entry.quality);
     });
 
@@ -225,7 +225,7 @@ const SleepAnalytics = () => {
     let currentStreak = 0;
     const sortedSleep = [...filteredSleep].sort((a, b) => b.date.localeCompare(a.date));
     for (const entry of sortedSleep) {
-      if (entry.hours >= 7) {
+      if ((entry.totalSleep ?? entry.hours) >= 7) {
         currentStreak++;
       } else {
         break;
@@ -246,7 +246,7 @@ const SleepAnalytics = () => {
       .slice(0, 3);
 
     if (last3Nights.length >= 3) {
-      const avgLast3 = last3Nights.reduce((acc, e) => acc + e.hours, 0) / last3Nights.length;
+      const avgLast3 = last3Nights.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0) / last3Nights.length;
       if (avgLast3 < 6) {
         sleepWarning = `You've averaged ${avgLast3.toFixed(1)} hours for 3+ nights. This typically precedes overwhelmed days.`;
       }
@@ -261,8 +261,8 @@ const SleepAnalytics = () => {
       const lastMonthSleep = sleepLog.filter(e => e.date >= lastMonthStart && e.date < format(subDays(today, 30), 'yyyy-MM-dd'));
 
       if (thisMonthSleep.length > 0 && lastMonthSleep.length > 0) {
-        const thisMonthAvg = thisMonthSleep.reduce((a, e) => a + e.hours, 0) / thisMonthSleep.length;
-        const lastMonthAvg = lastMonthSleep.reduce((a, e) => a + e.hours, 0) / lastMonthSleep.length;
+        const thisMonthAvg = thisMonthSleep.reduce((a, e) => a + (e.totalSleep ?? e.hours), 0) / thisMonthSleep.length;
+        const lastMonthAvg = lastMonthSleep.reduce((a, e) => a + (e.totalSleep ?? e.hours), 0) / lastMonthSleep.length;
         monthComparison = {
           thisMonth: thisMonthAvg.toFixed(1),
           lastMonth: lastMonthAvg.toFixed(1),
@@ -305,9 +305,9 @@ const SleepAnalytics = () => {
       const mood = moodByDate[sleepEntry.date];
       if (mood !== undefined) {
         if (mood >= 4) {
-          happyDaysSleep.push(sleepEntry.hours);
+          happyDaysSleep.push(sleepEntry.totalSleep ?? sleepEntry.hours);
         } else if (mood <= 2) {
-          stressedDaysSleep.push(sleepEntry.hours);
+          stressedDaysSleep.push(sleepEntry.totalSleep ?? sleepEntry.hours);
         }
       }
     });
@@ -346,9 +346,10 @@ const SleepAnalytics = () => {
 
     sleepLog.forEach(sleepEntry => {
       const tasksCompleted = tasksByDate[sleepEntry.date] || 0;
-      if (sleepEntry.hours >= 7) {
+      const sleep = sleepEntry.totalSleep ?? sleepEntry.hours;
+      if (sleep >= 7) {
         wellRestedDays.push(tasksCompleted);
-      } else if (sleepEntry.hours < 6) {
+      } else if (sleep < 6) {
         tiredDays.push(tasksCompleted);
       }
     });
@@ -403,7 +404,10 @@ const SleepAnalytics = () => {
       moodByDate[e.date] = e.level;
     });
 
-    const hoursData = dates.map(date => sleepByDate[date]?.hours || null);
+    const hoursData = dates.map(date => {
+      const entry = sleepByDate[date];
+      return entry ? (entry.totalSleep ?? entry.hours) : null;
+    });
     const moodData = dates.map(date => moodByDate[date] || null);
 
     return {
@@ -809,19 +813,31 @@ const SleepAnalytics = () => {
           Recent Sleep Entries
         </h4>
         <div className="space-y-2">
-          {recentEntries.map((entry) => (
-            <div key={entry.date} className="flex items-center justify-between py-2 border-b border-bg-primary last:border-0">
-              <span className="text-sm text-text-secondary">
-                {format(new Date(entry.date), 'MMM d')}
-              </span>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-purple-400">{entry.hours}h</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full`} style={{ backgroundColor: `${qualityColors[entry.quality]}20`, color: qualityColors[entry.quality] }}>
-                  {qualityLabels[entry.quality]}
+          {recentEntries.map((entry) => {
+            const total = entry.totalSleep ?? entry.hours;
+            const hasNap = entry.napDuration && entry.napDuration > 0;
+
+            return (
+              <div key={entry.date} className="flex items-center justify-between py-2 border-b border-bg-primary last:border-0">
+                <span className="text-sm text-text-secondary">
+                  {format(new Date(entry.date), 'MMM d')}
                 </span>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-sm font-medium text-purple-400">{total}h</span>
+                    {hasNap && (
+                      <span className="text-[10px] text-text-tertiary ml-1">
+                        ({entry.nightSleep}h + {entry.napDuration}h nap)
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full`} style={{ backgroundColor: `${qualityColors[entry.quality]}20`, color: qualityColors[entry.quality] }}>
+                    {qualityLabels[entry.quality]}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
