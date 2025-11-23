@@ -428,16 +428,18 @@ const SleepAnalytics = () => {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(168, 85, 247, 0.2)');
+            gradient.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
             gradient.addColorStop(1, 'rgba(168, 85, 247, 0)');
             return gradient;
           },
           borderWidth: 3,
           fill: true,
           tension: 0.4,
-          pointRadius: 3,
+          pointRadius: 0,
           pointHoverRadius: 6,
-          pointBackgroundColor: '#a855f7',
+          pointHoverBackgroundColor: '#a855f7',
+          pointHoverBorderColor: '#a855f7',
+          pointHoverBorderWidth: 2,
           spanGaps: true,
           yAxisID: 'y'
         },
@@ -445,14 +447,21 @@ const SleepAnalytics = () => {
           label: 'Mood',
           data: moodData,
           borderColor: '#eab308',
-          backgroundColor: 'transparent',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.15)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
           borderWidth: 2,
-          borderDash: [5, 5],
-          fill: false,
+          fill: true,
           tension: 0.4,
-          pointRadius: 2,
+          pointRadius: 0,
           pointHoverRadius: 5,
-          pointBackgroundColor: '#eab308',
+          pointHoverBackgroundColor: '#eab308',
+          pointHoverBorderColor: '#eab308',
+          pointHoverBorderWidth: 2,
           spanGaps: true,
           yAxisID: 'y1'
         }] : [])
@@ -483,18 +492,25 @@ const SleepAnalytics = () => {
       tooltip: {
         backgroundColor: 'rgba(10, 14, 20, 0.95)',
         titleColor: '#9195a0',
+        bodyColor: '#e4e5e9',
         padding: 12,
         cornerRadius: 8,
         displayColors: true,
         callbacks: {
           label: (context) => {
             if (context.dataset.label === 'Sleep Hours') {
-              return `Sleep: ${context.parsed.y}h`;
+              return ` Sleep: ${context.parsed.y}h`;
             } else if (context.dataset.label === 'Mood') {
               const level = context.parsed.y;
-              return `Mood: ${moodLabels[level] || level}`;
+              return ` Mood: ${moodLabels[level] || level}`;
             }
             return context.parsed.y;
+          },
+          labelColor: (context) => {
+            return {
+              borderColor: context.dataset.borderColor,
+              backgroundColor: context.dataset.borderColor,
+            };
           },
         },
       },
