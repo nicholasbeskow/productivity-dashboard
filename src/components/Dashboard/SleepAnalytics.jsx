@@ -799,7 +799,7 @@ const SleepAnalytics = () => {
         <div className="space-y-2">
           {recentEntries.map((entry) => {
             const total = entry.totalSleep ?? entry.hours;
-            const hasNap = entry.napDuration && entry.napDuration > 0;
+            const hasNap = entry.napDuration > 0;
 
             return (
               <div key={entry.date} className="flex items-center justify-between py-2 border-b border-bg-primary last:border-0">
