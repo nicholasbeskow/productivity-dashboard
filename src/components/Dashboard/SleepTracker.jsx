@@ -256,12 +256,12 @@ const SleepTracker = () => {
     const targetSleep = (SLEEP_TARGET_MIN + SLEEP_TARGET_MAX) / 2;
     // Weekly debt = target for days tracked - actual hours slept
     const targetTotal = targetSleep * last7Days.length;
-    const debt = targetTotal - totalSleepHours;
+    // Cap at 0 - you can't bank sleep (no positive debt/surplus allowed)
+    const debt = Math.max(0, targetTotal - totalSleepHours);
 
     return {
       avgSleep: avgSleep.toFixed(1),
-      debt: debt.toFixed(1), // Can be negative (surplus)
-      hasSurplus: debt < 0,
+      debt: debt.toFixed(1), // Always >= 0 (capped at zero, no surplus)
       daysTracked: last7Days.length,
       targetPerNight: targetSleep
     };
@@ -365,11 +365,11 @@ const SleepTracker = () => {
           <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
             <p className="text-xs text-text-tertiary mb-1">Weekly Sleep Debt</p>
             <p className={`text-lg font-bold ${
-              sleepDebt.hasSurplus ? 'text-green-glow' :
+              parseFloat(sleepDebt.debt) === 0 ? 'text-green-glow' :
               parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
-              parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'
+              'text-orange-500'
             }`}>
-              {sleepDebt.hasSurplus ? `+${Math.abs(parseFloat(sleepDebt.debt)).toFixed(1)}h` : `${sleepDebt.debt}h`}
+              {sleepDebt.debt}h
             </p>
             <p className="text-[10px] text-text-tertiary">vs {sleepDebt.targetPerNight}h/night target</p>
           </div>

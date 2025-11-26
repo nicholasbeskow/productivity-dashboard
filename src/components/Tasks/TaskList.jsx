@@ -982,6 +982,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             }));
 
             console.log(`[TaskList] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
+          } else {
+            console.error(`[TaskList] Template not found for recurring task. templateId: ${taskToComplete.templateId}`);
           }
         }
 

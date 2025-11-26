@@ -577,6 +577,8 @@ const Dashboard = ({ setActiveTab }) => {
             }));
 
             console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
+          } else {
+            console.error(`[Dashboard] Template not found for recurring task. templateId: ${task.templateId}`);
           }
         }
 
