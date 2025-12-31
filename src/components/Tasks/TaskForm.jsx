@@ -76,6 +76,20 @@ const TaskForm = ({ onTaskCreate }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
+  // Due date helper functions
+  const setDueToday = () => {
+    const today = new Date();
+    const localDate = today.toISOString().split('T')[0];
+    setDueDate(localDate);
+  };
+
+  const setDueTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const localDate = tomorrow.toISOString().split('T')[0];
+    setDueDate(localDate);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -261,8 +275,24 @@ const TaskForm = ({ onTaskCreate }) => {
         {recurrenceType === 'does-not-repeat' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-text-secondary mb-2">
-                Due Date
+              <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
+                <span>Due Date</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={setDueToday}
+                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={setDueTomorrow}
+                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                  >
+                    Tomorrow
+                  </button>
+                </div>
               </label>
               <input
                 type="date"
