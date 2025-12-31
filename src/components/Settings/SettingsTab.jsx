@@ -4,6 +4,7 @@ import backupManager from '../../utils/backupManager';
 
 const SettingsTab = () => {
   const [userName, setUserName] = useState('');
+  const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakStartDate, setBreakStartDate] = useState('');
   const [semesterStartDate, setSemesterStartDate] = useState('');
   const [semesterEndDate, setSemesterEndDate] = useState('');
@@ -25,7 +26,9 @@ const SettingsTab = () => {
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
-    setBreakStartDate(localStorage.getItem('breakStartDate') || '');
+    const storedBreakStartDate = localStorage.getItem('breakStartDate') || '';
+    setBreakStartDate(storedBreakStartDate);
+    setIsOnBreak(!!storedBreakStartDate); // Set toggle based on whether breakStartDate exists
     setSemesterStartDate(localStorage.getItem('semesterStartDate') || '2025-08-25');
     setSemesterEndDate(localStorage.getItem('semesterEndDate') || '2025-12-11');
     setPomodoroWorkDuration(localStorage.getItem('pomodoroWorkDuration') || '50');
@@ -59,6 +62,20 @@ const SettingsTab = () => {
     localStorage.setItem('userName', newName);
     backupManager.saveAutoBackup();
     window.dispatchEvent(new Event('userNameChanged'));
+  };
+
+  const handleOnBreakToggle = (e) => {
+    const checked = e.target.checked;
+    setIsOnBreak(checked);
+
+    if (!checked) {
+      // Clear break start date when toggle is turned off
+      setBreakStartDate('');
+      localStorage.removeItem('breakStartDate');
+      backupManager.saveAutoBackup();
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('semesterDatesChanged'));
+    }
   };
 
   const handleBreakStartDateChange = (e) => {
@@ -505,20 +522,6 @@ const SettingsTab = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-text-secondary mb-2">
-                  Break Start Date
-                </label>
-                <input
-                  type="date"
-                  value={breakStartDate}
-                  onChange={handleBreakStartDateChange}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                />
-                <p className="text-xs text-text-tertiary mt-1">
-                  Track break progress before semester starts
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
                   Semester Start Date
                 </label>
                 <input
@@ -540,6 +543,38 @@ const SettingsTab = () => {
                 />
               </div>
             </div>
+
+            {/* On Break Toggle */}
+            <div className="mt-4 pt-4 border-t border-bg-tertiary">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isOnBreak}
+                  onChange={handleOnBreakToggle}
+                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
+                />
+                <span className="text-text-secondary font-medium">On break?</span>
+              </label>
+              <p className="text-xs text-text-tertiary mt-2 ml-8">
+                Track your break progress before the semester starts
+              </p>
+
+              {/* Collapsible Break Start Date Input */}
+              {isOnBreak && (
+                <div className="mt-3 ml-8">
+                  <label className="block text-sm text-text-secondary mb-2">
+                    Break Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={breakStartDate}
+                    onChange={handleBreakStartDateChange}
+                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  />
+                </div>
+              )}
+            </div>
+
             <p className="text-xs text-text-tertiary mt-3">
               This will show a circular progress indicator on your dashboard
             </p>
