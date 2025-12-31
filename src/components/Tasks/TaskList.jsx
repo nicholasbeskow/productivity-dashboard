@@ -824,6 +824,9 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                 <span className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-bold' : ''}`}>
                   {taskIsOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
                   {formatDateTimeDisplay(task.dueDate, task.time)}
+                  {task.templateId && (
+                    <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                  )}
                 </span>
               )}
               <motion.span

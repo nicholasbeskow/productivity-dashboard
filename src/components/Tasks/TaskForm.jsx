@@ -165,8 +165,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       return;
     }
 
-    // Validate dueDate for weekly/monthly/yearly/custom recurring tasks
-    if ((recurrenceType === 'weekly' || recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !dueDate) {
+    // Validate dueDate for monthly/yearly/custom recurring tasks (weekly uses day selection)
+    if ((recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !dueDate) {
       alert('Please select a due date for this recurring task.');
       return;
     }
@@ -296,43 +296,34 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         // Daily tasks are always due today
         instanceDate = todayString;
       } else if (template.recurrence.type === 'weekly') {
-        // For weekly tasks, use the user-provided start date
-        const startDate = new Date(dueDate + 'T12:00:00');
-        const startDayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        // For weekly tasks, find the next occurrence from today based on selected days
         const selectedDays = template.recurrence.days || [];
 
         if (selectedDays.length > 0) {
-          // Specific days selected: find first valid day on or after start date
+          // Find the next occurrence of the selected days
           const sortedDays = selectedDays.sort((a, b) => a - b);
+          let daysUntilNext = null;
 
-          // Check if the start date itself is one of the selected days
-          if (sortedDays.includes(startDayOfWeek)) {
-            instanceDate = dueDate;
-          } else {
-            // Find the next occurrence after start date
-            let daysUntilNext = null;
-
-            // First, check if there's a day later this week
-            for (const day of sortedDays) {
-              if (day > startDayOfWeek) {
-                daysUntilNext = day - startDayOfWeek;
-                break;
-              }
+          // First, check if there's a day later this week
+          for (const day of sortedDays) {
+            if (day > todayDayOfWeek) {
+              daysUntilNext = day - todayDayOfWeek;
+              break;
             }
-
-            // If no day found later this week, use the first day next week
-            if (daysUntilNext === null) {
-              daysUntilNext = 7 - startDayOfWeek + sortedDays[0];
-            }
-
-            // Calculate the next occurrence date
-            const nextOccurrence = new Date(startDate);
-            nextOccurrence.setDate(nextOccurrence.getDate() + daysUntilNext);
-            instanceDate = nextOccurrence.toISOString().split('T')[0];
           }
+
+          // If no day found later this week, use the first day next week
+          if (daysUntilNext === null) {
+            daysUntilNext = 7 - todayDayOfWeek + sortedDays[0];
+          }
+
+          // Calculate the next occurrence date
+          today.setDate(today.getDate() + daysUntilNext);
+          instanceDate = today.toISOString().split('T')[0];
         } else {
-          // No specific days: use start date and repeat every 7 days
-          instanceDate = dueDate;
+          // No specific days: default to 7 days from today
+          today.setDate(today.getDate() + 7);
+          instanceDate = today.toISOString().split('T')[0];
         }
       } else if (template.recurrence.type === 'monthly') {
         // Monthly tasks use the user-provided dueDate
@@ -495,9 +486,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           />
         </div>
 
-        {/* Due Date and Time Row - Show for does-not-repeat, weekly, monthly, yearly, custom */}
-        {recurrenceType !== 'daily' && (
-          <div className="grid grid-cols-2 gap-4">
+        {/* Due Date and Time Row - Always visible for convenient editing */}
+        <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
                 <span>Due Date</span>
@@ -537,22 +527,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               />
             </div>
           </div>
-        )}
-
-        {/* Time input for daily recurring tasks (no date needed) */}
-        {recurrenceType === 'daily' && (
-          <div>
-            <label className="block text-sm text-text-secondary mb-2">
-              Time (optional)
-            </label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-            />
-          </div>
-        )}
+        </div>
 
         {/* Task Type Toggle */}
         <div>

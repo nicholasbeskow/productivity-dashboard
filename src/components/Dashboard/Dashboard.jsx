@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import CircularProgress from './CircularProgress';
@@ -396,6 +396,9 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
                 {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
+                {task.templateId && (
+                  <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                )}
               </p>
             )}
           </div>
