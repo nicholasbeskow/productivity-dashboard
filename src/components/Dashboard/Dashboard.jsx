@@ -385,6 +385,36 @@ const Dashboard = ({ setActiveTab }) => {
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
 
+  // Semester End Modal state
+  const [showSemesterEndModal, setShowSemesterEndModal] = useState(false);
+  const [nextBreakStart, setNextBreakStart] = useState('');
+  const [nextSemesterStart, setNextSemesterStart] = useState('');
+  const [nextSemesterEnd, setNextSemesterEnd] = useState('');
+
+  // Check for semester end on mount
+  useEffect(() => {
+    const checkSemesterEnd = () => {
+      const semesterEndDate = localStorage.getItem('semesterEndDate') || '2025-12-11';
+      const breakStartDate = localStorage.getItem('breakStartDate') || '';
+
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      const endDate = new Date(semesterEndDate + 'T12:00:00');
+
+      // Show modal if semester has ended and no break has been set
+      if (today > endDate && !breakStartDate) {
+        // Calculate default values for next semester
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setNextBreakStart(nextDay.toISOString().split('T')[0]);
+
+        setShowSemesterEndModal(true);
+      }
+    };
+
+    checkSemesterEnd();
+  }, []);
+
   useEffect(() => {
     const calculateProgress = () => {
       const breakStartDate = localStorage.getItem('breakStartDate') || '';
@@ -1065,6 +1095,28 @@ const Dashboard = ({ setActiveTab }) => {
   const handleStartEditFromCard = (task) => {
     setDetailViewTaskId(task.id);
     handleStartEdit(task);
+  };
+
+  const handleBeginBreak = () => {
+    if (!nextBreakStart || !nextSemesterStart || !nextSemesterEnd) {
+      alert('Please fill in all date fields.');
+      return;
+    }
+
+    // Save the new semester dates and break start date
+    localStorage.setItem('breakStartDate', nextBreakStart);
+    localStorage.setItem('semesterStartDate', nextSemesterStart);
+    localStorage.setItem('semesterEndDate', nextSemesterEnd);
+
+    // Trigger auto-backup
+    backupManager.saveAutoBackup();
+
+    // Close modal
+    setShowSemesterEndModal(false);
+
+    // Dispatch events to update other components
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('semesterDatesChanged'));
   };
 
   // Sort and limit tasks for dashboard - show top 5
@@ -1791,6 +1843,119 @@ const Dashboard = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* Semester End Modal */}
+      <AnimatePresence>
+        {showSemesterEndModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+            onClick={() => {}} // Prevent closing on backdrop click
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Confetti Animation */}
+              <div className="absolute top-0 left-0 right-0 flex justify-center overflow-hidden h-32 pointer-events-none">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ y: -20, x: 0, opacity: 1 }}
+                    animate={{
+                      y: 150,
+                      x: (Math.random() - 0.5) * 200,
+                      opacity: 0,
+                      rotate: Math.random() * 360,
+                    }}
+                    transition={{
+                      duration: 2,
+                      delay: i * 0.05,
+                      repeat: Infinity,
+                      repeatDelay: 1,
+                    }}
+                    className="absolute"
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: i % 4 === 0 ? '#3dd68c' : i % 4 === 1 ? '#facc15' : i % 4 === 2 ? '#60a5fa' : '#f472b6',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h2 className="text-3xl font-bold text-text-primary mb-2">
+                  🎉 Semester Complete!
+                </h2>
+                <p className="text-text-secondary">
+                  Congratulations! Time to recharge. When does your next semester begin?
+                </p>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">
+                    Break Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={nextBreakStart}
+                    onChange={(e) => setNextBreakStart(e.target.value)}
+                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  />
+                  <p className="text-xs text-text-tertiary mt-1">
+                    Defaults to the day after semester ended
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">
+                    Next Semester Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={nextSemesterStart}
+                    onChange={(e) => setNextSemesterStart(e.target.value)}
+                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">
+                    Next Semester End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={nextSemesterEnd}
+                    onChange={(e) => setNextSemesterEnd(e.target.value)}
+                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6">
+                <button
+                  onClick={handleBeginBreak}
+                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all"
+                >
+                  Begin Break
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
