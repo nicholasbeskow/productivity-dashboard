@@ -1854,42 +1854,44 @@ const Dashboard = ({ setActiveTab }) => {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
             onClick={() => {}} // Prevent closing on backdrop click
           >
+            {/* Confetti Animation - Full Screen */}
+            <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+              {[...Array(30)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ y: -20, x: `${Math.random() * 100}%`, opacity: 1 }}
+                  animate={{
+                    y: window.innerHeight + 20,
+                    x: `${Math.random() * 100}%`,
+                    opacity: 0,
+                    rotate: Math.random() * 720,
+                  }}
+                  transition={{
+                    duration: 3 + Math.random() * 2,
+                    delay: i * 0.1,
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                  }}
+                  className="absolute"
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: i % 4 === 0 ? '#3dd68c' : i % 4 === 1 ? '#facc15' : i % 4 === 2 ? '#60a5fa' : '#f472b6',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Modal Card */}
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative"
+              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative z-[60]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Confetti Animation */}
-              <div className="absolute top-0 left-0 right-0 flex justify-center overflow-hidden h-32 pointer-events-none">
-                {[...Array(20)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ y: -20, x: 0, opacity: 1 }}
-                    animate={{
-                      y: 150,
-                      x: (Math.random() - 0.5) * 200,
-                      opacity: 0,
-                      rotate: Math.random() * 360,
-                    }}
-                    transition={{
-                      duration: 2,
-                      delay: i * 0.05,
-                      repeat: Infinity,
-                      repeatDelay: 1,
-                    }}
-                    className="absolute"
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: i % 4 === 0 ? '#3dd68c' : i % 4 === 1 ? '#facc15' : i % 4 === 2 ? '#60a5fa' : '#f472b6',
-                    }}
-                  />
-                ))}
-              </div>
 
               {/* Header */}
               <div className="text-center mb-6">
