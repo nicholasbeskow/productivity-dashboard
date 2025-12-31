@@ -99,6 +99,12 @@ const TaskForm = ({ onTaskCreate }) => {
       return;
     }
 
+    // Validate dueDate for monthly/yearly/custom recurring tasks
+    if ((recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !dueDate) {
+      alert('Please select a due date for this recurring task.');
+      return;
+    }
+
     // Check if this is a recurring task
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
@@ -189,14 +195,14 @@ const TaskForm = ({ onTaskCreate }) => {
           instanceDate = nextOccurrence.toISOString().split('T')[0];
         }
       } else if (template.recurrence.type === 'monthly') {
-        // Monthly tasks are due today
-        instanceDate = todayString;
+        // Monthly tasks use the user-provided dueDate
+        instanceDate = dueDate;
       } else if (template.recurrence.type === 'yearly') {
-        // Yearly tasks are due today
-        instanceDate = todayString;
+        // Yearly tasks use the user-provided dueDate
+        instanceDate = dueDate;
       } else if (template.recurrence.type === 'custom') {
-        // Custom tasks are due today
-        instanceDate = todayString;
+        // Custom tasks use the user-provided dueDate
+        instanceDate = dueDate;
       }
 
       // Generate the instance with the calculated date
@@ -303,8 +309,8 @@ const TaskForm = ({ onTaskCreate }) => {
           />
         </div>
 
-        {/* Due Date and Time Row - Only show if not recurring */}
-        {recurrenceType === 'does-not-repeat' && (
+        {/* Due Date and Time Row - Show for does-not-repeat, monthly, yearly, custom */}
+        {recurrenceType !== 'daily' && recurrenceType !== 'weekly' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
@@ -347,8 +353,8 @@ const TaskForm = ({ onTaskCreate }) => {
           </div>
         )}
 
-        {/* Time input for recurring tasks (no date needed as it's generated daily) */}
-        {recurrenceType !== 'does-not-repeat' && (
+        {/* Time input for daily/weekly recurring tasks (no date needed) */}
+        {(recurrenceType === 'daily' || recurrenceType === 'weekly') && (
           <div>
             <label className="block text-sm text-text-secondary mb-2">
               Time (optional)
@@ -451,8 +457,9 @@ const TaskForm = ({ onTaskCreate }) => {
                 <input
                   type="number"
                   min="1"
+                  max="365"
                   value={customInterval}
-                  onChange={(e) => setCustomInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => setCustomInterval(Math.max(1, Math.min(365, parseInt(e.target.value) || 1)))}
                   className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                 />
                 <select
