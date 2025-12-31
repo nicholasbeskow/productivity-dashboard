@@ -18,6 +18,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [customInterval, setCustomInterval] = useState(1);
   const [customUnit, setCustomUnit] = useState('days');
 
+  // Edit scope for recurring tasks
+  const [editScope, setEditScope] = useState('instance');
+  const [isRecurringEdit, setIsRecurringEdit] = useState(false);
+
   // Populate form when initialData changes (for editing)
   useEffect(() => {
     if (initialData) {
@@ -28,6 +32,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setTime(initialData.time || '');
       setTaskType(initialData.taskType || 'academic');
       setAttachments(initialData.attachments || []);
+
+      // Check if this is a recurring task (has recurrence or templateId/recurrenceId)
+      const isRecurring = !!(initialData.recurrence || initialData.templateId || initialData.recurrenceId);
+      setIsRecurringEdit(isRecurring);
 
       // Handle recurrence fields - crucial for editing recurring tasks
       if (initialData.recurrence) {
@@ -71,6 +79,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setWeeklyDays([]);
       setCustomInterval(1);
       setCustomUnit('days');
+      setIsRecurringEdit(false);
+      setEditScope('instance');
     }
   }, [initialData]);
 
@@ -167,7 +177,52 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       return;
     }
 
-    // Check if this is a recurring task
+    // If editing, pass data to parent with scope
+    if (initialData) {
+      const updatedTaskData = {
+        ...initialData,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        dueDate: dueDate || null,
+        time: time || null,
+        taskType: taskType,
+        attachments: attachments,
+        scope: editScope, // Include edit scope for parent to handle
+      };
+
+      // If recurrence fields were modified, include them
+      if (recurrenceType !== 'does-not-repeat') {
+        let recurrence;
+        if (recurrenceType === 'custom') {
+          recurrence = {
+            type: 'custom',
+            interval: parseInt(customInterval),
+            unit: customUnit,
+          };
+        } else if (recurrenceType === 'monthly') {
+          recurrence = { type: 'monthly' };
+        } else if (recurrenceType === 'yearly') {
+          recurrence = { type: 'yearly' };
+        } else if (recurrenceType === 'weekly') {
+          recurrence = {
+            type: 'weekly',
+            days: weeklyDays,
+          };
+        } else {
+          recurrence = { type: recurrenceType };
+        }
+        updatedTaskData.recurrence = recurrence;
+      } else {
+        // User changed to does-not-repeat - detach from series
+        updatedTaskData.recurrence = null;
+      }
+
+      onTaskCreate(updatedTaskData);
+      return;
+    }
+
+    // Check if this is a recurring task (creating new)
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
       // Build recurrence object based on type
@@ -346,6 +401,39 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <Repeat size={16} className="inline mr-2" />
             Editing recurring task template - changes will affect future instances
           </p>
+        </div>
+      )}
+
+      {/* Scope selector for recurring task edits */}
+      {isRecurringEdit && (
+        <div className="mb-4">
+          <label className="block text-sm text-text-secondary mb-2">Edit Scope</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setEditScope('instance')}
+              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                editScope === 'instance'
+                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+              }`}
+            >
+              <div className="font-medium">This Instance Only</div>
+              <div className="text-xs mt-1 opacity-80">Update just this one task</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditScope('series')}
+              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                editScope === 'series'
+                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+              }`}
+            >
+              <div className="font-medium">All Future Tasks</div>
+              <div className="text-xs mt-1 opacity-80">Update the entire series</div>
+            </button>
+          </div>
         </div>
       )}
 
