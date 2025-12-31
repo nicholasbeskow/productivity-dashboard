@@ -923,105 +923,14 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleStartEdit = (task) => {
-    // Check if this task is an instance of a recurring template
-    if (task.templateId) {
-      // Show popup: Edit instance or template?
-      const editInstance = window.confirm(
-        'Edit this recurring task?\n\n[OK] = Edit just this one instance.\n[Cancel] = Edit the entire series (the template).'
-      );
-
-      if (editInstance) {
-        // Edit just this instance
-        setIsEditingTemplate(false);
-        setEditingTaskId(task.id);
-        setEditForm({
-          title: task.title,
-          description: task.description || '',
-          url: task.url || '',
-          dueDate: task.dueDate || '',
-          time: task.time || '',
-          status: task.status,
-          taskType: task.taskType || 'academic',
-          attachments: task.attachments || [],
-          recurrence: 'daily',
-          weeklyDays: {
-            sunday: false,
-            monday: false,
-            tuesday: false,
-            wednesday: false,
-            thursday: false,
-            friday: false,
-            saturday: false,
-          }
-        });
-      } else {
-        // Edit the template
-        setIsEditingTemplate(true);
-        setEditingTaskId(task.id); // Still track the task ID, but we'll save to template
-
-        // Load the template data
-        const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-        const template = templates.find(t => t.id === task.templateId);
-
-        if (template) {
-          setEditForm({
-            title: template.title,
-            description: template.description || '',
-            url: template.url || '',
-            dueDate: '', // Templates don't have due dates
-            time: template.time || '',
-            status: 'not-started',
-            taskType: template.taskType || 'academic',
-            attachments: template.attachments || [],
-            recurrenceType: template.recurrence?.type || 'daily',
-            weeklyDays: template.recurrence?.days || []
-          });
-        }
-      }
-    } else {
-      // Normal task (not a recurring instance)
-      setIsEditingTemplate(false);
-      setEditingTaskId(task.id);
-      setEditForm({
-        title: task.title,
-        description: task.description || '',
-        url: task.url || '',
-        dueDate: task.dueDate || '',
-        time: task.time || '',
-        status: task.status,
-        taskType: task.taskType || 'academic',
-        attachments: task.attachments || [],
-        recurrenceType: 'does-not-repeat',
-        weeklyDays: []
-      });
-    }
-
+    // Simply set the editing task - TaskForm will handle the scope selection UI
+    setEditingTaskId(task.id);
     setOpenMenuTaskId(null); // Close menu when editing starts
   };
 
   const handleCancelEdit = () => {
+    // Simply close the edit mode - TaskForm handles its own state
     setEditingTaskId(null);
-    setIsEditingTemplate(false);
-    setEditForm({
-      title: '',
-      description: '',
-      url: '',
-      dueDate: '',
-      time: '',
-      status: 'not-started',
-      taskType: 'academic',
-      attachments: [],
-      recurrence: 'daily',
-      weeklyDays: {
-        sunday: false,
-        monday: false,
-        tuesday: false,
-        wednesday: false,
-        thursday: false,
-        friday: false,
-        saturday: false,
-      }
-    });
   };
 
   const handleSaveEdit = (taskId, data) => {
