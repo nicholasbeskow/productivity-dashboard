@@ -105,6 +105,12 @@ const TaskForm = ({ onTaskCreate }) => {
       return;
     }
 
+    // Validate customInterval for custom recurring tasks
+    if (recurrenceType === 'custom' && (!customInterval || customInterval < 1)) {
+      alert('Please enter a valid interval (minimum 1).');
+      return;
+    }
+
     // Check if this is a recurring task
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
@@ -113,7 +119,7 @@ const TaskForm = ({ onTaskCreate }) => {
       if (recurrenceType === 'custom') {
         recurrence = {
           type: 'custom',
-          interval: customInterval,
+          interval: parseInt(customInterval),
           unit: customUnit,
         };
       } else if (recurrenceType === 'monthly') {
@@ -459,7 +465,7 @@ const TaskForm = ({ onTaskCreate }) => {
                   min="1"
                   max="365"
                   value={customInterval}
-                  onChange={(e) => setCustomInterval(Math.max(1, Math.min(365, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
                   className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                 />
                 <select
