@@ -363,6 +363,7 @@ const Dashboard = ({ setActiveTab }) => {
   const [userName, setUserName] = useState('');
   const [daysRemaining, setDaysRemaining] = useState(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
+  const [breakDaysLeft, setBreakDaysLeft] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
   const [detailViewTaskId, setDetailViewTaskId] = useState(null);
@@ -386,6 +387,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   useEffect(() => {
     const calculateProgress = () => {
+      const breakStartDate = localStorage.getItem('breakStartDate') || '';
       const semesterStartDate = localStorage.getItem('semesterStartDate') || '2025-08-25';
       const semesterEndDate = localStorage.getItem('semesterEndDate') || '2025-12-11';
 
@@ -402,9 +404,27 @@ const Dashboard = ({ setActiveTab }) => {
 
       if (notStartedYet) {
         setDaysRemaining(-1);
-        setProgressPercentage(0);
+
+        // If breakStartDate exists, calculate break progress
+        if (breakStartDate) {
+          const breakStart = new Date(breakStartDate + 'T12:00:00');
+
+          // Calculate days until semester starts
+          const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+          setBreakDaysLeft(daysUntilStart);
+
+          // Calculate progress percentage based on break duration
+          const totalBreakDays = Math.ceil((startDate - breakStart) / (1000 * 60 * 60 * 24));
+          const breakDaysPassed = Math.ceil((today - breakStart) / (1000 * 60 * 60 * 24));
+          const percentage = Math.min(Math.max((breakDaysPassed / totalBreakDays) * 100, 0), 100);
+          setProgressPercentage(percentage);
+        } else {
+          setBreakDaysLeft(null);
+          setProgressPercentage(0);
+        }
       } else {
         setDaysRemaining(diffDays);
+        setBreakDaysLeft(null);
 
         const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
         const daysPassed = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
@@ -1177,6 +1197,7 @@ const Dashboard = ({ setActiveTab }) => {
               <CircularProgress
                 daysRemaining={daysRemaining}
                 progressPercentage={progressPercentage}
+                breakDaysLeft={breakDaysLeft}
               />
             )}
           </div>

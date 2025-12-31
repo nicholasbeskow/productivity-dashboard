@@ -4,6 +4,7 @@ import backupManager from '../../utils/backupManager';
 
 const SettingsTab = () => {
   const [userName, setUserName] = useState('');
+  const [breakStartDate, setBreakStartDate] = useState('');
   const [semesterStartDate, setSemesterStartDate] = useState('');
   const [semesterEndDate, setSemesterEndDate] = useState('');
   const [pomodoroWorkDuration, setPomodoroWorkDuration] = useState('');
@@ -24,6 +25,7 @@ const SettingsTab = () => {
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
+    setBreakStartDate(localStorage.getItem('breakStartDate') || '');
     setSemesterStartDate(localStorage.getItem('semesterStartDate') || '2025-08-25');
     setSemesterEndDate(localStorage.getItem('semesterEndDate') || '2025-12-11');
     setPomodoroWorkDuration(localStorage.getItem('pomodoroWorkDuration') || '50');
@@ -57,6 +59,15 @@ const SettingsTab = () => {
     localStorage.setItem('userName', newName);
     backupManager.saveAutoBackup();
     window.dispatchEvent(new Event('userNameChanged'));
+  };
+
+  const handleBreakStartDateChange = (e) => {
+    const newDate = e.target.value;
+    setBreakStartDate(newDate);
+    localStorage.setItem('breakStartDate', newDate);
+    backupManager.saveAutoBackup();
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('semesterDatesChanged'));
   };
 
   const handleStartDateChange = (e) => {
@@ -492,6 +503,20 @@ const SettingsTab = () => {
               Semester Information
             </h3>
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">
+                  Break Start Date
+                </label>
+                <input
+                  type="date"
+                  value={breakStartDate}
+                  onChange={handleBreakStartDateChange}
+                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                />
+                <p className="text-xs text-text-tertiary mt-1">
+                  Track break progress before semester starts
+                </p>
+              </div>
               <div>
                 <label className="block text-sm text-text-secondary mb-2">
                   Semester Start Date

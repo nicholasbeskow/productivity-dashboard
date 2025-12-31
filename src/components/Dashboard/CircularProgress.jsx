@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const CircularProgress = ({ daysRemaining, progressPercentage }) => {
+const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const size = 140;
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
@@ -55,12 +55,25 @@ const CircularProgress = ({ daysRemaining, progressPercentage }) => {
               transition={{ duration: 0.15 }}
               className="flex flex-col items-center"
             >
-              <div className="text-4xl font-bold text-green-glow">
-                {Math.round(progressPercentage)}%
-              </div>
-              <div className="text-xs text-text-secondary mt-1">
-                complete
-              </div>
+              {breakDaysLeft !== null ? (
+                <>
+                  <div className="text-4xl font-bold text-green-glow">
+                    {breakDaysLeft}
+                  </div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    days left
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-4xl font-bold text-green-glow">
+                    {Math.round(progressPercentage)}%
+                  </div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    complete
+                  </div>
+                </>
+              )}
             </motion.div>
           ) : (
             <motion.div
