@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
 
-const TaskForm = ({ onTaskCreate }) => {
+const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -17,6 +17,40 @@ const TaskForm = ({ onTaskCreate }) => {
   const [weeklyDays, setWeeklyDays] = useState([]);
   const [customInterval, setCustomInterval] = useState(1);
   const [customUnit, setCustomUnit] = useState('days');
+
+  // Populate form when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setDescription(initialData.description || '');
+      setUrl(initialData.url || '');
+      setDueDate(initialData.dueDate || '');
+      setTime(initialData.time || '');
+      setTaskType(initialData.taskType || 'academic');
+      setAttachments(initialData.attachments || []);
+
+      // Handle recurrence fields
+      if (initialData.recurrence) {
+        const { type, days, interval, unit } = initialData.recurrence;
+
+        // Set recurrence type
+        setRecurrenceType(type || 'does-not-repeat');
+
+        // Handle weekly recurrence
+        if (type === 'weekly' && days) {
+          setWeeklyDays(days);
+        }
+
+        // Handle custom recurrence
+        if (type === 'custom') {
+          setCustomInterval(interval || 1);
+          setCustomUnit(unit || 'days');
+        }
+      } else {
+        setRecurrenceType('does-not-repeat');
+      }
+    }
+  }, [initialData]);
 
   const handleWeeklyDayToggle = (dayIndex) => {
     setWeeklyDays(prev =>
