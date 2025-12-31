@@ -29,26 +29,48 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setTaskType(initialData.taskType || 'academic');
       setAttachments(initialData.attachments || []);
 
-      // Handle recurrence fields
+      // Handle recurrence fields - crucial for editing recurring tasks
       if (initialData.recurrence) {
         const { type, days, interval, unit } = initialData.recurrence;
 
-        // Set recurrence type
+        // Set recurrence type - matches the template type
         setRecurrenceType(type || 'does-not-repeat');
 
-        // Handle weekly recurrence
+        // Handle weekly recurrence - populate selected days
         if (type === 'weekly' && days) {
           setWeeklyDays(days);
+        } else {
+          setWeeklyDays([]);
         }
 
-        // Handle custom recurrence
+        // Handle custom recurrence - populate interval and unit
         if (type === 'custom') {
           setCustomInterval(interval || 1);
           setCustomUnit(unit || 'days');
+        } else {
+          setCustomInterval(1);
+          setCustomUnit('days');
         }
       } else {
+        // No recurrence - reset to defaults
         setRecurrenceType('does-not-repeat');
+        setWeeklyDays([]);
+        setCustomInterval(1);
+        setCustomUnit('days');
       }
+    } else {
+      // Reset form when initialData becomes null (exit edit mode)
+      setTitle('');
+      setDescription('');
+      setUrl('');
+      setDueDate('');
+      setTime('');
+      setTaskType('academic');
+      setAttachments([]);
+      setRecurrenceType('does-not-repeat');
+      setWeeklyDays([]);
+      setCustomInterval(1);
+      setCustomUnit('days');
     }
   }, [initialData]);
 
@@ -313,7 +335,19 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-lg font-semibold text-text-primary mb-4">Create New Task</h3>
+      <h3 className="text-lg font-semibold text-text-primary mb-4">
+        {initialData ? 'Edit Task' : 'Create New Task'}
+      </h3>
+
+      {/* Show indicator when editing a recurring task */}
+      {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && (
+        <div className="mb-4 p-3 bg-green-glow bg-opacity-10 border border-green-glow rounded-lg">
+          <p className="text-sm text-green-glow">
+            <Repeat size={16} className="inline mr-2" />
+            Editing recurring task template - changes will affect future instances
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
