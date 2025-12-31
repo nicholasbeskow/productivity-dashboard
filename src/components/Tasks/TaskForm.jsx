@@ -191,6 +191,19 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         scope: editScope, // Include edit scope for parent to handle
       };
 
+      // Handle recurrenceAnchor based on edit scope
+      if (editScope === 'instance') {
+        // Edit instance only: Update dueDate but keep recurrenceAnchor unchanged
+        // If recurrenceAnchor is missing (legacy task), set it to the original dueDate
+        if (!initialData.recurrenceAnchor && initialData.dueDate) {
+          updatedTaskData.recurrenceAnchor = initialData.dueDate;
+        }
+        // Otherwise, keep existing recurrenceAnchor (don't update it)
+      } else if (editScope === 'series') {
+        // Edit series: Update both dueDate and recurrenceAnchor to shift the schedule
+        updatedTaskData.recurrenceAnchor = dueDate || null;
+      }
+
       // If recurrence fields were modified, include them
       if (recurrenceType !== 'does-not-repeat') {
         let recurrence;
@@ -340,6 +353,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         description: template.description,
         url: template.url,
         dueDate: instanceDate,
+        recurrenceAnchor: instanceDate, // Track original planned date for next calculation
         time: template.time,
         status: 'not-started',
         taskType: template.taskType,

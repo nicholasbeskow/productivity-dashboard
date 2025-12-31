@@ -11,27 +11,28 @@ import { ArrowRight, Moon } from 'lucide-react';
 
 /**
  * Calculate the next due date for a recurring task based on its template's recurrence pattern.
- * Always calculates from the original due date to maintain consistent schedules.
+ * Uses recurrenceAnchor to maintain consistent schedules even when tasks are completed late.
  */
-const calculateNextDueDate = (currentDueDate, template) => {
-  const dueDate = new Date(currentDueDate + 'T12:00:00');
+const calculateNextDueDate = (task, template) => {
+  // Use recurrenceAnchor if available, fallback to dueDate for legacy tasks
+  const baseDate = new Date((task.recurrenceAnchor || task.dueDate) + 'T12:00:00');
 
   if (!template || !template.recurrence) {
-    dueDate.setDate(dueDate.getDate() + 1);
-    return dueDate.toISOString().split('T')[0];
+    baseDate.setDate(baseDate.getDate() + 1);
+    return baseDate.toISOString().split('T')[0];
   }
 
   const recurrenceType = template.recurrence.type;
   const selectedDays = template.recurrence.days || [];
 
   if (recurrenceType === 'daily') {
-    dueDate.setDate(dueDate.getDate() + 1);
-    return dueDate.toISOString().split('T')[0];
+    baseDate.setDate(baseDate.getDate() + 1);
+    return baseDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'weekly' && selectedDays.length > 0) {
     const sortedDays = [...selectedDays].sort((a, b) => a - b);
-    const currentDayOfWeek = dueDate.getDay();
+    const currentDayOfWeek = baseDate.getDay();
     let daysToAdd = null;
 
     for (const day of sortedDays) {
@@ -45,43 +46,43 @@ const calculateNextDueDate = (currentDueDate, template) => {
       daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
     }
 
-    dueDate.setDate(dueDate.getDate() + daysToAdd);
-    return dueDate.toISOString().split('T')[0];
+    baseDate.setDate(baseDate.getDate() + daysToAdd);
+    return baseDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'weekly') {
-    dueDate.setDate(dueDate.getDate() + 7);
-    return dueDate.toISOString().split('T')[0];
+    baseDate.setDate(baseDate.getDate() + 7);
+    return baseDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'monthly') {
     // Smart Add Month: Clamp to last day of target month if day overflows
-    const originalDay = dueDate.getDate();
-    dueDate.setMonth(dueDate.getMonth() + 1);
+    const originalDay = baseDate.getDate();
+    baseDate.setMonth(baseDate.getMonth() + 1);
 
     // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
-    if (dueDate.getDate() !== originalDay) {
-      dueDate.setDate(0); // Sets to last day of previous month (the target month)
+    if (baseDate.getDate() !== originalDay) {
+      baseDate.setDate(0); // Sets to last day of previous month (the target month)
     }
 
-    return dueDate.toISOString().split('T')[0];
+    return baseDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'yearly') {
     // Smart Add Year: Handle Feb 29 in non-leap years
-    const originalMonth = dueDate.getMonth();
-    const originalDay = dueDate.getDate();
+    const originalMonth = baseDate.getMonth();
+    const originalDay = baseDate.getDate();
     const isFeb29 = originalMonth === 1 && originalDay === 29;
 
-    dueDate.setFullYear(dueDate.getFullYear() + 1);
+    baseDate.setFullYear(baseDate.getFullYear() + 1);
 
     // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
-    if (isFeb29 && dueDate.getMonth() === 2 && dueDate.getDate() === 1) {
-      dueDate.setMonth(1); // February
-      dueDate.setDate(28); // Feb 28
+    if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
+      baseDate.setMonth(1); // February
+      baseDate.setDate(28); // Feb 28
     }
 
-    return dueDate.toISOString().split('T')[0];
+    return baseDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'custom') {
@@ -90,45 +91,45 @@ const calculateNextDueDate = (currentDueDate, template) => {
 
     switch (unit) {
       case 'days':
-        dueDate.setDate(dueDate.getDate() + interval);
+        baseDate.setDate(baseDate.getDate() + interval);
         break;
       case 'weeks':
-        dueDate.setDate(dueDate.getDate() + (interval * 7));
+        baseDate.setDate(baseDate.getDate() + (interval * 7));
         break;
       case 'months': {
         // Smart Add Month: Clamp to last day of target month if day overflows
-        const originalDay = dueDate.getDate();
-        dueDate.setMonth(dueDate.getMonth() + interval);
+        const originalDay = baseDate.getDate();
+        baseDate.setMonth(baseDate.getMonth() + interval);
 
         // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
-        if (dueDate.getDate() !== originalDay) {
-          dueDate.setDate(0); // Sets to last day of previous month (the target month)
+        if (baseDate.getDate() !== originalDay) {
+          baseDate.setDate(0); // Sets to last day of previous month (the target month)
         }
         break;
       }
       case 'years': {
         // Smart Add Year: Handle Feb 29 in non-leap years
-        const originalMonth = dueDate.getMonth();
-        const originalDay = dueDate.getDate();
+        const originalMonth = baseDate.getMonth();
+        const originalDay = baseDate.getDate();
         const isFeb29 = originalMonth === 1 && originalDay === 29;
 
-        dueDate.setFullYear(dueDate.getFullYear() + interval);
+        baseDate.setFullYear(baseDate.getFullYear() + interval);
 
         // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
-        if (isFeb29 && dueDate.getMonth() === 2 && dueDate.getDate() === 1) {
-          dueDate.setMonth(1); // February
-          dueDate.setDate(28); // Feb 28
+        if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
+          baseDate.setMonth(1); // February
+          baseDate.setDate(28); // Feb 28
         }
         break;
       }
       default:
-        dueDate.setDate(dueDate.getDate() + 1);
+        baseDate.setDate(baseDate.getDate() + 1);
     }
-    return dueDate.toISOString().split('T')[0];
+    return baseDate.toISOString().split('T')[0];
   }
 
-  dueDate.setDate(dueDate.getDate() + 1);
-  return dueDate.toISOString().split('T')[0];
+  baseDate.setDate(baseDate.getDate() + 1);
+  return baseDate.toISOString().split('T')[0];
 };
 
 // Memoized task card component for performance
@@ -708,8 +709,8 @@ const Dashboard = ({ setActiveTab }) => {
           const template = templates.find(t => t.id === task.templateId);
 
           if (template) {
-            // Calculate the next due date based on the original task's due date
-            const nextDueDate = calculateNextDueDate(task.dueDate, template);
+            // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
+            const nextDueDate = calculateNextDueDate(task, template);
 
             // Create the new task instance for the next occurrence
             const nextOccurrence = {
@@ -718,6 +719,7 @@ const Dashboard = ({ setActiveTab }) => {
               description: template.description || '',
               url: template.url || null,
               dueDate: nextDueDate,
+              recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
               time: template.time || null,
               status: 'not-started',
               taskType: template.taskType || 'academic',
