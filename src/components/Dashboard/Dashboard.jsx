@@ -207,6 +207,9 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
     const diffTime = taskDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // Check if year differs from current year
+    const showYear = taskDate.getFullYear() !== now.getFullYear();
+
     // Format the date part
     let dateDisplay;
     if (diffDays === 0) {
@@ -215,10 +218,18 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       dateDisplay = 'Tomorrow';
     } else if (diffDays < 0) {
       // Overdue - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: showYear ? 'numeric' : undefined
+      });
     } else {
       // Future - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: showYear ? 'numeric' : undefined
+      });
     }
 
     // Add time if present
@@ -1502,13 +1513,20 @@ const Dashboard = ({ setActiveTab }) => {
                           const diffTime = taskDate - now;
                           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+                          // Check if year differs from current year
+                          const showYear = taskDate.getFullYear() !== now.getFullYear();
+
                           let dateDisplay;
                           if (diffDays === 0) {
                             dateDisplay = 'Today';
                           } else if (diffDays === 1) {
                             dateDisplay = 'Tomorrow';
                           } else {
-                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: showYear ? 'numeric' : undefined
+                            });
                           }
 
                           if (timeString) {
