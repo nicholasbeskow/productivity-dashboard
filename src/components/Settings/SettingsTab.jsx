@@ -546,22 +546,32 @@ const SettingsTab = () => {
 
             {/* On Break Toggle */}
             <div className="mt-4 pt-4 border-t border-bg-tertiary">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isOnBreak}
-                  onChange={handleOnBreakToggle}
-                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
-                />
-                <span className="text-text-secondary font-medium">On break?</span>
-              </label>
-              <p className="text-xs text-text-tertiary mt-2 ml-8">
+              <div className="flex items-center gap-3">
+                {/* Custom Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={() => handleOnBreakToggle({ target: { checked: !isOnBreak } })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isOnBreak ? 'bg-green-glow' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isOnBreak ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <label className="text-text-secondary font-medium cursor-pointer" onClick={() => handleOnBreakToggle({ target: { checked: !isOnBreak } })}>
+                  On break?
+                </label>
+              </div>
+              <p className="text-xs text-text-tertiary mt-2 ml-14">
                 Track your break progress before the semester starts
               </p>
 
               {/* Collapsible Break Start Date Input */}
               {isOnBreak && (
-                <div className="mt-3 ml-8">
+                <div className="mt-3 ml-14">
                   <label className="block text-sm text-text-secondary mb-2">
                     Break Start Date
                   </label>

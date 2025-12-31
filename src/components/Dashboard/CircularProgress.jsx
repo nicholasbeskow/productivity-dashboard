@@ -10,8 +10,14 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progressPercentage / 100) * circumference;
 
+  // Use yellow for break mode, green for semester mode
+  const isBreakMode = breakDaysLeft !== null;
+  const strokeColor = isBreakMode ? '#facc15' : '#3dd68c';
+  const glowColor = isBreakMode ? 'rgba(250, 204, 21, 0.4)' : 'rgba(61, 214, 140, 0.4)';
+  const textColorClass = isBreakMode ? 'text-yellow-400' : 'text-green-glow';
+
   return (
-    <div 
+    <div
       className="relative flex items-center justify-center cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -31,7 +37,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#3dd68c"
+          stroke={strokeColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={circumference}
@@ -39,7 +45,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
           strokeLinecap="round"
           className="transition-all duration-500 ease-out"
           style={{
-            filter: 'drop-shadow(0 0 8px rgba(61, 214, 140, 0.4))',
+            filter: `drop-shadow(0 0 8px ${glowColor})`,
           }}
         />
       </svg>
@@ -57,7 +63,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
             >
               {breakDaysLeft !== null ? (
                 <>
-                  <div className="text-4xl font-bold text-green-glow">
+                  <div className={`text-4xl font-bold ${textColorClass}`}>
                     {breakDaysLeft}
                   </div>
                   <div className="text-xs text-text-secondary mt-1">
@@ -66,7 +72,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
                 </>
               ) : (
                 <>
-                  <div className="text-4xl font-bold text-green-glow">
+                  <div className={`text-4xl font-bold ${textColorClass}`}>
                     {Math.round(progressPercentage)}%
                   </div>
                   <div className="text-xs text-text-secondary mt-1">
@@ -84,7 +90,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
               transition={{ duration: 0.15 }}
               className="flex flex-col items-center"
             >
-              <div className="text-4xl font-bold text-green-glow">
+              <div className={`text-4xl font-bold ${textColorClass}`}>
                 {daysRemaining > 0 ? daysRemaining : '🌴'}
               </div>
               <div className="text-xs text-text-secondary mt-1">

@@ -397,6 +397,15 @@ const Dashboard = ({ setActiveTab }) => {
       const startDate = new Date(semesterStartDate + 'T12:00:00');
       const endDate = new Date(semesterEndDate + 'T12:00:00');
 
+      // Auto-Shutoff Logic: If semester has started and break mode is active, turn it off
+      if (today >= startDate && breakStartDate) {
+        localStorage.removeItem('breakStartDate');
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('semesterDatesChanged'));
+        // Re-read to ensure we have the updated value
+        return; // Exit and let the event trigger a recalculation
+      }
+
       const diffTime = endDate - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
