@@ -15,6 +15,8 @@ const TaskForm = ({ onTaskCreate }) => {
   // Recurrence state
   const [recurrenceType, setRecurrenceType] = useState('does-not-repeat');
   const [weeklyDays, setWeeklyDays] = useState([]);
+  const [customInterval, setCustomInterval] = useState(1);
+  const [customUnit, setCustomUnit] = useState('days');
 
   const handleWeeklyDayToggle = (dayIndex) => {
     setWeeklyDays(prev =>
@@ -100,6 +102,28 @@ const TaskForm = ({ onTaskCreate }) => {
     // Check if this is a recurring task
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
+      // Build recurrence object based on type
+      let recurrence;
+      if (recurrenceType === 'custom') {
+        recurrence = {
+          type: 'custom',
+          interval: customInterval,
+          unit: customUnit,
+        };
+      } else if (recurrenceType === 'monthly') {
+        recurrence = { type: 'monthly' };
+      } else if (recurrenceType === 'yearly') {
+        recurrence = { type: 'yearly' };
+      } else if (recurrenceType === 'weekly') {
+        recurrence = {
+          type: 'weekly',
+          days: weeklyDays,
+        };
+      } else {
+        // daily or other types
+        recurrence = { type: recurrenceType };
+      }
+
       const template = {
         id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: title.trim(),
@@ -108,10 +132,7 @@ const TaskForm = ({ onTaskCreate }) => {
         time: time || null,
         taskType: taskType,
         attachments: attachments,
-        recurrence: {
-          type: recurrenceType, // 'daily' or 'weekly'
-          days: recurrenceType === 'weekly' ? weeklyDays : [],
-        },
+        recurrence: recurrence,
         createdAt: new Date().toISOString(),
       };
 
@@ -167,6 +188,15 @@ const TaskForm = ({ onTaskCreate }) => {
           nextOccurrence.setDate(nextOccurrence.getDate() + daysUntilNext);
           instanceDate = nextOccurrence.toISOString().split('T')[0];
         }
+      } else if (template.recurrence.type === 'monthly') {
+        // Monthly tasks are due today
+        instanceDate = todayString;
+      } else if (template.recurrence.type === 'yearly') {
+        // Yearly tasks are due today
+        instanceDate = todayString;
+      } else if (template.recurrence.type === 'custom') {
+        // Custom tasks are due today
+        instanceDate = todayString;
       }
 
       // Generate the instance with the calculated date
@@ -221,6 +251,8 @@ const TaskForm = ({ onTaskCreate }) => {
     setAttachments([]);
     setRecurrenceType('does-not-repeat');
     setWeeklyDays([]);
+    setCustomInterval(1);
+    setCustomUnit('days');
   };
 
   return (
@@ -375,6 +407,9 @@ const TaskForm = ({ onTaskCreate }) => {
             <option value="does-not-repeat">Does not repeat</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
           </select>
 
           {/* Weekly Day Toggles - Only show when Weekly is selected */}
@@ -404,6 +439,32 @@ const TaskForm = ({ onTaskCreate }) => {
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Interval - Only show when Custom is selected */}
+          {recurrenceType === 'custom' && (
+            <div className="mt-3">
+              <p className="text-xs text-text-tertiary mb-2">Repeat every:</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={customInterval}
+                  onChange={(e) => setCustomInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                />
+                <select
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value)}
+                  className="flex-1 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                >
+                  <option value="days">Days</option>
+                  <option value="weeks">Weeks</option>
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
               </div>
             </div>
           )}

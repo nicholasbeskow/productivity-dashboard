@@ -54,6 +54,39 @@ const calculateNextDueDate = (currentDueDate, template) => {
     return dueDate.toISOString().split('T')[0];
   }
 
+  if (recurrenceType === 'monthly') {
+    dueDate.setMonth(dueDate.getMonth() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  if (recurrenceType === 'yearly') {
+    dueDate.setFullYear(dueDate.getFullYear() + 1);
+    return dueDate.toISOString().split('T')[0];
+  }
+
+  if (recurrenceType === 'custom') {
+    const interval = template.recurrence.interval || 1;
+    const unit = template.recurrence.unit || 'days';
+
+    switch (unit) {
+      case 'days':
+        dueDate.setDate(dueDate.getDate() + interval);
+        break;
+      case 'weeks':
+        dueDate.setDate(dueDate.getDate() + (interval * 7));
+        break;
+      case 'months':
+        dueDate.setMonth(dueDate.getMonth() + interval);
+        break;
+      case 'years':
+        dueDate.setFullYear(dueDate.getFullYear() + interval);
+        break;
+      default:
+        dueDate.setDate(dueDate.getDate() + 1);
+    }
+    return dueDate.toISOString().split('T')[0];
+  }
+
   dueDate.setDate(dueDate.getDate() + 1);
   return dueDate.toISOString().split('T')[0];
 };
