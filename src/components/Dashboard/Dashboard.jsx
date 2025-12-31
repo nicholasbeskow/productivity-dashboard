@@ -55,12 +55,32 @@ const calculateNextDueDate = (currentDueDate, template) => {
   }
 
   if (recurrenceType === 'monthly') {
+    // Smart Add Month: Clamp to last day of target month if day overflows
+    const originalDay = dueDate.getDate();
     dueDate.setMonth(dueDate.getMonth() + 1);
+
+    // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
+    if (dueDate.getDate() !== originalDay) {
+      dueDate.setDate(0); // Sets to last day of previous month (the target month)
+    }
+
     return dueDate.toISOString().split('T')[0];
   }
 
   if (recurrenceType === 'yearly') {
+    // Smart Add Year: Handle Feb 29 in non-leap years
+    const originalMonth = dueDate.getMonth();
+    const originalDay = dueDate.getDate();
+    const isFeb29 = originalMonth === 1 && originalDay === 29;
+
     dueDate.setFullYear(dueDate.getFullYear() + 1);
+
+    // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
+    if (isFeb29 && dueDate.getMonth() === 2 && dueDate.getDate() === 1) {
+      dueDate.setMonth(1); // February
+      dueDate.setDate(28); // Feb 28
+    }
+
     return dueDate.toISOString().split('T')[0];
   }
 
@@ -75,12 +95,32 @@ const calculateNextDueDate = (currentDueDate, template) => {
       case 'weeks':
         dueDate.setDate(dueDate.getDate() + (interval * 7));
         break;
-      case 'months':
+      case 'months': {
+        // Smart Add Month: Clamp to last day of target month if day overflows
+        const originalDay = dueDate.getDate();
         dueDate.setMonth(dueDate.getMonth() + interval);
+
+        // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
+        if (dueDate.getDate() !== originalDay) {
+          dueDate.setDate(0); // Sets to last day of previous month (the target month)
+        }
         break;
-      case 'years':
+      }
+      case 'years': {
+        // Smart Add Year: Handle Feb 29 in non-leap years
+        const originalMonth = dueDate.getMonth();
+        const originalDay = dueDate.getDate();
+        const isFeb29 = originalMonth === 1 && originalDay === 29;
+
         dueDate.setFullYear(dueDate.getFullYear() + interval);
+
+        // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
+        if (isFeb29 && dueDate.getMonth() === 2 && dueDate.getDate() === 1) {
+          dueDate.setMonth(1); // February
+          dueDate.setDate(28); // Feb 28
+        }
         break;
+      }
       default:
         dueDate.setDate(dueDate.getDate() + 1);
     }
