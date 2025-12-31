@@ -1,4 +1,5 @@
 import { useState, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CircularProgress from './CircularProgress';
@@ -358,6 +359,44 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 });
 
 TaskCard.displayName = 'TaskCard';
+
+// Confetti Overlay Component using Portal
+const ConfettiOverlay = () => {
+  return createPortal(
+    <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+      {[...Array(50)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{
+            top: '-10%',
+            left: `${Math.random() * 100}%`,
+            opacity: 1
+          }}
+          animate={{
+            top: '110%',
+            opacity: 0,
+            rotate: Math.random() * 720,
+          }}
+          transition={{
+            duration: 2 + Math.random() * 3,
+            delay: Math.random() * 2,
+            repeat: Infinity,
+            repeatDelay: 0.5,
+            ease: 'linear',
+          }}
+          className="absolute"
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: i % 4 === 0 ? '#3dd68c' : i % 4 === 1 ? '#facc15' : i % 4 === 2 ? '#60a5fa' : '#f472b6',
+          }}
+        />
+      ))}
+    </div>,
+    document.body
+  );
+};
 
 const Dashboard = ({ setActiveTab }) => {
   const [userName, setUserName] = useState('');
@@ -1847,51 +1886,27 @@ const Dashboard = ({ setActiveTab }) => {
       {/* Semester End Modal */}
       <AnimatePresence>
         {showSemesterEndModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-            onClick={() => {}} // Prevent closing on backdrop click
-          >
-            {/* Confetti Animation - Full Screen */}
-            <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-              {[...Array(30)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ y: -20, x: `${Math.random() * 100}%`, opacity: 1 }}
-                  animate={{
-                    y: window.innerHeight + 20,
-                    x: `${Math.random() * 100}%`,
-                    opacity: 0,
-                    rotate: Math.random() * 720,
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    delay: i * 0.1,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                  }}
-                  className="absolute"
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: i % 4 === 0 ? '#3dd68c' : i % 4 === 1 ? '#facc15' : i % 4 === 2 ? '#60a5fa' : '#f472b6',
-                  }}
-                />
-              ))}
-            </div>
+          <>
+            {/* Confetti Overlay using Portal */}
+            <ConfettiOverlay />
 
-            {/* Modal Card */}
+            {/* Modal Backdrop and Card */}
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative z-[60]"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+              onClick={() => {}} // Prevent closing on backdrop click
             >
+              {/* Modal Card */}
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative z-[101]"
+                onClick={(e) => e.stopPropagation()}
+              >
 
               {/* Header */}
               <div className="text-center mb-6">
@@ -1954,8 +1969,9 @@ const Dashboard = ({ setActiveTab }) => {
                   Begin Break
                 </button>
               </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
