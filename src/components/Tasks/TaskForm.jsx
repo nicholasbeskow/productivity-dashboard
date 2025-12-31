@@ -527,7 +527,6 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               />
             </div>
           </div>
-        </div>
 
         {/* Task Type Toggle */}
         <div>
