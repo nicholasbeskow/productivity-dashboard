@@ -486,8 +486,9 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           />
         </div>
 
-        {/* Due Date and Time Row - Always visible for convenient editing */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Due Date and Time Row - Hide for weekly tasks (they use day selector) */}
+        {recurrenceType !== 'weekly' && (
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
                 <span>Due Date</span>
@@ -527,6 +528,22 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               />
             </div>
           </div>
+        )}
+
+        {/* Time input for weekly tasks (no date needed) */}
+        {recurrenceType === 'weekly' && (
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              Time (optional)
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            />
+          </div>
+        )}
 
         {/* Task Type Toggle */}
         <div>

@@ -142,7 +142,7 @@ const calculateNextDueDate = (task, template) => {
 };
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, onDelete, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -1427,76 +1427,60 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     setTasks(updatedTasks);
   };
 
-  const handleDelete = (taskId) => {
+  const handleDeleteInstance = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Check if this is a recurring task instance
-    if (task.templateId) {
-      // Show popup: Delete instance or template?
-      const deleteInstance = window.confirm(
-        'Delete this recurring task?\n\n[OK] = Delete just this one instance.\n[Cancel] = Delete the entire series (the template).'
-      );
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this task? This cannot be undone.'
+    );
 
-      if (deleteInstance) {
-        // Delete just this instance
-        const storedTasks = localStorage.getItem('tasks');
-        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    if (!confirmed) return;
 
-        const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+    // Read from localStorage to get full array
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-        backupManager.saveAutoBackup();
-        setTasks(updatedTasks);
-      } else {
-        // Delete the entire template (with safety confirmation)
-        const confirmDeleteTemplate = window.confirm(
-          `Are you sure you want to delete the entire "${task.title}" template? This will stop it from generating new tasks.`
-        );
+    // Remove the task
+    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
 
-        if (confirmDeleteTemplate) {
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
+    // Save to localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
 
-          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+    // Backup after save
+    backupManager.saveAutoBackup();
 
-          // Also delete all instances of this template from tasks
-          const storedTasks = localStorage.getItem('tasks');
-          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-          const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
+    // Update parent state
+    setTasks(updatedTasks);
+  };
 
-          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-          setTasks(updatedTasks);
+  const handleDeleteSeries = (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.templateId) return;
 
-          backupManager.saveAutoBackup();
-          window.dispatchEvent(new Event('storage'));
+    // Delete the entire template (with safety confirmation)
+    const confirmDeleteTemplate = window.confirm(
+      `Are you sure you want to delete the entire "${task.title}" series? This will delete the template and all future tasks.`
+    );
 
-          console.log('[TaskList] Deleted recurring template and its instances');
-        }
-      }
-    } else {
-      // Normal task - delete with confirmation
-      const confirmed = window.confirm(
-        'Are you sure you want to delete this task? This cannot be undone.'
-      );
+    if (confirmDeleteTemplate) {
+      const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+      const updatedTemplates = templates.filter(t => t.id !== task.templateId);
 
-      if (!confirmed) return;
+      localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
 
-      // Read from localStorage to get full array
+      // Also delete all instances of this template from tasks
       const storedTasks = localStorage.getItem('tasks');
       const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+      const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
 
-      // Remove the task
-      const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
-
-      // Save to localStorage
       localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-      // Backup after save
-      backupManager.saveAutoBackup();
-
-      // Update parent state
       setTasks(updatedTasks);
+
+      backupManager.saveAutoBackup();
+      window.dispatchEvent(new Event('storage'));
+
+      console.log('[TaskList] Deleted recurring template and its instances');
     }
   };
 
@@ -1627,7 +1611,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               onCancelEdit={handleCancelEdit}
               onEditFormChange={setEditForm}
               onDuplicate={handleDuplicate}
-              onDelete={handleDelete}
               isMenuOpen={openMenuTaskId === task.id}
               onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
               isEditingTemplate={isEditingTemplate}
@@ -1673,16 +1656,42 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               Duplicate
             </button>
             <div className="border-t border-bg-primary" />
-            <button
-              onClick={() => {
-                handleDelete(openMenuTaskId);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
+            {/* Show split delete options for recurring tasks */}
+            {tasks.find(t => t.id === openMenuTaskId)?.templateId ? (
+              <>
+                <button
+                  onClick={() => {
+                    handleDeleteInstance(openMenuTaskId);
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={14} />
+                  ❌ Delete This Task
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteSeries(openMenuTaskId);
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={14} />
+                  🔥 Delete Series
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  handleDeleteInstance(openMenuTaskId);
+                  setOpenMenuTaskId(null);
+                }}
+                className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            )}
           </motion.div>
         </AnimatePresence>,
         document.body

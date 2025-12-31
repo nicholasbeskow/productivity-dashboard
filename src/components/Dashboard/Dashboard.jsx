@@ -470,6 +470,8 @@ const Dashboard = ({ setActiveTab }) => {
     taskType: 'academic',
     attachments: []
   });
+  // Edit scope for recurring tasks
+  const [editScope, setEditScope] = useState('instance');
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -877,6 +879,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
+    setEditScope('instance'); // Reset to default scope
     setEditForm({
       title: task.title,
       description: task.description || '',
@@ -991,12 +994,8 @@ const Dashboard = ({ setActiveTab }) => {
 
     // Check if this is a recurring task instance
     if (task.templateId) {
-      // Show popup: Delete instance or template?
-      const deleteInstance = window.confirm(
-        'Delete this recurring task?\n\n[OK] = Delete just this one instance.\n[Cancel] = Delete the entire series (the template).'
-      );
-
-      if (deleteInstance) {
+      // Use editScope to determine whether to delete instance or series
+      if (editScope === 'instance') {
         // Delete just this instance
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
@@ -1082,12 +1081,8 @@ const Dashboard = ({ setActiveTab }) => {
 
     // Check if this is a recurring task instance
     if (task.templateId) {
-      // Show popup: Edit instance or template?
-      const editInstance = window.confirm(
-        'Edit this recurring task?\n\n[OK] = Edit just this one instance.\n[Cancel] = Edit the entire series (the template).'
-      );
-
-      if (editInstance) {
+      // Use editScope to determine whether to edit instance or series
+      if (editScope === 'instance') {
         // Edit just this instance
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
@@ -1786,6 +1781,39 @@ const Dashboard = ({ setActiveTab }) => {
                                     )}
                                   </div>
 
+                                  {/* Scope Selector for Recurring Tasks */}
+                                  {detailTask.templateId && (
+                                    <div>
+                                      <label className="block text-sm text-text-secondary mb-2">Edit Scope</label>
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditScope('instance')}
+                                          className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                                            editScope === 'instance'
+                                              ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                                              : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+                                          }`}
+                                        >
+                                          <div className="font-medium text-sm">This Instance Only</div>
+                                          <div className="text-xs mt-1 opacity-80">Update just this one task</div>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditScope('series')}
+                                          className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                                            editScope === 'series'
+                                              ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                                              : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+                                          }`}
+                                        >
+                                          <div className="font-medium text-sm">All Future Tasks</div>
+                                          <div className="text-xs mt-1 opacity-80">Update the entire series</div>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* Action Buttons */}
                                   <div className="space-y-3 pt-2">
                                     <div className="flex gap-3">
@@ -1812,7 +1840,10 @@ const Dashboard = ({ setActiveTab }) => {
                                       className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <Trash2 size={16} />
-                                      Delete Task
+                                      {detailTask.templateId
+                                        ? (editScope === 'instance' ? 'Delete Instance' : 'Delete Series')
+                                        : 'Delete Task'
+                                      }
                                     </button>
                                   </div>
                                 </>
