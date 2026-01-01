@@ -289,7 +289,7 @@ const SleepTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative ${
+          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             sleepEntry ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
@@ -449,8 +449,8 @@ const SleepTracker = () => {
 
             {/* Nap Duration */}
             <div className="mb-6">
-              <label className="block text-sm text-text-tertiary mb-2">
-                Nap Duration <span className="text-text-tertiary/60">(optional)</span>
+              <label className="block text-sm text-white/70 mb-2">
+                Nap Duration <span className="text-white/40">(optional)</span>
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -461,9 +461,9 @@ const SleepTracker = () => {
                   value={napDuration || ''}
                   onChange={(e) => setNapDuration(parseFloat(e.target.value) || 0)}
                   placeholder="0"
-                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-white placeholder-text-tertiary focus:border-purple-500 focus:outline-none transition-colors text-center"
+                  className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white placeholder-white/30 focus:border-purple-500/50 focus:outline-none transition-colors text-center"
                 />
-                <span className="text-sm text-text-tertiary">hours</span>
+                <span className="text-sm text-white/70">hours</span>
                 {napDuration > 0 && (
                   <span className="text-xs text-purple-400 ml-auto">
                     Total: {totalSleep}h
@@ -482,13 +482,13 @@ const SleepTracker = () => {
                     <motion.button
                       key={quality.level}
                       onClick={() => setSelectedQuality(quality)}
-                      className={`px-4 py-2 rounded-xl transition-all border-2 ${
+                      className={`px-4 py-2 rounded-xl transition-all ${
                         isSelected
-                          ? `${quality.color} border-current bg-bg-tertiary`
-                          : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-white/70'
+                          ? `${quality.color} liquid-bubble-filled`
+                          : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
                       }`}
                       style={{
-                        boxShadow: isSelected ? `0 0 15px ${quality.glowColor}` : 'none'
+                        boxShadow: isSelected ? `0 0 8px ${quality.glowColor}` : 'none'
                       }}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -507,7 +507,7 @@ const SleepTracker = () => {
                 value={sleepNotes}
                 onChange={(e) => setSleepNotes(e.target.value)}
                 placeholder="e.g., woke up multiple times, had vivid dreams..."
-                className="w-full h-24 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-white placeholder-text-tertiary focus:border-purple-500 focus:outline-none resize-none transition-colors"
+                className="w-full h-24 liquid-bubble-filled rounded-xl p-4 text-white placeholder-white/30 focus:border-purple-500/50 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -545,14 +545,14 @@ const SleepTracker = () => {
             </div>
 
             {/* Sleep Card */}
-            <div className="bg-bg-tertiary rounded-2xl p-6 text-center mb-6 border border-bg-primary">
+            <div className="liquid-bubble-filled rounded-2xl p-6 text-center mb-6">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Moon size={48} className="text-purple-400" />
                 <Sun size={32} className="text-yellow-500" />
               </div>
               <h2 className="text-3xl font-bold text-purple-400 mb-1">{totalSleep} hours</h2>
               {napDuration > 0 && (
-                <p className="text-xs text-text-tertiary mb-2">
+                <p className="text-xs text-white/60 mb-2">
                   {selectedHours}h night + {napDuration}h nap
                 </p>
               )}
@@ -562,7 +562,7 @@ const SleepTracker = () => {
 
             {/* Notes Card */}
             {sleepNotes && (
-              <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
+              <div className="liquid-bubble-filled rounded-2xl p-6 flex-1">
                 <h4 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Notes</h4>
                 <p className="text-white whitespace-pre-wrap leading-relaxed">
                   {sleepNotes}
@@ -574,7 +574,7 @@ const SleepTracker = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setView('log')}
-                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-white font-medium hover:border-purple-500 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 liquid-bubble-filled rounded-xl text-white font-medium hover:text-purple-400 transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={16} /> Edit
               </button>

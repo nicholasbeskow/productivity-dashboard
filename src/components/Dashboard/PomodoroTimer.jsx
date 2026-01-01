@@ -53,7 +53,7 @@ const TimerDisplay = ({
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           style={{
-            filter: `drop-shadow(0 0 4px ${currentColor}) drop-shadow(0 0 8px ${currentColor})`,
+            filter: `drop-shadow(0 0 2px ${currentColor})`,
             transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out, filter 0.5s ease-in-out'
           }}
         />

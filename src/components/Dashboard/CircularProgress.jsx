@@ -46,7 +46,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
           strokeLinecap="round"
           className="transition-all duration-500 ease-out"
           style={{
-            filter: `drop-shadow(0 0 4px ${strokeColor}) drop-shadow(0 0 8px ${strokeColor})`,
+            filter: `drop-shadow(0 0 2px ${strokeColor})`,
           }}
         />
       </svg>

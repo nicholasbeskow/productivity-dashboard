@@ -232,7 +232,7 @@ const MoodTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-xl transition-all relative ${
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             mood ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
@@ -334,13 +334,13 @@ const MoodTracker = () => {
                   <motion.button
                     key={mood.level}
                     onClick={() => setSelectedMood(mood)}
-                    className={`p-3 rounded-2xl transition-all border-2 ${
+                    className={`p-3 rounded-2xl transition-all ${
                       isSelected
-                        ? `${mood.color} border-current bg-bg-tertiary`
-                        : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-white/70'
+                        ? `${mood.color} liquid-bubble-filled`
+                        : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
                     }`}
                     style={{
-                      boxShadow: isSelected ? `0 0 20px ${mood.glowColor}` : 'none'
+                      boxShadow: isSelected ? `0 0 8px ${mood.glowColor}` : 'none'
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -358,7 +358,7 @@ const MoodTracker = () => {
                 value={currentJournalEntry}
                 onChange={(e) => setCurrentJournalEntry(e.target.value)}
                 placeholder="What's on your mind? (Optional)"
-                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-white placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
+                className="w-full h-32 liquid-bubble-filled rounded-xl p-4 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -396,7 +396,7 @@ const MoodTracker = () => {
             </div>
 
             {/* Mood Card */}
-            <div className="bg-bg-tertiary rounded-2xl p-6 text-center mb-6 border border-bg-primary">
+            <div className="liquid-bubble-filled rounded-2xl p-6 text-center mb-6">
               <selectedMood.icon size={64} className={`mx-auto mb-4 ${selectedMood.color}`} strokeWidth={1.5} />
               <h2 className={`text-2xl font-bold ${selectedMood.color}`}>{selectedMood.label}</h2>
               <p className="text-white/70 mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
@@ -404,7 +404,7 @@ const MoodTracker = () => {
 
             {/* Journal Card */}
             {currentJournalEntry && (
-              <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
+              <div className="liquid-bubble-filled rounded-2xl p-6 flex-1">
                 <h4 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Journal</h4>
                 <p className="text-white whitespace-pre-wrap leading-relaxed">
                   {currentJournalEntry}
@@ -416,7 +416,7 @@ const MoodTracker = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setView('select')}
-                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-white font-medium hover:border-green-glow transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 liquid-bubble-filled rounded-xl text-white font-medium hover:text-green-glow transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={16} /> Edit
               </button>
