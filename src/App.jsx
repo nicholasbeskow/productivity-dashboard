@@ -64,14 +64,12 @@ function App() {
     }
   }, []);
 
-  // Midnight scheduler: Generate recurring tasks
+  // Continuous recurring task generator - runs on-demand, no midnight scheduling
   useEffect(() => {
-    // Function to generate tasks from recurring templates
-    const runMidnightTaskGenerator = () => {
+    const generateRecurringTasks = () => {
       try {
-        console.log('[Task Generator] Running task generator...');
+        console.log('[Task Generator] Running continuous task generator...');
 
-        // Get today's date string (YYYY-MM-DD) in local timezone
         const todayString = getLocalISOString();
 
         // Get all recurring task templates
@@ -80,7 +78,6 @@ function App() {
 
         if (templates.length === 0) {
           console.log('[Task Generator] No recurring templates found.');
-          localStorage.setItem('taskGeneratorLastRun', todayString);
           return;
         }
 
@@ -105,10 +102,20 @@ function App() {
             shouldGenerate = true;
           } else if (template.recurrence && template.recurrence.type === 'weekly' && template.recurrence.days) {
             // Get today's day (0 = Sunday, 1 = Monday, etc.)
+            const today = new Date(todayString + 'T12:00:00');
             const dayOfWeek = today.getDay();
 
             // Check if today is one of the selected days
             shouldGenerate = template.recurrence.days.includes(dayOfWeek);
+          } else if (template.recurrence && template.recurrence.type === 'monthly') {
+            // Monthly tasks - generate on the same day of month
+            shouldGenerate = true;
+          } else if (template.recurrence && template.recurrence.type === 'yearly') {
+            // Yearly tasks - generate on the same date each year
+            shouldGenerate = true;
+          } else if (template.recurrence && template.recurrence.type === 'custom') {
+            // Custom intervals - generate every time (let completion handle next due date)
+            shouldGenerate = true;
           }
 
           if (!shouldGenerate) {
@@ -125,14 +132,14 @@ function App() {
             return; // Skip - already generated
           }
 
-          // Generate a new task instance with customPriority: 0
-          // This allows the task to be sorted by due date automatically
+          // Generate a new task instance
           const newTask = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             title: template.title,
             description: template.description || '',
             url: template.url || null,
             dueDate: todayString,
+            recurrenceAnchor: todayString,
             time: template.time || null,
             status: 'not-started',
             taskType: template.taskType || 'academic',
@@ -140,8 +147,7 @@ function App() {
             completedAt: null,
             attachments: template.attachments || [],
             customPriority: 0,
-            templateId: template.id, // Link to template
-            // Note: recurrence property is NOT added to instances
+            templateId: template.id,
           };
 
           tasks.push(newTask);
@@ -150,7 +156,7 @@ function App() {
         });
 
         if (newTasksGenerated > 0) {
-          // Save updated tasks - sorting by due date is handled by TasksTab
+          // Save updated tasks
           localStorage.setItem('tasks', JSON.stringify(tasks));
 
           // Trigger backup
@@ -163,51 +169,20 @@ function App() {
         } else {
           console.log('[Task Generator] No new tasks generated');
         }
-
-        // Mark that generator ran today
-        localStorage.setItem('taskGeneratorLastRun', todayString);
       } catch (error) {
         console.error('[Task Generator] Error generating tasks:', error);
       }
     };
 
-    // Function to schedule the next midnight run
-    const scheduleNextMidnightRun = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 1, 0); // Next midnight + 1 second
+    // Run on mount
+    generateRecurringTasks();
 
-      const msUntilMidnight = tomorrow - now;
-
-      console.log(`[Task Generator] Scheduling next run in ${Math.round(msUntilMidnight / 1000 / 60)} minutes`);
-
-      const timeoutId = setTimeout(() => {
-        console.log('[Task Generator] Midnight reached! Running task generator...');
-        runMidnightTaskGenerator();
-        scheduleNextMidnightRun(); // Schedule the next run (self-perpetuating)
-      }, msUntilMidnight);
-
-      return timeoutId;
-    };
-
-    // Check if generator has already run today
-    const today = getLocalISOString();
-    const lastRun = localStorage.getItem('taskGeneratorLastRun');
-
-    if (lastRun !== today) {
-      console.log('[Task Generator] Generator has not run today. Running now...');
-      runMidnightTaskGenerator();
-    } else {
-      console.log('[Task Generator] Generator already ran today.');
-    }
-
-    // Schedule the next midnight run
-    const timeoutId = scheduleNextMidnightRun();
+    // Run every 5 minutes while app is open (continuous check)
+    const intervalId = setInterval(generateRecurringTasks, 5 * 60 * 1000);
 
     // Cleanup on unmount
     return () => {
-      clearTimeout(timeoutId);
+      clearInterval(intervalId);
     };
   }, []);
 
