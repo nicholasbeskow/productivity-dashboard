@@ -232,17 +232,18 @@ const MoodTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-lg transition-all relative ${
-            isFuture ? 'opacity-30 cursor-not-allowed' :
-            isToday ? 'bg-bg-tertiary border border-green-glow' : 'hover:bg-bg-tertiary'
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative ${
+            isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
+            mood ? 'liquid-bubble-filled' :
+            isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
           }`}
-          whileHover={!isFuture ? { scale: 1.05 } : {}}
+          whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {mood ? (
             <mood.icon size={24} className={mood.color} strokeWidth={2} />
           ) : (
-            <span className="text-text-tertiary text-sm">{day}</span>
+            <span className="text-zinc-500 text-sm font-medium">{day}</span>
           )}
           {/* Sleep Indicator (top-right corner, inside cell) */}
           {sleepEntry && (

@@ -289,11 +289,12 @@ const SleepTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex flex-col items-center justify-center rounded-lg transition-all relative ${
-            isFuture ? 'opacity-30 cursor-not-allowed' :
-            isToday ? 'bg-bg-tertiary border border-purple-500' : 'hover:bg-bg-tertiary'
+          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative ${
+            isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
+            sleepEntry ? 'liquid-bubble-filled' :
+            isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
           }`}
-          whileHover={!isFuture ? { scale: 1.05 } : {}}
+          whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {sleepEntry ? (
@@ -304,7 +305,7 @@ const SleepTracker = () => {
               <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${getQualityColor(sleepEntry.quality)}`} />
             </>
           ) : (
-            <span className="text-text-tertiary text-sm">{day}</span>
+            <span className="text-zinc-500 text-sm font-medium">{day}</span>
           )}
         </motion.button>
       );
