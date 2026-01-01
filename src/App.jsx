@@ -174,16 +174,9 @@ function App() {
       }
     };
 
-    // Run on mount
+    // Run once on mount to catch up on any missed tasks
+    // No interval needed - task creation/completion already handles generation!
     generateRecurringTasks();
-
-    // Run every 5 minutes while app is open (continuous check)
-    const intervalId = setInterval(generateRecurringTasks, 5 * 60 * 1000);
-
-    // Cleanup on unmount
-    return () => {
-      clearInterval(intervalId);
-    };
   }, []);
 
   // Start backup system: automatic snapshots (on launch + daily at midnight)
