@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
+import { getToday, getTomorrow } from '../../utils/dateHelpers';
 
 const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
@@ -146,16 +147,11 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
   // Due date helper functions
   const setDueToday = () => {
-    const today = new Date();
-    const localDate = today.toISOString().split('T')[0];
-    setDueDate(localDate);
+    setDueDate(getToday());
   };
 
   const setDueTomorrow = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const localDate = tomorrow.toISOString().split('T')[0];
-    setDueDate(localDate);
+    setDueDate(getTomorrow());
   };
 
   const handleSubmit = (e) => {

@@ -6,7 +6,9 @@ import CircularProgress from './CircularProgress';
 import PomodoroTimer from './PomodoroTimer';
 import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
+import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
+import { dateToLocalISO } from '../../utils/dateHelpers';
 import { ArrowRight, Moon } from 'lucide-react';
 
 /**
@@ -571,7 +573,7 @@ const Dashboard = ({ setActiveTab }) => {
         // Calculate default values for next semester
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        setNextBreakStart(nextDay.toISOString().split('T')[0]);
+        setNextBreakStart(dateToLocalISO(nextDay));
 
         setShowSemesterEndModal(true);
       }
@@ -1658,255 +1660,87 @@ const Dashboard = ({ setActiveTab }) => {
                             {/* Task Details Card or Edit Form */}
                             <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
                               {isEditingDetail ? (
-                                /* Edit Form */
-                                <>
-                                  {/* Title Input */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Task Title <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={editForm.title}
-                                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                      placeholder="Enter task title"
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                      autoFocus
-                                    />
-                                  </div>
+                                /* Edit Form - Using TaskForm Component */
+                                <div className="space-y-4">
+                                  <TaskForm
+                                    initialData={detailTask}
+                                    onTaskCreate={(data) => {
+                                      // Extract scope from data (TaskForm includes it)
+                                      const { scope, ...updatedFields } = data;
 
-                                  {/* Description Textarea */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Description
-                                    </label>
-                                    <textarea
-                                      value={editForm.description}
-                                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                      placeholder="Enter task description (optional)"
-                                      rows={3}
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none transition-colors"
-                                    />
-                                  </div>
+                                      const task = detailTask;
 
-                                  {/* URL Input */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Related Link
-                                    </label>
-                                    <input
-                                      type="url"
-                                      value={editForm.url}
-                                      onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
-                                      placeholder="https://example.com"
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                    />
-                                  </div>
+                                      // Use scope to determine edit type
+                                      if (task.templateId && scope === 'series') {
+                                        // Save to template and all future instances
+                                        const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                        const updatedTemplates = templates.map(template => {
+                                          if (template.id === task.templateId) {
+                                            return {
+                                              ...template,
+                                              ...updatedFields,
+                                              recurrence: updatedFields.recurrence || template.recurrence,
+                                            };
+                                          }
+                                          return template;
+                                        });
 
-                                  {/* Due Date and Time Row */}
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm text-text-secondary mb-2">
-                                        Due Date
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={editForm.dueDate}
-                                        onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
-                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm text-text-secondary mb-2">
-                                        Time (optional)
-                                      </label>
-                                      <input
-                                        type="time"
-                                        value={editForm.time}
-                                        onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                      />
-                                    </div>
-                                  </div>
+                                        localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
 
-                                  {/* Task Type Toggle */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Task Type
-                                    </label>
-                                    <div className="flex gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditForm({ ...editForm, taskType: 'academic' })}
-                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                          editForm.taskType === 'academic'
-                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                                        }`}
-                                      >
-                                        📚 Academic
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditForm({ ...editForm, taskType: 'personal' })}
-                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                          editForm.taskType === 'personal'
-                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                                        }`}
-                                      >
-                                        🏠 Personal
-                                      </button>
-                                    </div>
-                                  </div>
+                                        // Update all existing instances
+                                        const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                        const updatedTasks = storedTasks.map(t => {
+                                          if (t.templateId === task.templateId) {
+                                            return {
+                                              ...t,
+                                              ...updatedFields,
+                                              // Keep instance-specific fields
+                                              dueDate: t.dueDate,
+                                              status: t.status,
+                                              completedAt: t.completedAt,
+                                              recurrenceAnchor: t.recurrenceAnchor,
+                                            };
+                                          }
+                                          return t;
+                                        });
 
-                                  {/* Status Select */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Status
-                                    </label>
-                                    <select
-                                      value={editForm.status}
-                                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                    >
-                                      <option value="not-started">Not Started</option>
-                                      <option value="in-progress">In Progress</option>
-                                      <option value="complete">Complete</option>
-                                    </select>
-                                  </div>
+                                        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                        setTasks(updatedTasks);
+                                        backupManager.saveAutoBackup();
+                                        window.dispatchEvent(new Event('storage'));
+                                      } else {
+                                        // Save to just this instance
+                                        const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                        const updatedTasks = storedTasks.map(t => {
+                                          if (t.id === task.id) {
+                                            return {
+                                              ...t,
+                                              ...updatedFields,
+                                            };
+                                          }
+                                          return t;
+                                        });
 
-                                  {/* File Attachments */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      File Attachments
-                                    </label>
+                                        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                        setTasks(updatedTasks);
+                                        backupManager.saveAutoBackup();
+                                        window.dispatchEvent(new Event('storage'));
+                                      }
+
+                                      // Close edit mode
+                                      handleCancelEdit();
+                                    }}
+                                  />
+
+                                  {/* Cancel and Delete Buttons */}
+                                  <div className="space-y-3">
                                     <button
-                                      type="button"
-                                      onClick={handleAttachFilesClick}
-                                      className="w-full px-4 py-2 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                      onClick={handleCancelEdit}
+                                      className="w-full px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
-                                      <FileText size={16} />
-                                      Attach More Files
+                                      <X size={16} />
+                                      Cancel
                                     </button>
-
-                                    {/* Attached Files List */}
-                                    {editForm.attachments && editForm.attachments.length > 0 && (
-                                      <div className="mt-3 space-y-2">
-                                        {editForm.attachments.map((filePath, index) => {
-                                          const fileName = filePath.split(/[\\/]/).pop();
-                                          const isDragging = draggedAttachmentIndex === index;
-                                          const isDragOver = dragOverAttachmentIndex === index;
-                                          return (
-                                            <div
-                                              key={index}
-                                              draggable
-                                              onDragStart={(e) => handleAttachmentDragStart(e, index)}
-                                              onDragOver={(e) => handleAttachmentDragOver(e, index)}
-                                              onDrop={(e) => handleAttachmentDrop(e, index)}
-                                              onDragEnd={handleAttachmentDragEnd}
-                                              className={`flex items-center gap-2 bg-bg-secondary rounded-lg px-3 py-2 border transition-all ${
-                                                isDragging ? 'opacity-50 border-green-glow' :
-                                                isDragOver ? 'border-green-glow shadow-lg' :
-                                                'border-bg-primary'
-                                              }`}
-                                            >
-                                              {/* Drag Handle */}
-                                              <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
-                                                <GripVertical size={16} />
-                                              </div>
-
-                                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <FileText size={14} className="text-green-glow flex-shrink-0" />
-                                                <span className="text-xs text-text-primary truncate" title={filePath}>
-                                                  {fileName}
-                                                </span>
-                                              </div>
-                                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleShowInFolder(filePath)}
-                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
-                                                  title="Show in Folder"
-                                                >
-                                                  <Folder size={14} className="text-green-glow" />
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleOpenFile(filePath)}
-                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
-                                                  title="Open file"
-                                                >
-                                                  <ExternalLink size={14} className="text-green-glow" />
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleRemoveAttachment(filePath)}
-                                                  className="p-1 hover:bg-red-500/20 rounded transition-colors"
-                                                  title="Remove attachment"
-                                                >
-                                                  <X size={14} className="text-red-500" />
-                                                </button>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Scope Selector for Recurring Tasks */}
-                                  {detailTask.templateId && (
-                                    <div>
-                                      <label className="block text-sm text-text-secondary mb-2">Edit Scope</label>
-                                      <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditScope('instance')}
-                                          className={`px-4 py-3 rounded-lg border-2 transition-all ${
-                                            editScope === 'instance'
-                                              ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
-                                              : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
-                                          }`}
-                                        >
-                                          <div className="font-medium text-sm">This Instance Only</div>
-                                          <div className="text-xs mt-1 opacity-80">Update just this one task</div>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditScope('series')}
-                                          className={`px-4 py-3 rounded-lg border-2 transition-all ${
-                                            editScope === 'series'
-                                              ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
-                                              : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
-                                          }`}
-                                        >
-                                          <div className="font-medium text-sm">All Future Tasks</div>
-                                          <div className="text-xs mt-1 opacity-80">Update the entire series</div>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Action Buttons */}
-                                  <div className="space-y-3 pt-2">
-                                    <div className="flex gap-3">
-                                      <button
-                                        onClick={() => handleSaveEdit(detailTask.id)}
-                                        disabled={!editForm.title.trim()}
-                                        className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                                      >
-                                        <Save size={16} />
-                                        Save Changes
-                                      </button>
-                                      <button
-                                        onClick={handleCancelEdit}
-                                        className="px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                                      >
-                                        <X size={16} />
-                                        Cancel
-                                      </button>
-                                    </div>
 
                                     {/* Delete Button */}
                                     <button
@@ -1920,7 +1754,7 @@ const Dashboard = ({ setActiveTab }) => {
                                       }
                                     </button>
                                   </div>
-                                </>
+                                </div>
                               ) : (
                                 /* Detail View */
                                 <>
