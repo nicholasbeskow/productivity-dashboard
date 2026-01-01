@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Notification, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const axios = require('axios');
 const Store = require('electron-store');
 const { exec } = require('child_process');
@@ -25,6 +26,7 @@ const initialWorkMinutes = store.get('pomodoroWorkDuration', 50);
 const initialBreakMinutes = store.get('pomodoroBreakDuration', 10);
 
 let timerInterval = null;
+let timerTargetEndTime = null; // Target timestamp when timer should end (ms)
 let timerState = {
   mode: 'idle', // 'work', 'break', 'idle'
   timeLeft: initialWorkMinutes * 60, // Initialize with loaded work duration in seconds
@@ -129,22 +131,32 @@ function startTimer() {
   // ---------------------------------------
 
   timerState.isActive = true;
+
+  // Calculate target end time for drift-free timer
+  // Store when the timer should end (current time + remaining seconds)
+  timerTargetEndTime = Date.now() + (timerState.timeLeft * 1000);
+
   sendTimerUpdate();
 
-  // Start countdown interval
+  // Start countdown interval with drift compensation
   timerInterval = setInterval(() => {
-    timerState.timeLeft--;
+    // Calculate actual time remaining using Date.now() comparison
+    const now = Date.now();
+    const msRemaining = timerTargetEndTime - now;
+    const secondsRemaining = Math.ceil(msRemaining / 1000);
+
+    // Update timeLeft based on actual time remaining (drift-free)
+    timerState.timeLeft = Math.max(0, secondsRemaining);
 
     if (timerState.timeLeft <= 0) {
       // Timer reached zero - switch modes
       clearInterval(timerInterval);
       timerInterval = null;
+      timerTargetEndTime = null;
 
       const finishedMode = timerState.mode;
       let nextMode;
       let nextDuration;
-      let notificationTitle = '';
-      let notificationBody = '';
 
       if (finishedMode === 'work') {
         // Work completed -> Break
@@ -185,6 +197,8 @@ function stopTimer() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  // Clear target end time when stopping
+  timerTargetEndTime = null;
   timerState.isActive = false;
   sendTimerUpdate();
 }
@@ -302,14 +316,17 @@ ipcMain.handle('settings:get-focus-config', async () => {
 // BACKUP SYSTEM IPC HANDLERS
 // ============================================
 
-// Get backups directory path
-const getBackupsDir = () => {
+// Get backups directory path (async)
+const getBackupsDir = async () => {
   const userDataPath = app.getPath('userData');
   const backupsDir = path.join(userDataPath, 'backups');
 
   // Create backups directory if it doesn't exist
-  if (!fs.existsSync(backupsDir)) {
-    fs.mkdirSync(backupsDir, { recursive: true });
+  try {
+    await fsPromises.access(backupsDir);
+  } catch {
+    // Directory doesn't exist, create it
+    await fsPromises.mkdir(backupsDir, { recursive: true });
   }
 
   return backupsDir;
@@ -318,22 +335,31 @@ const getBackupsDir = () => {
 // Save auto-backup (Level 1)
 ipcMain.handle('backup:save-auto', async (event, data) => {
   try {
-    const backupsDir = getBackupsDir();
+    const backupsDir = await getBackupsDir();
     const filePath = path.join(backupsDir, 'auto-backup.json');
     const previousPath = path.join(backupsDir, 'auto-save-previous.json'); // Path for the older backup
 
     // Step 1: Check if the current auto-backup exists
-    if (fs.existsSync(filePath)) {
+    try {
+      await fsPromises.access(filePath);
+      // File exists, proceed with rotation
+
       // Step 2: If 'auto-save-previous.json' already exists, delete it
-      if (fs.existsSync(previousPath)) {
-        fs.unlinkSync(previousPath);
+      try {
+        await fsPromises.access(previousPath);
+        await fsPromises.unlink(previousPath);
+      } catch {
+        // Previous file doesn't exist, no need to delete
       }
+
       // Step 3: Rename 'auto-backup.json' to 'auto-save-previous.json'
-      fs.renameSync(filePath, previousPath);
+      await fsPromises.rename(filePath, previousPath);
+    } catch {
+      // Current auto-backup doesn't exist, skip rotation
     }
 
     // Step 4: Write the new 'auto-backup.json' file
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 
     return { success: true, path: filePath };
   } catch (error) {
@@ -345,15 +371,16 @@ ipcMain.handle('backup:save-auto', async (event, data) => {
 // Save timestamped snapshot (Level 2)
 ipcMain.handle('backup:save-snapshot', async (event, data) => {
   try {
-    const backupsDir = getBackupsDir();
+    const backupsDir = await getBackupsDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(backupsDir, `snapshot-${timestamp}.json`);
 
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 
     // --- Cleanup Logic: Keep only the 10 most recent snapshots ---
     // Get all snapshot files, sort them by name (newest first)
-    const allSnapshots = fs.readdirSync(backupsDir)
+    const allFiles = await fsPromises.readdir(backupsDir);
+    const allSnapshots = allFiles
       .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
       .sort() // Sorts alphabetically, which works for ISO timestamps (oldest to newest)
       .reverse(); // Reverse to get newest first
@@ -363,7 +390,15 @@ ipcMain.handle('backup:save-snapshot', async (event, data) => {
       const filesToDelete = allSnapshots.slice(10); // Get all files *after* the 10th one
       console.log(`[Backup] Cleaning up ${filesToDelete.length} old snapshots.`);
       for (const file of filesToDelete) {
-        fs.unlinkSync(path.join(backupsDir, file));
+        try {
+          await fsPromises.unlink(path.join(backupsDir, file));
+        } catch (error) {
+          // Ignore ENOENT errors (file already deleted)
+          if (error.code !== 'ENOENT') {
+            console.error(`[Backup] Failed to delete snapshot ${file}:`, error.message);
+            // Don't throw - continue with other deletions
+          }
+        }
       }
     }
     // --- End of Cleanup Logic ---
@@ -378,21 +413,23 @@ ipcMain.handle('backup:save-snapshot', async (event, data) => {
 // List all backup files
 ipcMain.handle('backup:list', async () => {
   try {
-    const backupsDir = getBackupsDir();
-    const files = fs.readdirSync(backupsDir);
+    const backupsDir = await getBackupsDir();
+    const files = await fsPromises.readdir(backupsDir);
 
-    const backups = files
+    const backupsPromises = files
       .filter(f => f.endsWith('.json'))
-      .map(f => {
+      .map(async (f) => {
         const filePath = path.join(backupsDir, f);
-        const stats = fs.statSync(filePath);
+        const stats = await fsPromises.stat(filePath);
         return {
           name: f,
           path: filePath,
           size: stats.size,
           modified: stats.mtime.toISOString(),
         };
-      })
+      });
+
+    const backups = (await Promise.all(backupsPromises))
       .sort((a, b) => new Date(b.modified) - new Date(a.modified));
 
     return { success: true, backups };
@@ -405,14 +442,17 @@ ipcMain.handle('backup:list', async () => {
 // Load backup file
 ipcMain.handle('backup:load', async (event, fileName) => {
   try {
-    const backupsDir = getBackupsDir();
+    const backupsDir = await getBackupsDir();
     const filePath = path.join(backupsDir, fileName);
 
-    if (!fs.existsSync(filePath)) {
+    // Check if file exists
+    try {
+      await fsPromises.access(filePath);
+    } catch {
       return { success: false, error: 'Backup file not found' };
     }
 
-    const data = fs.readFileSync(filePath, 'utf8');
+    const data = await fsPromises.readFile(filePath, 'utf8');
     const parsed = JSON.parse(data);
 
     return { success: true, data: parsed };
@@ -438,7 +478,7 @@ ipcMain.handle('backup:export', async (event, data) => {
       return { success: false, canceled: true };
     }
 
-    fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf8');
+    await fsPromises.writeFile(result.filePath, JSON.stringify(data, null, 2), 'utf8');
 
     return { success: true, path: result.filePath };
   } catch (error) {
@@ -464,7 +504,7 @@ ipcMain.handle('backup:import', async () => {
     }
 
     const filePath = result.filePaths[0];
-    const data = fs.readFileSync(filePath, 'utf8');
+    const data = await fsPromises.readFile(filePath, 'utf8');
     const parsed = JSON.parse(data);
 
     return { success: true, data: parsed, path: filePath };
@@ -477,14 +517,17 @@ ipcMain.handle('backup:import', async () => {
 // Delete backup file
 ipcMain.handle('backup:delete', async (event, fileName) => {
   try {
-    const backupsDir = getBackupsDir();
+    const backupsDir = await getBackupsDir();
     const filePath = path.join(backupsDir, fileName);
 
-    if (!fs.existsSync(filePath)) {
+    // Check if file exists
+    try {
+      await fsPromises.access(filePath);
+    } catch {
       return { success: false, error: 'Backup file not found' };
     }
 
-    fs.unlinkSync(filePath);
+    await fsPromises.unlink(filePath);
 
     return { success: true };
   } catch (error) {

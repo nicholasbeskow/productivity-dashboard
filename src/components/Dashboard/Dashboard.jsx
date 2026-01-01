@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef } from 'react';
+import { useState, useEffect, memo, useRef, useMemo } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -1125,43 +1125,46 @@ const Dashboard = ({ setActiveTab }) => {
   };
 
   // Sort and limit tasks for dashboard - show top 5
-  const displayTasks = tasks
-    .filter(task => {
-      if (taskFilter === 'all') return true;
-      if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
-      if (taskFilter === 'personal') return task.taskType === 'personal';
-      return true;
-    })
-    .sort((a, b) => {
-      const aOverdue = isOverdue(a);
-      const bOverdue = isOverdue(b);
+  // Memoized to prevent expensive recalculation on every render
+  const displayTasks = useMemo(() => {
+    return tasks
+      .filter(task => {
+        if (taskFilter === 'all') return true;
+        if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
+        if (taskFilter === 'personal') return task.taskType === 'personal';
+        return true;
+      })
+      .sort((a, b) => {
+        const aOverdue = isOverdue(a);
+        const bOverdue = isOverdue(b);
 
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
 
-      if (aOverdue && bOverdue) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
+        if (aOverdue && bOverdue) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
 
-      const aHasPriority = (a.customPriority ?? 0) > 0;
-      const bHasPriority = (b.customPriority ?? 0) > 0;
+        const aHasPriority = (a.customPriority ?? 0) > 0;
+        const bHasPriority = (b.customPriority ?? 0) > 0;
 
-      if (aHasPriority && !bHasPriority) return -1;
-      if (!aHasPriority && bHasPriority) return 1;
+        if (aHasPriority && !bHasPriority) return -1;
+        if (!aHasPriority && bHasPriority) return 1;
 
-      if (aHasPriority && bHasPriority) {
-        return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-      }
+        if (aHasPriority && bHasPriority) {
+          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
+        }
 
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && b.dueDate) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        if (a.dueDate && b.dueDate) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
 
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    })
-    .slice(0, 5); // Show up to 5 tasks
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+      .slice(0, 5); // Show up to 5 tasks
+  }, [tasks, taskFilter]);
 
   // Format user name - capitalize first letter of each word
   const formatUserName = (name) => {
@@ -1178,69 +1181,6 @@ const Dashboard = ({ setActiveTab }) => {
 
   return (
     <>
-      <style>
-        {`
-          .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
-            transition: box-shadow 200ms ease-in-out;
-          }
-
-          .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
-          }
-
-          .task-glow-in-progress {
-            box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
-            transition: box-shadow 200ms ease-in-out;
-          }
-
-          .task-glow-in-progress:hover {
-            box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
-          }
-
-          .task-glow-complete {
-            box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
-            transition: box-shadow 200ms ease-in-out;
-          }
-
-          .task-glow-complete:hover {
-            box-shadow: 0 0 18px rgba(61, 214, 140, 0.4);
-          }
-
-          .task-glow-overdue {
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
-            transition: box-shadow 200ms ease-in-out;
-          }
-
-          .task-glow-overdue:hover {
-            box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
-          }
-
-          /* Checkbox hover effects */
-          .checkbox-not-started:hover svg {
-            stroke: rgb(100, 200, 255);
-            stroke-width: 2.5;
-            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
-          }
-
-          .checkbox-in-progress:hover svg {
-            stroke: rgb(255, 200, 50);
-            stroke-width: 2.5;
-            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
-          }
-
-          .checkbox-overdue:hover svg {
-            stroke: rgb(255, 50, 50);
-            stroke-width: 2.5;
-            transition: stroke 200ms ease-in-out, stroke-width 200ms ease-in-out;
-          }
-
-          .checkbox-complete:hover svg {
-            stroke: rgb(61, 214, 140);
-            transition: stroke 200ms ease-in-out;
-          }
-        `}
-      </style>
       <div className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
