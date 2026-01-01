@@ -62,3 +62,79 @@ export const dateToLocalISO = (date) => {
   const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
   return local.toISOString().split('T')[0];
 };
+
+/**
+ * Parse a local date string (YYYY-MM-DD) into a Date object set to midnight local time.
+ * This replaces the "noon hack" (appending T12:00:00) throughout the codebase.
+ *
+ * IMPORTANT: This creates a Date with midnight local time, NOT UTC midnight.
+ * This ensures date comparisons work correctly without timezone shifts.
+ *
+ * @param {string} dateString - Date in YYYY-MM-DD format
+ * @returns {Date} - Date object set to midnight local time
+ *
+ * @example
+ * // Instead of: new Date(dateString + 'T12:00:00')
+ * // Use: parseLocalDate(dateString)
+ * const date = parseLocalDate('2025-01-15'); // January 15, 2025 at 00:00:00 local time
+ */
+export const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+
+  // Split the date string into components
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create Date using local time components (month is 0-indexed)
+  // This avoids timezone shifts that occur when parsing ISO strings
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
+/**
+ * Parse a local date string (YYYY-MM-DD) and set it to noon local time.
+ * Use this when you need a mid-day timestamp to avoid timezone edge cases.
+ *
+ * @param {string} dateString - Date in YYYY-MM-DD format
+ * @returns {Date} - Date object set to noon local time
+ */
+export const parseLocalDateAtNoon = (dateString) => {
+  if (!dateString) return null;
+
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create Date at noon local time
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
+/**
+ * Compare two date strings (YYYY-MM-DD) for equality.
+ * This is safer than creating Date objects and comparing them directly.
+ *
+ * @param {string} date1 - First date in YYYY-MM-DD format
+ * @param {string} date2 - Second date in YYYY-MM-DD format
+ * @returns {boolean} - True if dates are equal
+ */
+export const isSameDate = (date1, date2) => {
+  return date1 === date2;
+};
+
+/**
+ * Check if a date string (YYYY-MM-DD) is before another date string.
+ *
+ * @param {string} date1 - First date in YYYY-MM-DD format
+ * @param {string} date2 - Second date in YYYY-MM-DD format
+ * @returns {boolean} - True if date1 is before date2
+ */
+export const isDateBefore = (date1, date2) => {
+  return date1 < date2;
+};
+
+/**
+ * Check if a date string (YYYY-MM-DD) is after another date string.
+ *
+ * @param {string} date1 - First date in YYYY-MM-DD format
+ * @param {string} date2 - Second date in YYYY-MM-DD format
+ * @returns {boolean} - True if date1 is after date2
+ */
+export const isDateAfter = (date1, date2) => {
+  return date1 > date2;
+};
