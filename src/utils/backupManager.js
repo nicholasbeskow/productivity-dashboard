@@ -28,6 +28,7 @@ class BackupManager {
     const localData = {
       tasks: JSON.parse(localStorage.getItem('tasks') || '[]'),
       completedTasks: JSON.parse(localStorage.getItem('completedTasks') || '[]'),
+      recurringTasks: JSON.parse(localStorage.getItem('recurringTasks') || '[]'),
       moodLog: JSON.parse(localStorage.getItem('moodLog') || '[]'),
       journalLog: JSON.parse(localStorage.getItem('journalLog') || '[]'),
       sleepLog: JSON.parse(localStorage.getItem('sleepLog') || '[]'),
@@ -73,6 +74,7 @@ class BackupManager {
       // 1. Restore renderer-side data to localStorage
       if (data.tasks) localStorage.setItem('tasks', JSON.stringify(data.tasks));
       if (data.completedTasks) localStorage.setItem('completedTasks', JSON.stringify(data.completedTasks));
+      if (data.recurringTasks) localStorage.setItem('recurringTasks', JSON.stringify(data.recurringTasks));
       if (data.moodLog) localStorage.setItem('moodLog', JSON.stringify(data.moodLog));
       if (data.journalLog) localStorage.setItem('journalLog', JSON.stringify(data.journalLog));
       if (data.sleepLog) localStorage.setItem('sleepLog', JSON.stringify(data.sleepLog));

@@ -132,6 +132,19 @@ function App() {
             return; // Skip - already generated
           }
 
+          // For weekly tasks: prevent duplicates from early completions
+          // Check if any incomplete instance already exists (regardless of date)
+          if (template.recurrence && template.recurrence.type === 'weekly') {
+            const incompleteInstanceExists = tasks.some(task => {
+              return task.templateId === template.id && task.status !== 'complete';
+            });
+
+            if (incompleteInstanceExists) {
+              console.log(`[Task Generator] Incomplete weekly task already exists for template "${template.title}"`);
+              return; // Skip - incomplete instance exists
+            }
+          }
+
           // Generate a new task instance
           const newTask = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

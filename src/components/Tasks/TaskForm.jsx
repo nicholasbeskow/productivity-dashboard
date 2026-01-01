@@ -34,13 +34,29 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setTaskType(initialData.taskType || 'academic');
       setAttachments(initialData.attachments || []);
 
-      // Check if this is a recurring task (has recurrence or templateId/recurrenceId)
-      const isRecurring = !!(initialData.recurrence || initialData.templateId || initialData.recurrenceId);
+      // BUG FIX: If task instance has templateId but no recurrence, fetch from template
+      let recurrence = initialData.recurrence;
+      if (!recurrence && initialData.templateId) {
+        try {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const template = templates.find(t => t.id === initialData.templateId);
+          if (template && template.recurrence) {
+            recurrence = template.recurrence;
+          } else if (!template) {
+            console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+          }
+        } catch (error) {
+          console.error('Error fetching template recurrence:', error);
+        }
+      }
+
+      // Check if this is a recurring task (has recurrence or templateId)
+      const isRecurring = !!(recurrence || initialData.templateId);
       setIsRecurringEdit(isRecurring);
 
       // Handle recurrence fields - crucial for editing recurring tasks
-      if (initialData.recurrence) {
-        const { type, days, interval, unit } = initialData.recurrence;
+      if (recurrence) {
+        const { type, days, interval, unit } = recurrence;
 
         // Set recurrence type - matches the template type
         setRecurrenceType(type || 'does-not-repeat');
@@ -173,6 +189,16 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       return;
     }
 
+    // Validate weekly days selection
+    if (recurrenceType === 'weekly' && weeklyDays.length === 0 && dueDate) {
+      const currentDay = new Date(dueDate).getDay();
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const confirmed = window.confirm(
+        `No days selected for weekly recurrence. The task will repeat on ${dayNames[currentDay]}s (based on the due date). Continue?`
+      );
+      if (!confirmed) return;
+    }
+
     // If editing, pass data to parent with scope
     if (initialData) {
       const updatedTaskData = {
@@ -189,12 +215,9 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
       // Handle recurrenceAnchor based on edit scope
       if (editScope === 'instance') {
-        // Edit instance only: Update dueDate but keep recurrenceAnchor unchanged
-        // If recurrenceAnchor is missing (legacy task), set it to the original dueDate
-        if (!initialData.recurrenceAnchor && initialData.dueDate) {
-          updatedTaskData.recurrenceAnchor = initialData.dueDate;
-        }
-        // Otherwise, keep existing recurrenceAnchor (don't update it)
+        // Edit instance only: Keep recurrenceAnchor unchanged (preserves original planned date)
+        // Explicitly set it to ensure it's included in the returned object
+        updatedTaskData.recurrenceAnchor = initialData.recurrenceAnchor || initialData.dueDate || null;
       } else if (editScope === 'series') {
         // Edit series: Update both dueDate and recurrenceAnchor to shift the schedule
         updatedTaskData.recurrenceAnchor = dueDate || null;
