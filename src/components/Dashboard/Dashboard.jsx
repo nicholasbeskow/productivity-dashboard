@@ -1538,24 +1538,40 @@ const Dashboard = ({ setActiveTab }) => {
                                             const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
                                             const newCompletedTasks = completedTasks.filter(t => t.templateId !== detailTask.templateId);
 
-                                            // 2. CREATE NEW template and instance
+                                            // 2. CREATE NEW template - ONLY template-specific properties (no dueDate, status, etc.)
                                             const newTemplateId = 'template-' + Date.now();
-                                            newTemplates.push({
-                                              ...updatedFields,
+                                            const newTemplate = {
                                               id: newTemplateId,
+                                              title: updatedFields.title,
+                                              description: updatedFields.description || '',
+                                              url: updatedFields.url || null,
+                                              time: updatedFields.time || null,
+                                              taskType: updatedFields.taskType || 'academic',
+                                              attachments: updatedFields.attachments || [],
+                                              recurrence: updatedFields.recurrence,
                                               createdAt: new Date().toISOString()
-                                            });
+                                            };
+                                            newTemplates.push(newTemplate);
 
-                                            newTasks.push({
-                                              ...updatedFields,
+                                            // 3. CREATE NEW instance - ONLY instance-specific properties (no recurrence object)
+                                            const instanceDueDate = updatedFields.dueDate || detailTask.dueDate;
+                                            const newInstance = {
                                               id: detailTask.id,
+                                              title: updatedFields.title,
+                                              description: updatedFields.description || '',
+                                              url: updatedFields.url || null,
+                                              dueDate: instanceDueDate,
+                                              time: updatedFields.time || null,
+                                              taskType: updatedFields.taskType || 'academic',
+                                              attachments: updatedFields.attachments || [],
                                               templateId: newTemplateId,
-                                              recurrenceAnchor: updatedFields.dueDate || detailTask.dueDate,
+                                              recurrenceAnchor: instanceDueDate,
                                               customPriority: 0,
                                               status: detailTask.status || 'not-started',
                                               createdAt: detailTask.createdAt || new Date().toISOString(),
                                               completedAt: null
-                                            });
+                                            };
+                                            newTasks.push(newInstance);
 
                                             localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
                                             localStorage.setItem('tasks', JSON.stringify(newTasks));
@@ -1564,7 +1580,7 @@ const Dashboard = ({ setActiveTab }) => {
                                             handleCancelEdit();
                                             backupManager.saveAutoBackup();
                                             window.dispatchEvent(new Event('storage'));
-                                            console.log('[Dashboard] Nuclear rebuild complete:', { newTasks: newTasks.length, newTemplates: newTemplates.length });
+                                            console.log('[Dashboard] Nuclear rebuild complete:', { newTemplate, newInstance });
                                             return;
                                           }
 

@@ -808,47 +808,65 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
     // Check if editing a recurring task with 'series' scope
     if (task.templateId && scope === 'series') {
-      // Save changes to the template and all future instances
+      // NUCLEAR REBUILD: When editing series, delete old template/instances and create new ones
+      // This ensures recurrence type changes work correctly
+      console.log('[TaskList] Series edit - nuclear rebuild');
+
       const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-      const updatedTemplates = templates.map(template => {
-        if (template.id === task.templateId) {
-          return {
-            ...template,
-            ...updatedFields,
-            // Update recurrence if explicitly provided (including null to remove)
-            recurrence: updatedFields.hasOwnProperty('recurrence') ? updatedFields.recurrence : template.recurrence,
-          };
-        }
-        return template;
-      });
-
-      localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
-
-      // Also update all existing instances of this template
       const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-      const updatedTasks = storedTasks.map(t => {
-        if (t.templateId === task.templateId) {
-          return {
-            ...t,
-            ...updatedFields,
-            // Keep instance-specific fields unchanged
-            dueDate: t.dueDate,
-            status: t.status,
-            completedAt: t.completedAt,
-            recurrenceAnchor: t.recurrenceAnchor,
-            customPriority: t.customPriority,
-          };
-        }
-        return t;
-      });
+      const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
 
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-      setTasks(updatedTasks);
+      // 1. DELETE OLD - Remove old template and all instances
+      const newTemplates = templates.filter(t => t.id !== task.templateId);
+      const newTasks = storedTasks.filter(t => t.templateId !== task.templateId);
+      const newCompletedTasks = completedTasks.filter(t => t.templateId !== task.templateId);
+
+      // 2. CREATE NEW template - only template-specific properties
+      const newTemplateId = 'template-' + Date.now();
+      const newTemplate = {
+        id: newTemplateId,
+        title: updatedFields.title,
+        description: updatedFields.description || '',
+        url: updatedFields.url || null,
+        time: updatedFields.time || null,
+        taskType: updatedFields.taskType || 'academic',
+        attachments: updatedFields.attachments || [],
+        recurrence: updatedFields.recurrence,
+        createdAt: new Date().toISOString()
+      };
+      newTemplates.push(newTemplate);
+
+      // 3. CREATE NEW instance - only instance-specific properties
+      const instanceDueDate = updatedFields.dueDate || task.dueDate;
+      const newInstance = {
+        id: task.id,
+        title: updatedFields.title,
+        description: updatedFields.description || '',
+        url: updatedFields.url || null,
+        dueDate: instanceDueDate,
+        time: updatedFields.time || null,
+        taskType: updatedFields.taskType || 'academic',
+        attachments: updatedFields.attachments || [],
+        templateId: newTemplateId,
+        recurrenceAnchor: instanceDueDate,
+        customPriority: 0,
+        status: task.status || 'not-started',
+        createdAt: task.createdAt || new Date().toISOString(),
+        completedAt: null
+      };
+      newTasks.push(newInstance);
+
+      localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+      setTasks(newTasks);
 
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskList] Saved changes to template and all instances');
+      console.log('[TaskList] Nuclear rebuild complete:', { newTemplate, newInstance });
+      handleCancelEdit();
+      return;
     } else {
       // Save changes to just this task instance
       const storedTasks = localStorage.getItem('tasks');
