@@ -377,7 +377,15 @@ ipcMain.handle('backup:save-snapshot', async (event, data) => {
       const filesToDelete = allSnapshots.slice(10); // Get all files *after* the 10th one
       console.log(`[Backup] Cleaning up ${filesToDelete.length} old snapshots.`);
       for (const file of filesToDelete) {
-        await fsPromises.unlink(path.join(backupsDir, file));
+        try {
+          await fsPromises.unlink(path.join(backupsDir, file));
+        } catch (error) {
+          // Ignore ENOENT errors (file already deleted)
+          if (error.code !== 'ENOENT') {
+            console.error(`[Backup] Failed to delete snapshot ${file}:`, error.message);
+            // Don't throw - continue with other deletions
+          }
+        }
       }
     }
     // --- End of Cleanup Logic ---
