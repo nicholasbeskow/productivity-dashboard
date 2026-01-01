@@ -190,13 +190,13 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       className={`relative rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
-        'border-white/[0.03]'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:brightness-110 hover:scale-[1.02] hover:border-white/10' : 'cursor-move'}`}
+        'border-transparent'
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:brightness-110 hover:scale-[1.01]' : 'cursor-move'}`}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backdropFilter: 'blur(12px) saturate(180%)',
-        background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.4) 0%, rgba(15, 23, 42, 0.2) 100%)'
+        background: 'rgba(255, 255, 255, 0.03)'
       }}
       onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
     >

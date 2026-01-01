@@ -31,12 +31,12 @@ const TimerDisplay = ({
         height={size}
         className="transform -rotate-90"
       >
-        {/* Background circle - Dark trough for liquid neon effect */}
+        {/* Background circle - Dark glassy track */}
         <circle
           cx={center}
           cy={center}
           r={radius}
-          stroke="rgba(0, 0, 0, 0.3)"
+          stroke="rgba(0, 0, 0, 0.4)"
           strokeWidth={strokeWidth}
           fill="none"
         />

@@ -10,11 +10,11 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progressPercentage / 100) * circumference;
 
-  // Use yellow for break mode, green for semester mode
+  // Use golden amber for break mode, green for semester mode
   const isBreakMode = breakDaysLeft !== null;
-  const strokeColor = isBreakMode ? '#facc15' : '#3dd68c';
-  const glowColor = isBreakMode ? 'rgba(250, 204, 21, 0.4)' : 'rgba(61, 214, 140, 0.4)';
-  const textColorClass = isBreakMode ? 'text-yellow-400' : 'text-green-glow';
+  const strokeColor = isBreakMode ? '#fbbf24' : '#3dd68c';
+  const glowColor = isBreakMode ? 'rgba(251, 191, 36, 0.4)' : 'rgba(61, 214, 140, 0.4)';
+  const textColorClass = isBreakMode ? 'text-amber-400' : 'text-green-glow';
 
   return (
     <div
@@ -23,12 +23,12 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
       onMouseLeave={() => setIsHovered(false)}
     >
       <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle - Dark trough for liquid neon effect */}
+        {/* Background circle - Dark glassy track */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(0, 0, 0, 0.3)"
+          stroke="rgba(0, 0, 0, 0.4)"
           strokeWidth={strokeWidth}
           fill="none"
         />
