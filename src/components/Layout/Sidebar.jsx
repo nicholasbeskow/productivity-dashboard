@@ -12,9 +12,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <aside className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col">
+    <aside className="w-64 m-4 glass-panel flex flex-col" style={{ height: 'calc(100vh - 2rem)' }}>
       {/* App Title / Logo Area */}
-      <div className="py-5 px-4 border-b border-bg-tertiary flex justify-center items-center drag-region">
+      <div className="py-5 px-4 border-b border-white/10 flex justify-center items-center drag-region">
         <img
           src={logo}
           alt="Productivity Dashboard Logo"
@@ -29,7 +29,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            
+
             return (
               <li key={tab.id}>
                 <button
@@ -37,9 +37,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-lg
                     transition-all duration-200
-                    ${isActive 
-                      ? 'bg-green-muted text-green-glow shadow-glow' 
-                      : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                    ${isActive
+                      ? 'bg-glass-overlay text-white border-l-2 border-white'
+                      : 'bg-transparent text-white/60 hover:bg-glass-surface hover:text-white'
                     }
                   `}
                 >
@@ -53,8 +53,8 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-bg-tertiary">
-        <p className="text-xs text-text-tertiary text-center">
+      <div className="p-4 border-t border-white/10">
+        <p className="text-xs text-white/40 text-center">
           Made with ♥ by Nick
         </p>
       </div>

@@ -28,7 +28,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#1e2530"
+          stroke="rgba(255, 255, 255, 0.1)"
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -66,7 +66,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
                   <div className={`text-4xl font-bold ${textColorClass}`}>
                     {breakDaysLeft}
                   </div>
-                  <div className="text-xs text-text-secondary mt-1">
+                  <div className="text-xs text-white/70 mt-1">
                     days left
                   </div>
                 </>
@@ -75,7 +75,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
                   <div className={`text-4xl font-bold ${textColorClass}`}>
                     {Math.round(progressPercentage)}%
                   </div>
-                  <div className="text-xs text-text-secondary mt-1">
+                  <div className="text-xs text-white/70 mt-1">
                     complete
                   </div>
                 </>
@@ -93,7 +93,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
               <div className={`text-4xl font-bold ${textColorClass}`}>
                 {daysRemaining > 0 ? daysRemaining : '🌴'}
               </div>
-              <div className="text-xs text-text-secondary mt-1">
+              <div className="text-xs text-white/70 mt-1">
                 {daysRemaining > 0 ? 'days left' : 'on break'}
               </div>
             </motion.div>

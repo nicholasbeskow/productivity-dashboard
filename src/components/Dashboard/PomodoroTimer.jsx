@@ -61,7 +61,7 @@ const TimerDisplay = ({
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div
-          className="font-bold text-text-primary mb-2 font-sans"
+          className="font-bold text-white mb-2 font-sans"
           style={{ fontSize }}
         >
           {timeText}
@@ -101,12 +101,12 @@ const PomodoroTimer = () => {
   // Check if essential data is loaded
   if (workDuration === undefined || timeLeft === undefined) {
     return (
-      <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-        <h3 className="text-xl font-semibold text-text-primary mb-4">
+      <div className="glass-panel rounded-xl p-6 border border-white/10">
+        <h3 className="text-xl font-semibold text-white mb-4">
           Pomodoro Timer
         </h3>
         <div className="flex items-center justify-center h-48">
-          <p className="text-text-secondary">Loading timer...</p>
+          <p className="text-white/70">Loading timer...</p>
         </div>
       </div>
     );
@@ -201,10 +201,10 @@ const PomodoroTimer = () => {
 
   return (
     <>
-      <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+      <div className="glass-panel rounded-xl p-6 border border-white/10">
         {/* Header with Maximize button */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-text-primary">
+          <h3 className="text-xl font-semibold text-white">
             Pomodoro Timer
           </h3>
           <motion.button
@@ -292,7 +292,7 @@ const PomodoroTimer = () => {
               {/* Minimize button */}
               <motion.button
                 onClick={() => setIsFullscreen(false)}
-                className="absolute top-6 right-6 p-3 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                className="absolute top-6 right-6 p-3 rounded-full bg-bg-tertiary hover:glass-panel border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 title="Exit fullscreen"
@@ -326,7 +326,7 @@ const PomodoroTimer = () => {
                 {/* Reset Button */}
                 <motion.button
                   onClick={handleReset}
-                  className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  className="p-5 rounded-full bg-bg-tertiary hover:glass-panel border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   title="Reset"
@@ -338,7 +338,7 @@ const PomodoroTimer = () => {
                 {/* Skip Button */}
                 <motion.button
                   onClick={handleSkip}
-                  className="p-5 rounded-full bg-bg-tertiary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  className="p-5 rounded-full bg-bg-tertiary hover:glass-panel border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   title="Skip"

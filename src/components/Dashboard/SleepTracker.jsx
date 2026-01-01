@@ -299,7 +299,7 @@ const SleepTracker = () => {
           {sleepEntry ? (
             <>
               <Moon size={16} className="text-purple-400" />
-              <span className="text-[10px] text-text-secondary mt-0.5">{(sleepEntry.totalSleep ?? sleepEntry.hours)}h</span>
+              <span className="text-[10px] text-white/70 mt-0.5">{(sleepEntry.totalSleep ?? sleepEntry.hours)}h</span>
               {/* Quality indicator dot */}
               <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${getQualityColor(sleepEntry.quality)}`} />
             </>
@@ -313,11 +313,11 @@ const SleepTracker = () => {
   };
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary h-full flex flex-col">
+    <div className="glass-panel rounded-xl p-6 border border-white/10 h-full flex flex-col">
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <Moon className="text-purple-400" size={24} />
           {view === 'month' && 'Sleep Calendar'}
           {view === 'log' && 'Log Sleep'}
@@ -326,7 +326,7 @@ const SleepTracker = () => {
         {view !== 'month' && view !== 'confirm' && (
           <button
             onClick={() => setView('month')}
-            className="text-text-tertiary hover:text-text-primary transition-colors"
+            className="text-text-tertiary hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -390,7 +390,7 @@ const SleepTracker = () => {
               <button onClick={handlePrevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
                 <ChevronLeft size={20} />
               </button>
-              <span className="font-semibold text-text-primary">
+              <span className="font-semibold text-white">
                 {format(currentMonth, 'MMMM yyyy')}
               </span>
               <button
@@ -418,7 +418,7 @@ const SleepTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="text-center mb-6">
-              <p className="text-text-secondary">
+              <p className="text-white/70">
                 {isSameDay(editingDate, new Date())
                   ? 'How did you sleep last night?'
                   : `How did you sleep on ${format(editingDate, 'MMM d')}?`}
@@ -427,7 +427,7 @@ const SleepTracker = () => {
 
             {/* Night Sleep Slider */}
             <div className="mb-4">
-              <label className="block text-sm text-text-secondary mb-3">
+              <label className="block text-sm text-white/70 mb-3">
                 Night Sleep: <span className="text-purple-400 font-bold">{selectedHours}h</span>
               </label>
               <input
@@ -460,7 +460,7 @@ const SleepTracker = () => {
                   value={napDuration || ''}
                   onChange={(e) => setNapDuration(parseFloat(e.target.value) || 0)}
                   placeholder="0"
-                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary placeholder-text-tertiary focus:border-purple-500 focus:outline-none transition-colors text-center"
+                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-white placeholder-text-tertiary focus:border-purple-500 focus:outline-none transition-colors text-center"
                 />
                 <span className="text-sm text-text-tertiary">hours</span>
                 {napDuration > 0 && (
@@ -473,7 +473,7 @@ const SleepTracker = () => {
 
             {/* Quality Selection */}
             <div className="mb-6">
-              <label className="block text-sm text-text-secondary mb-3">Sleep Quality</label>
+              <label className="block text-sm text-white/70 mb-3">Sleep Quality</label>
               <div className="flex justify-center gap-2">
                 {sleepQualities.map((quality) => {
                   const isSelected = selectedQuality?.level === quality.level;
@@ -484,7 +484,7 @@ const SleepTracker = () => {
                       className={`px-4 py-2 rounded-xl transition-all border-2 ${
                         isSelected
                           ? `${quality.color} border-current bg-bg-tertiary`
-                          : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary'
+                          : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-white/70'
                       }`}
                       style={{
                         boxShadow: isSelected ? `0 0 15px ${quality.glowColor}` : 'none'
@@ -501,12 +501,12 @@ const SleepTracker = () => {
 
             {/* Notes Input */}
             <div className="flex-1">
-              <label className="block text-sm text-text-secondary mb-2">Notes (Optional)</label>
+              <label className="block text-sm text-white/70 mb-2">Notes (Optional)</label>
               <textarea
                 value={sleepNotes}
                 onChange={(e) => setSleepNotes(e.target.value)}
                 placeholder="e.g., woke up multiple times, had vivid dreams..."
-                className="w-full h-24 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-purple-500 focus:outline-none resize-none transition-colors"
+                className="w-full h-24 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-white placeholder-text-tertiary focus:border-purple-500 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -536,7 +536,7 @@ const SleepTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="flex items-center gap-2 mb-6 text-text-tertiary text-sm">
-              <button onClick={() => setView('month')} className="hover:text-text-primary flex items-center gap-1">
+              <button onClick={() => setView('month')} className="hover:text-white flex items-center gap-1">
                 <ArrowLeft size={16} /> Back
               </button>
               <span>•</span>
@@ -556,14 +556,14 @@ const SleepTracker = () => {
                 </p>
               )}
               <p className={`text-lg font-semibold ${selectedQuality.color}`}>{selectedQuality.label}</p>
-              <p className="text-text-secondary mt-2 text-sm">{getQualityMessage(selectedQuality.level)}</p>
+              <p className="text-white/70 mt-2 text-sm">{getQualityMessage(selectedQuality.level)}</p>
             </div>
 
             {/* Notes Card */}
             {sleepNotes && (
               <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Notes</h4>
-                <p className="text-text-primary whitespace-pre-wrap leading-relaxed">
+                <h4 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Notes</h4>
+                <p className="text-white whitespace-pre-wrap leading-relaxed">
                   {sleepNotes}
                 </p>
               </div>
@@ -573,7 +573,7 @@ const SleepTracker = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setView('log')}
-                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-text-primary font-medium hover:border-purple-500 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-white font-medium hover:border-purple-500 transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={16} /> Edit
               </button>
@@ -615,8 +615,8 @@ const SleepTracker = () => {
             )}
             <Moon size={64} className="text-purple-400 mb-4" />
             <Sparkles size={32} className="text-yellow-500 mb-4" />
-            <h2 className="text-2xl font-bold text-text-primary">Sleep Logged!</h2>
-            <p className="text-text-secondary mt-2">
+            <h2 className="text-2xl font-bold text-white">Sleep Logged!</h2>
+            <p className="text-white/70 mt-2">
               {totalSleep}h{napDuration > 0 && ` (${selectedHours}h + ${napDuration}h nap)`} • {selectedQuality.label}
             </p>
           </motion.div>

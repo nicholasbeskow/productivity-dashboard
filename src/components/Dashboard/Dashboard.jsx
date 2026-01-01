@@ -38,7 +38,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       case 'in-progress':
         return <Clock size={18} className="text-yellow-500" />;
       default:
-        return <Circle size={18} className="text-text-tertiary" />;
+        return <Circle size={18} className="text-white/40" />;
     }
   };
 
@@ -187,12 +187,17 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       onDragOver={(e) => onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => onDrop(e, task)}
-      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
+      className={`relative rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
-        'border-bg-primary hover:border-green-glow/30'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:bg-bg-tertiary/80' : 'cursor-move'}`}
-      style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+        'border-white/18'
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:brightness-110 hover:scale-[1.02]' : 'cursor-move'}`}
+      style={{
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backdropFilter: 'blur(12px) saturate(180%)',
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)'
+      }}
       onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
     >
       {/* Confetti Effect */}
@@ -236,7 +241,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Drag Handle */}
-          <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+          <div className="text-white/40 hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
             <GripVertical size={16} />
           </div>
 
@@ -258,8 +263,8 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             <div className="flex items-center gap-2 mb-0.5">
               <p className={`font-medium truncate ${
                 task.status === 'complete'
-                  ? 'text-text-secondary line-through'
-                  : 'text-text-primary'
+                  ? 'text-white/70 line-through'
+                  : 'text-white'
               }`}>
                 {task.title}
               </p>
@@ -272,12 +277,12 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             </div>
             {task.dueDate && (
               <p className={`text-xs flex items-center gap-1 ${
-                taskIsOverdue ? 'text-red-500 font-semibold' : 'text-text-tertiary'
+                taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
                 {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
                 {task.templateId && (
-                  <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                  <Repeat size={10} className="text-white/40 ml-0.5" title="Recurring task" />
                 )}
               </p>
             )}
@@ -288,7 +293,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         {task.attachments && task.attachments.length > 0 && (
           <motion.button
             onClick={handleOpenFirstAttachment}
-            className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+            className="relative p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title={`Open first attachment (${task.attachments.length} total)`}
@@ -314,7 +319,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             e.stopPropagation();
             onStartEdit(task);
           }}
-          className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+          className="p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Edit task"
@@ -1186,10 +1191,10 @@ const Dashboard = ({ setActiveTab }) => {
           {/* Header with Circular Progress */}
           <div className="mb-8 flex items-start justify-between">
             <div className="flex-1 mt-12">
-              <h2 className="text-3xl font-bold text-text-primary mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {welcomeMessage}
               </h2>
-              <p className="text-text-secondary">
+              <p className="text-white/70">
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -1211,10 +1216,10 @@ const Dashboard = ({ setActiveTab }) => {
           {/* Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Task List */}
-            <div className="lg:col-span-2 bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <div className="lg:col-span-2 glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
               {/* Header with Filter Buttons */}
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                <h3 className="text-xl font-semibold text-text-primary">
+                <h3 className="text-xl font-semibold text-white">
                   Today's Tasks
                 </h3>
 
@@ -1225,7 +1230,7 @@ const Dashboard = ({ setActiveTab }) => {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'all'
                         ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
                     }`}
                   >
                     All
@@ -1235,7 +1240,7 @@ const Dashboard = ({ setActiveTab }) => {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'academic'
                         ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
                     }`}
                   >
                     Academic
@@ -1245,7 +1250,7 @@ const Dashboard = ({ setActiveTab }) => {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'personal'
                         ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
                     }`}
                   >
                     Personal
@@ -1255,7 +1260,7 @@ const Dashboard = ({ setActiveTab }) => {
 
               {displayTasks.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-text-secondary mb-2">No tasks yet!</p>
+                  <p className="text-white/70 mb-2">No tasks yet!</p>
                   <button
                     onClick={() => setActiveTab && setActiveTab('tasks')}
                     className="text-green-glow hover:underline text-sm"
@@ -1298,7 +1303,7 @@ const Dashboard = ({ setActiveTab }) => {
                       <motion.button
                         layout
                         onClick={() => setActiveTab && setActiveTab('tasks')}
-                        className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-bg-tertiary transition-all"
+                        className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-glass-surface transition-all"
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       >
                         View All Tasks →
@@ -1384,18 +1389,18 @@ const Dashboard = ({ setActiveTab }) => {
                                     setDetailViewTaskId(null);
                                     setIsEditingDetail(false);
                                   }}
-                                  className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors group"
+                                  className="p-2 rounded-lg hover:bg-glass-surface transition-colors group"
                                 >
-                                  <ArrowLeft size={20} className="text-text-tertiary group-hover:text-green-glow transition-colors" />
+                                  <ArrowLeft size={20} className="text-white/40 group-hover:text-green-glow transition-colors" />
                                 </button>
-                                <h4 className="text-lg font-semibold text-text-primary">
+                                <h4 className="text-lg font-semibold text-white">
                                   {isEditingDetail ? 'Edit Task' : 'Task Details'}
                                 </h4>
                               </div>
                               {!isEditingDetail && (
                                 <button
                                   onClick={() => handleStartEdit(detailTask)}
-                                  className="p-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                                  className="p-2 rounded-lg bg-glass-surface hover:bg-glass-overlay border border-white/18 hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all"
                                   title="Edit task"
                                 >
                                   <Pencil size={16} />
@@ -1404,7 +1409,7 @@ const Dashboard = ({ setActiveTab }) => {
                             </div>
 
                             {/* Task Details Card or Edit Form */}
-                            <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
+                            <div className="bg-glass-surface rounded-lg p-4 border border-white/18 space-y-4">
                               {isEditingDetail ? (
                                 /* Edit Form - Using TaskForm Component */
                                 <div className="space-y-4">
@@ -1554,7 +1559,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   <div className="space-y-3">
                                     <button
                                       onClick={handleCancelEdit}
-                                      className="w-full px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      className="w-full px-6 bg-glass-surface hover:bg-glass-overlay border border-white/18 hover:border-red-500/50 text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <X size={16} />
                                       Cancel
@@ -1578,7 +1583,7 @@ const Dashboard = ({ setActiveTab }) => {
                                 <>
                                   {/* Title */}
                                   <div>
-                                    <h3 className="text-xl font-bold text-text-primary mb-2">
+                                    <h3 className="text-xl font-bold text-white mb-2">
                                       {detailTask.title}
                                     </h3>
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -1587,7 +1592,7 @@ const Dashboard = ({ setActiveTab }) => {
                                           ? 'bg-green-muted text-green-glow'
                                           : detailTask.status === 'in-progress'
                                           ? 'bg-yellow-500/10 text-yellow-500'
-                                          : 'bg-bg-secondary text-text-tertiary'
+                                          : 'bg-glass-surface text-white/40'
                                       }`}>
                                         {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
                                       </span>
@@ -1602,8 +1607,8 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Due Date */}
                                   {detailTask.dueDate && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-1">Due Date{detailTask.time && ' & Time'}</p>
-                                      <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-text-primary'}`}>
+                                      <p className="text-sm text-white/40 mb-1">Due Date{detailTask.time && ' & Time'}</p>
+                                      <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-white'}`}>
                                         {formatDetailDateTime(detailTask.dueDate, detailTask.time)}
                                       </p>
                                     </div>
@@ -1612,8 +1617,8 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Description */}
                                   {detailTask.description && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-1">Description</p>
-                                      <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                                      <p className="text-sm text-white/40 mb-1">Description</p>
+                                      <p className="text-sm text-white/70 whitespace-pre-wrap">
                                         {detailTask.description}
                                       </p>
                                     </div>
@@ -1622,7 +1627,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* URL */}
                                   {detailTask.url && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-2">Related Link</p>
+                                      <p className="text-sm text-white/40 mb-2">Related Link</p>
                                       <button
                                         onClick={() => handleOpenUrl(detailTask.url)}
                                         className="inline-flex items-center gap-2 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
@@ -1636,18 +1641,18 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Attachments */}
                                   {detailTask.attachments && detailTask.attachments.length > 0 && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-2">File Attachments</p>
+                                      <p className="text-sm text-white/40 mb-2">File Attachments</p>
                                       <div className="space-y-2">
                                         {detailTask.attachments.map((filePath, index) => {
                                           const fileName = filePath.split(/[\\/]/).pop();
                                           return (
                                             <div
                                               key={index}
-                                              className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2 border border-bg-primary"
+                                              className="flex items-center justify-between bg-glass-surface rounded-lg px-3 py-2 border border-white/18"
                                             >
                                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                                 <FileText size={14} className="text-green-glow flex-shrink-0" />
-                                                <span className="text-xs text-text-primary truncate" title={filePath}>
+                                                <span className="text-xs text-white truncate" title={filePath}>
                                                   {fileName}
                                                 </span>
                                               </div>
@@ -1677,7 +1682,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   )}
 
                                   {/* Actions */}
-                                  <div className="pt-2 border-t border-bg-primary">
+                                  <div className="pt-2 border-t border-white/18">
                                     <button
                                       onClick={() => {
                                         setDetailViewTaskId(null);
@@ -1716,7 +1721,7 @@ const Dashboard = ({ setActiveTab }) => {
             <div className="lg:col-span-3">
               <button
                 onClick={() => setActiveTab('sleep')}
-                className="w-full bg-bg-secondary hover:bg-bg-tertiary border border-bg-tertiary hover:border-purple-500/50 rounded-xl p-4 transition-all group"
+                className="w-full bg-glass-surface hover:bg-glass-surface border border-white/10 hover:border-purple-500/50 rounded-xl p-4 transition-all group"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1724,11 +1729,11 @@ const Dashboard = ({ setActiveTab }) => {
                       <Moon size={20} className="text-purple-400" />
                     </div>
                     <div className="text-left">
-                      <p className="text-text-primary font-medium">Sleep Insights</p>
-                      <p className="text-text-tertiary text-sm">View detailed analytics, correlations & trends</p>
+                      <p className="text-white font-medium">Sleep Insights</p>
+                      <p className="text-white/40 text-sm">View detailed analytics, correlations & trends</p>
                     </div>
                   </div>
-                  <ArrowRight size={20} className="text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight size={20} className="text-white/40 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
                 </div>
               </button>
             </div>
@@ -1752,16 +1757,16 @@ const Dashboard = ({ setActiveTab }) => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative"
+              className="bg-glass-surface rounded-xl p-8 border border-white/10 max-w-md w-full relative"
               onClick={(e) => e.stopPropagation()}
             >
 
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-text-primary mb-2">
+                <h2 className="text-3xl font-bold text-white mb-2">
                   🎉 Semester Complete!
                 </h2>
-                <p className="text-text-secondary">
+                <p className="text-white/70">
                   Congratulations! Time to recharge. When does your next semester begin?
                 </p>
               </div>
@@ -1769,41 +1774,41 @@ const Dashboard = ({ setActiveTab }) => {
               {/* Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Break Start Date
                   </label>
                   <input
                     type="date"
                     value={nextBreakStart}
                     onChange={(e) => setNextBreakStart(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
-                  <p className="text-xs text-text-tertiary mt-1">
+                  <p className="text-xs text-white/40 mt-1">
                     Defaults to the day after semester ended
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Next Semester Start Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterStart}
                     onChange={(e) => setNextSemesterStart(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Next Semester End Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterEnd}
                     onChange={(e) => setNextSemesterEnd(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
                 </div>
               </div>

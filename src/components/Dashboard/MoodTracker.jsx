@@ -259,11 +259,11 @@ const MoodTracker = () => {
   };
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary h-full flex flex-col">
+    <div className="glass-panel rounded-xl p-6 border border-white/10 h-full flex flex-col">
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <Smile className="text-yellow-500" size={24} />
           {view === 'month' && 'Mood Calendar'}
           {view === 'select' && 'Log Mood'}
@@ -272,7 +272,7 @@ const MoodTracker = () => {
         {view !== 'month' && view !== 'confirm' && (
           <button
             onClick={() => setView('month')}
-            className="text-text-tertiary hover:text-text-primary transition-colors"
+            className="text-text-tertiary hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -292,7 +292,7 @@ const MoodTracker = () => {
               <button onClick={handlePrevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
                 <ChevronLeft size={20} />
               </button>
-              <span className="font-semibold text-text-primary">
+              <span className="font-semibold text-white">
                 {format(currentMonth, 'MMMM yyyy')}
               </span>
               <button
@@ -320,7 +320,7 @@ const MoodTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="text-center mb-6">
-              <p className="text-text-secondary">
+              <p className="text-white/70">
                 {isSameDay(editingDate, new Date()) ? 'How are you today?' : `How were you on ${format(editingDate, 'MMM d')}?`}
               </p>
             </div>
@@ -336,7 +336,7 @@ const MoodTracker = () => {
                     className={`p-3 rounded-2xl transition-all border-2 ${
                       isSelected
                         ? `${mood.color} border-current bg-bg-tertiary`
-                        : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary'
+                        : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-white/70'
                     }`}
                     style={{
                       boxShadow: isSelected ? `0 0 20px ${mood.glowColor}` : 'none'
@@ -352,12 +352,12 @@ const MoodTracker = () => {
 
             {/* Journal Input */}
             <div className="flex-1">
-              <label className="block text-sm text-text-secondary mb-2">Daily Note</label>
+              <label className="block text-sm text-white/70 mb-2">Daily Note</label>
               <textarea
                 value={currentJournalEntry}
                 onChange={(e) => setCurrentJournalEntry(e.target.value)}
                 placeholder="What's on your mind? (Optional)"
-                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
+                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-white placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -387,7 +387,7 @@ const MoodTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="flex items-center gap-2 mb-6 text-text-tertiary text-sm">
-              <button onClick={() => setView('month')} className="hover:text-text-primary flex items-center gap-1">
+              <button onClick={() => setView('month')} className="hover:text-white flex items-center gap-1">
                 <ArrowLeft size={16} /> Back
               </button>
               <span>•</span>
@@ -398,14 +398,14 @@ const MoodTracker = () => {
             <div className="bg-bg-tertiary rounded-2xl p-6 text-center mb-6 border border-bg-primary">
               <selectedMood.icon size={64} className={`mx-auto mb-4 ${selectedMood.color}`} strokeWidth={1.5} />
               <h2 className={`text-2xl font-bold ${selectedMood.color}`}>{selectedMood.label}</h2>
-              <p className="text-text-secondary mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
+              <p className="text-white/70 mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
             </div>
 
             {/* Journal Card */}
             {currentJournalEntry && (
               <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Journal</h4>
-                <p className="text-text-primary whitespace-pre-wrap leading-relaxed">
+                <h4 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Journal</h4>
+                <p className="text-white whitespace-pre-wrap leading-relaxed">
                   {currentJournalEntry}
                 </p>
               </div>
@@ -415,7 +415,7 @@ const MoodTracker = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setView('select')}
-                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-text-primary font-medium hover:border-green-glow transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-white font-medium hover:border-green-glow transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={16} /> Edit
               </button>
@@ -456,7 +456,7 @@ const MoodTracker = () => {
               </div>
             )}
             <selectedMood.icon size={80} className={selectedMood.color} />
-            <h2 className="text-2xl font-bold text-text-primary mt-6">Entry Saved!</h2>
+            <h2 className="text-2xl font-bold text-white mt-6">Entry Saved!</h2>
           </motion.div>
         )}
 
