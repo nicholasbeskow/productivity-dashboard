@@ -1684,8 +1684,58 @@ const Dashboard = ({ setActiveTab }) => {
                                         onTaskCreate={(data) => {
                                           const { scope, ...updatedFields } = data;
 
-                                          // SERIES UPDATE - Nuclear Destroy/Rebuild Pattern
-                                          if (detailTask.templateId && scope === 'series') {
+                                          console.log('[Dashboard] Edit handler:', { hasTemplateId: !!detailTask.templateId, scope, hasRecurrence: !!updatedFields.recurrence });
+
+                                          // CASE 1: Converting plain task → recurring
+                                          if (!detailTask.templateId && updatedFields.recurrence) {
+                                            console.log('[Dashboard] Plain → Recurring');
+                                            const newTemplateId = 'template-' + Date.now();
+                                            const newTemplate = { ...updatedFields, id: newTemplateId, createdAt: new Date().toISOString() };
+
+                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                            const updatedTasks = tasks.map(t => t.id === detailTask.id ? {
+                                              ...t, ...updatedFields, templateId: newTemplateId,
+                                              recurrenceAnchor: updatedFields.dueDate || t.dueDate, customPriority: 0
+                                            } : t);
+
+                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                            templates.push(newTemplate);
+                                            localStorage.setItem('recurringTasks', JSON.stringify(templates));
+                                            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                            setTasks(updatedTasks);
+                                            handleCancelEdit();
+                                            backupManager.saveAutoBackup();
+                                            window.dispatchEvent(new Event('storage'));
+                                            return;
+                                          }
+
+                                          // CASE 2: Recurring → plain (remove recurrence)
+                                          if (detailTask.templateId && !updatedFields.recurrence) {
+                                            console.log('[Dashboard] Recurring → Plain');
+                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+
+                                            if (scope === 'series') {
+                                              const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                              const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
+                                              newTasks.push({ ...updatedFields, id: detailTask.id, recurrence: null, templateId: null, recurrenceAnchor: null, status: detailTask.status, createdAt: detailTask.createdAt, completedAt: null });
+                                              localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                              localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                              setTasks(newTasks);
+                                            } else {
+                                              const updatedTasks = tasks.map(t => t.id === detailTask.id ? { ...t, ...updatedFields, recurrence: null, templateId: null, recurrenceAnchor: null } : t);
+                                              localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                              setTasks(updatedTasks);
+                                            }
+                                            handleCancelEdit();
+                                            backupManager.saveAutoBackup();
+                                            window.dispatchEvent(new Event('storage'));
+                                            return;
+                                          }
+
+                                          // CASE 3: SERIES EDIT - Nuclear rebuild (recurrence type changes)
+                                          if (detailTask.templateId && scope === 'series' && updatedFields.recurrence) {
+                                            console.log('[Dashboard] Series edit - nuclear rebuild');
                                             const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
                                             const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
 
@@ -1693,56 +1743,37 @@ const Dashboard = ({ setActiveTab }) => {
                                             const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
                                             const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
 
-                                            // 2. CREATE NEW - If recurrence is still active
-                                            if (updatedFields.recurrence) {
-                                              const newTemplateId = 'template-' + Date.now();
-                                              const newTemplate = {
-                                                ...updatedFields,
-                                                id: newTemplateId,
-                                                createdAt: new Date().toISOString()
-                                              };
-                                              newTemplates.push(newTemplate);
+                                            // 2. CREATE NEW template and instance
+                                            const newTemplateId = 'template-' + Date.now();
+                                            newTemplates.push({
+                                              ...updatedFields,
+                                              id: newTemplateId,
+                                              createdAt: new Date().toISOString()
+                                            });
 
-                                              const newInstance = {
-                                                ...updatedFields,
-                                                id: detailTask.id, // Keep ID to keep modal open
-                                                templateId: newTemplateId,
-                                                recurrenceAnchor: updatedFields.dueDate,
-                                                customPriority: 0,
-                                                status: detailTask.status || 'not-started',
-                                                createdAt: detailTask.createdAt || new Date().toISOString(),
-                                                completedAt: null
-                                              };
-                                              newTasks.push(newInstance);
+                                            newTasks.push({
+                                              ...updatedFields,
+                                              id: detailTask.id,
+                                              templateId: newTemplateId,
+                                              recurrenceAnchor: updatedFields.dueDate || detailTask.dueDate,
+                                              customPriority: 0,
+                                              status: detailTask.status || 'not-started',
+                                              createdAt: detailTask.createdAt || new Date().toISOString(),
+                                              completedAt: null
+                                            });
 
-                                              localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
-                                              localStorage.setItem('tasks', JSON.stringify(newTasks));
-                                              setTasks(newTasks);
-                                            } else {
-                                              // 3. CONVERT TO SINGLE - If recurrence turned off
-                                              const singleTask = {
-                                                ...updatedFields,
-                                                id: detailTask.id,
-                                                recurrence: null,
-                                                templateId: null,
-                                                status: detailTask.status || 'not-started',
-                                                createdAt: detailTask.createdAt || new Date().toISOString(),
-                                                completedAt: null
-                                              };
-                                              newTasks.push(singleTask);
-
-                                              localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
-                                              localStorage.setItem('tasks', JSON.stringify(newTasks));
-                                              setTasks(newTasks);
-                                            }
-
+                                            localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                            localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                            setTasks(newTasks);
                                             handleCancelEdit();
                                             backupManager.saveAutoBackup();
                                             window.dispatchEvent(new Event('storage'));
+                                            console.log('[Dashboard] Nuclear rebuild complete:', { newTasks: newTasks.length, newTemplates: newTemplates.length });
                                             return;
                                           }
 
-                                          // INSTANCE UPDATE - Standard edit
+                                          // CASE 4: INSTANCE EDIT (or plain task edit)
+                                          console.log('[Dashboard] Instance edit');
                                           const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
                                           const updatedTasks = storedTasks.map(t => {
                                             if (t.id === detailTask.id) {
