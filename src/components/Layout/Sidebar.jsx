@@ -38,7 +38,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                     w-full flex items-center gap-3 px-4 py-3 rounded-lg
                     transition-all duration-200
                     ${isActive
-                      ? 'bg-glass-overlay text-white border-l-2 border-white'
+                      ? 'bg-green-glow/10 text-white border-l-2 border-green-glow'
                       : 'bg-transparent text-white/60 hover:bg-glass-surface hover:text-white'
                     }
                   `}

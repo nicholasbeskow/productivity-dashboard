@@ -23,29 +23,30 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
       onMouseLeave={() => setIsHovered(false)}
     >
       <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle */}
+        {/* Background circle - Dark trough for liquid neon effect */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255, 255, 255, 0.1)"
+          stroke="rgba(0, 0, 0, 0.3)"
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress circle */}
+        {/* Progress circle - Liquid neon glow */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           stroke={strokeColor}
           strokeWidth={strokeWidth}
+          strokeOpacity={0.9}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
           className="transition-all duration-500 ease-out"
           style={{
-            filter: `drop-shadow(0 0 8px ${glowColor})`,
+            filter: `drop-shadow(0 0 4px ${strokeColor}) drop-shadow(0 0 8px ${strokeColor})`,
           }}
         />
       </svg>

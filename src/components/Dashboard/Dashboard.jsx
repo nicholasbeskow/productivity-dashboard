@@ -1716,27 +1716,6 @@ const Dashboard = ({ setActiveTab }) => {
               {/* Sleep Tracker */}
               <SleepTracker />
             </div>
-
-            {/* View Sleep Analytics Link */}
-            <div className="lg:col-span-3">
-              <button
-                onClick={() => setActiveTab('sleep')}
-                className="w-full bg-glass-surface hover:bg-glass-surface border border-white/10 hover:border-purple-500/50 rounded-xl p-4 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg">
-                      <Moon size={20} className="text-purple-400" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-white font-medium">Sleep Insights</p>
-                      <p className="text-white/40 text-sm">View detailed analytics, correlations & trends</p>
-                    </div>
-                  </div>
-                  <ArrowRight size={20} className="text-white/40 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
-                </div>
-              </button>
-            </div>
           </div>
         </div>
       </div>

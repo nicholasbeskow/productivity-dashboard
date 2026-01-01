@@ -31,28 +31,29 @@ const TimerDisplay = ({
         height={size}
         className="transform -rotate-90"
       >
-        {/* Background circle - NO GLOW */}
+        {/* Background circle - Dark trough for liquid neon effect */}
         <circle
           cx={center}
           cy={center}
           r={radius}
-          stroke="#1a1f2e"
+          stroke="rgba(0, 0, 0, 0.3)"
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress circle - GLOW APPLIED HERE */}
+        {/* Progress circle - Liquid neon glow */}
         <circle
           cx={center}
           cy={center}
           r={radius}
           stroke={currentColor}
           strokeWidth={strokeWidth}
+          strokeOpacity={0.9}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           style={{
-            filter: `drop-shadow(0 0 8px ${glowColor})`,
+            filter: `drop-shadow(0 0 4px ${currentColor}) drop-shadow(0 0 8px ${currentColor})`,
             transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease-in-out, filter 0.5s ease-in-out'
           }}
         />
