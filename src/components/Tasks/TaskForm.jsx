@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
+import { getToday, getTomorrow } from '../../utils/dateHelpers';
 
-const TaskForm = ({ onTaskCreate }) => {
+const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -15,6 +16,90 @@ const TaskForm = ({ onTaskCreate }) => {
   // Recurrence state
   const [recurrenceType, setRecurrenceType] = useState('does-not-repeat');
   const [weeklyDays, setWeeklyDays] = useState([]);
+  const [customInterval, setCustomInterval] = useState(1);
+  const [customUnit, setCustomUnit] = useState('days');
+
+  // Edit scope for recurring tasks
+  const [editScope, setEditScope] = useState('instance');
+  const [isRecurringEdit, setIsRecurringEdit] = useState(false);
+
+  // Populate form when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setDescription(initialData.description || '');
+      setUrl(initialData.url || '');
+      setDueDate(initialData.dueDate || '');
+      setTime(initialData.time || '');
+      setTaskType(initialData.taskType || 'academic');
+      setAttachments(initialData.attachments || []);
+
+      // BUG FIX: If task instance has templateId but no recurrence, fetch from template
+      let recurrence = initialData.recurrence;
+      if (!recurrence && initialData.templateId) {
+        try {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const template = templates.find(t => t.id === initialData.templateId);
+          if (template && template.recurrence) {
+            recurrence = template.recurrence;
+          } else if (!template) {
+            console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+          }
+        } catch (error) {
+          console.error('Error fetching template recurrence:', error);
+        }
+      }
+
+      // Check if this is a recurring task (has recurrence or templateId)
+      const isRecurring = !!(recurrence || initialData.templateId);
+      setIsRecurringEdit(isRecurring);
+
+      // Handle recurrence fields - crucial for editing recurring tasks
+      if (recurrence) {
+        const { type, days, interval, unit } = recurrence;
+
+        // Set recurrence type - matches the template type
+        setRecurrenceType(type || 'does-not-repeat');
+
+        // Handle weekly recurrence - populate selected days
+        if (type === 'weekly' && days) {
+          setWeeklyDays(days);
+        } else {
+          setWeeklyDays([]);
+        }
+
+        // Handle custom recurrence - populate interval and unit
+        if (type === 'custom') {
+          setCustomInterval(interval || 1);
+          setCustomUnit(unit || 'days');
+        } else {
+          setCustomInterval(1);
+          setCustomUnit('days');
+        }
+      } else {
+        // No recurrence - reset to defaults
+        setRecurrenceType('does-not-repeat');
+        setWeeklyDays([]);
+        setCustomInterval(1);
+        setCustomUnit('days');
+      }
+    } else {
+      // Reset form when initialData becomes null (exit edit mode)
+      setTitle('');
+      setDescription('');
+      setUrl('');
+      setDueDate('');
+      setTime('');
+      setTaskType('academic');
+      setAttachments([]);
+      setRecurrenceType('does-not-repeat');
+      setWeeklyDays([]);
+      setCustomInterval(1);
+      setCustomUnit('days');
+      setIsRecurringEdit(false);
+      setEditScope('instance');
+    }
+  }, [initialData]);
 
   const handleWeeklyDayToggle = (dayIndex) => {
     setWeeklyDays(prev =>
@@ -76,6 +161,15 @@ const TaskForm = ({ onTaskCreate }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
+  // Due date helper functions
+  const setDueToday = () => {
+    setDueDate(getToday());
+  };
+
+  const setDueTomorrow = () => {
+    setDueDate(getTomorrow());
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -83,9 +177,162 @@ const TaskForm = ({ onTaskCreate }) => {
       return;
     }
 
-    // Check if this is a recurring task
+    // Validate dueDate for monthly/yearly/custom recurring tasks (weekly uses day selection)
+    if ((recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !dueDate) {
+      alert('Please select a due date for this recurring task.');
+      return;
+    }
+
+    // Validate customInterval for custom recurring tasks
+    if (recurrenceType === 'custom' && (!customInterval || customInterval < 1)) {
+      alert('Please enter a valid interval (minimum 1).');
+      return;
+    }
+
+    // Validate weekly days selection
+    if (recurrenceType === 'weekly' && weeklyDays.length === 0 && dueDate) {
+      const currentDay = new Date(dueDate).getDay();
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const confirmed = window.confirm(
+        `No days selected for weekly recurrence. The task will repeat on ${dayNames[currentDay]}s (based on the due date). Continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    // If editing, pass data to parent with scope
+    if (initialData) {
+      const updatedTaskData = {
+        ...initialData,
+        title: title.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        dueDate: dueDate || null,
+        time: time || null,
+        taskType: taskType,
+        attachments: attachments,
+        scope: editScope, // Include edit scope for parent to handle
+      };
+
+      // Handle recurrenceAnchor based on edit scope
+      if (editScope === 'instance') {
+        // Edit instance only: Keep recurrenceAnchor unchanged (preserves original planned date)
+        // Explicitly set it to ensure it's included in the returned object
+        updatedTaskData.recurrenceAnchor = initialData.recurrenceAnchor || initialData.dueDate || null;
+      } else if (editScope === 'series') {
+        // Edit series: Update both dueDate and recurrenceAnchor to shift the schedule
+        updatedTaskData.recurrenceAnchor = dueDate || null;
+      }
+
+      // Rebuild recurrence object cleanly (no merging with old data)
+      if (recurrenceType !== 'does-not-repeat') {
+        const newRecurrence = { type: recurrenceType };
+
+        switch (recurrenceType) {
+          case 'daily':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'weekly':
+            newRecurrence.interval = 1;
+            // Critical: Derive days from dueDate if weeklyDays is empty
+            if (weeklyDays && weeklyDays.length > 0) {
+              newRecurrence.days = weeklyDays;
+            } else if (dueDate) {
+              // Default to the current weekday from dueDate
+              const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+              newRecurrence.days = [currentDay];
+            }
+            break;
+
+          case 'monthly':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'yearly':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'custom':
+            newRecurrence.interval = parseInt(customInterval);
+            newRecurrence.unit = customUnit;
+            // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+            if (customUnit === 'weeks') {
+              if (weeklyDays && weeklyDays.length > 0) {
+                newRecurrence.days = weeklyDays;
+              } else if (dueDate) {
+                // Default to the current weekday from dueDate
+                const currentDay = new Date(dueDate).getDay();
+                newRecurrence.days = [currentDay];
+              }
+            }
+            break;
+
+          default:
+            newRecurrence.interval = 1;
+        }
+
+        updatedTaskData.recurrence = newRecurrence;
+      } else {
+        // User changed to does-not-repeat - detach from series
+        updatedTaskData.recurrence = null;
+      }
+
+      onTaskCreate(updatedTaskData);
+      return;
+    }
+
+    // Check if this is a recurring task (creating new)
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
+      // Build recurrence object cleanly with switch statement
+      const newRecurrence = { type: recurrenceType };
+
+      switch (recurrenceType) {
+        case 'daily':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'weekly':
+          newRecurrence.interval = 1;
+          // Critical: Derive days from dueDate if weeklyDays is empty
+          if (weeklyDays && weeklyDays.length > 0) {
+            newRecurrence.days = weeklyDays;
+          } else if (dueDate) {
+            // Default to the current weekday from dueDate
+            const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+            newRecurrence.days = [currentDay];
+          }
+          break;
+
+        case 'monthly':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'yearly':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'custom':
+          newRecurrence.interval = parseInt(customInterval);
+          newRecurrence.unit = customUnit;
+          // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+          if (customUnit === 'weeks') {
+            if (weeklyDays && weeklyDays.length > 0) {
+              newRecurrence.days = weeklyDays;
+            } else if (dueDate) {
+              // Default to the current weekday from dueDate
+              const currentDay = new Date(dueDate).getDay();
+              newRecurrence.days = [currentDay];
+            }
+          }
+          break;
+
+        default:
+          newRecurrence.interval = 1;
+      }
+
+      const recurrence = newRecurrence;
+
       const template = {
         id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: title.trim(),
@@ -94,10 +341,7 @@ const TaskForm = ({ onTaskCreate }) => {
         time: time || null,
         taskType: taskType,
         attachments: attachments,
-        recurrence: {
-          type: recurrenceType, // 'daily' or 'weekly'
-          days: recurrenceType === 'weekly' ? weeklyDays : [],
-        },
+        recurrence: recurrence,
         createdAt: new Date().toISOString(),
       };
 
@@ -125,18 +369,16 @@ const TaskForm = ({ onTaskCreate }) => {
         // Daily tasks are always due today
         instanceDate = todayString;
       } else if (template.recurrence.type === 'weekly') {
-        // For weekly tasks, find the next occurrence (could be today or a future day)
-        const selectedDays = template.recurrence.days.sort((a, b) => a - b); // Sort days in order
+        // For weekly tasks, find the next occurrence from today based on selected days
+        const selectedDays = template.recurrence.days || [];
 
-        // Check if today is one of the selected days
-        if (selectedDays.includes(todayDayOfWeek)) {
-          instanceDate = todayString;
-        } else {
-          // Find the next occurrence
+        if (selectedDays.length > 0) {
+          // Find the next occurrence of the selected days
+          const sortedDays = selectedDays.sort((a, b) => a - b);
           let daysUntilNext = null;
 
           // First, check if there's a day later this week
-          for (const day of selectedDays) {
+          for (const day of sortedDays) {
             if (day > todayDayOfWeek) {
               daysUntilNext = day - todayDayOfWeek;
               break;
@@ -145,14 +387,26 @@ const TaskForm = ({ onTaskCreate }) => {
 
           // If no day found later this week, use the first day next week
           if (daysUntilNext === null) {
-            daysUntilNext = 7 - todayDayOfWeek + selectedDays[0];
+            daysUntilNext = 7 - todayDayOfWeek + sortedDays[0];
           }
 
           // Calculate the next occurrence date
-          const nextOccurrence = new Date(today);
-          nextOccurrence.setDate(nextOccurrence.getDate() + daysUntilNext);
-          instanceDate = nextOccurrence.toISOString().split('T')[0];
+          today.setDate(today.getDate() + daysUntilNext);
+          instanceDate = today.toISOString().split('T')[0];
+        } else {
+          // No specific days: default to 7 days from today
+          today.setDate(today.getDate() + 7);
+          instanceDate = today.toISOString().split('T')[0];
         }
+      } else if (template.recurrence.type === 'monthly') {
+        // Monthly tasks use the user-provided dueDate
+        instanceDate = dueDate;
+      } else if (template.recurrence.type === 'yearly') {
+        // Yearly tasks use the user-provided dueDate
+        instanceDate = dueDate;
+      } else if (template.recurrence.type === 'custom') {
+        // Custom tasks use the user-provided dueDate
+        instanceDate = dueDate;
       }
 
       // Generate the instance with the calculated date
@@ -163,6 +417,7 @@ const TaskForm = ({ onTaskCreate }) => {
         description: template.description,
         url: template.url,
         dueDate: instanceDate,
+        recurrenceAnchor: instanceDate, // Track original planned date for next calculation
         time: template.time,
         status: 'not-started',
         taskType: template.taskType,
@@ -207,11 +462,58 @@ const TaskForm = ({ onTaskCreate }) => {
     setAttachments([]);
     setRecurrenceType('does-not-repeat');
     setWeeklyDays([]);
+    setCustomInterval(1);
+    setCustomUnit('days');
   };
 
   return (
     <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-lg font-semibold text-text-primary mb-4">Create New Task</h3>
+      <h3 className="text-lg font-semibold text-text-primary mb-4">
+        {initialData ? 'Edit Task' : 'Create New Task'}
+      </h3>
+
+      {/* Show indicator when editing a recurring task */}
+      {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && (
+        <div className="mb-4 p-3 bg-green-glow bg-opacity-10 border border-green-glow rounded-lg">
+          <p className="text-sm text-green-glow">
+            <Repeat size={16} className="inline mr-2" />
+            Editing recurring task template - changes will affect future instances
+          </p>
+        </div>
+      )}
+
+      {/* Scope selector for recurring task edits */}
+      {isRecurringEdit && (
+        <div className="mb-4">
+          <label className="block text-sm text-text-secondary mb-2">Edit Scope</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setEditScope('instance')}
+              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                editScope === 'instance'
+                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+              }`}
+            >
+              <div className="font-medium">This Instance Only</div>
+              <div className="text-xs mt-1 opacity-80">Update just this one task</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditScope('series')}
+              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                editScope === 'series'
+                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
+                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+              }`}
+            >
+              <div className="font-medium">All Future Tasks</div>
+              <div className="text-xs mt-1 opacity-80">Update the entire series</div>
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
@@ -257,12 +559,28 @@ const TaskForm = ({ onTaskCreate }) => {
           />
         </div>
 
-        {/* Due Date and Time Row - Only show if not recurring */}
-        {recurrenceType === 'does-not-repeat' && (
+        {/* Due Date and Time Row - Hide for weekly tasks (they use day selector) */}
+        {recurrenceType !== 'weekly' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-text-secondary mb-2">
-                Due Date
+              <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
+                <span>Due Date</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={setDueToday}
+                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={setDueTomorrow}
+                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                  >
+                    Tomorrow
+                  </button>
+                </div>
               </label>
               <input
                 type="date"
@@ -285,8 +603,8 @@ const TaskForm = ({ onTaskCreate }) => {
           </div>
         )}
 
-        {/* Time input for recurring tasks (no date needed as it's generated daily) */}
-        {recurrenceType !== 'does-not-repeat' && (
+        {/* Time input for weekly tasks (no date needed) */}
+        {recurrenceType === 'weekly' && (
           <div>
             <label className="block text-sm text-text-secondary mb-2">
               Time (optional)
@@ -345,6 +663,9 @@ const TaskForm = ({ onTaskCreate }) => {
             <option value="does-not-repeat">Does not repeat</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
           </select>
 
           {/* Weekly Day Toggles - Only show when Weekly is selected */}
@@ -374,6 +695,33 @@ const TaskForm = ({ onTaskCreate }) => {
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Interval - Only show when Custom is selected */}
+          {recurrenceType === 'custom' && (
+            <div className="mt-3">
+              <p className="text-xs text-text-tertiary mb-2">Repeat every:</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={customInterval}
+                  onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
+                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                />
+                <select
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value)}
+                  className="flex-1 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                >
+                  <option value="days">Days</option>
+                  <option value="weeks">Weeks</option>
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
               </div>
             </div>
           )}

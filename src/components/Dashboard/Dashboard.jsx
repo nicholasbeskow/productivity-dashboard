@@ -1,62 +1,16 @@
-import { useState, useEffect, memo } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder } from 'lucide-react';
+import { useState, useEffect, memo, useRef } from 'react';
+import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import CircularProgress from './CircularProgress';
 import PomodoroTimer from './PomodoroTimer';
 import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
+import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
+import { dateToLocalISO } from '../../utils/dateHelpers';
+import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { ArrowRight, Moon } from 'lucide-react';
-
-/**
- * Calculate the next due date for a recurring task based on its template's recurrence pattern.
- * Always calculates from the original due date to maintain consistent schedules.
- */
-const calculateNextDueDate = (currentDueDate, template) => {
-  const dueDate = new Date(currentDueDate + 'T12:00:00');
-
-  if (!template || !template.recurrence) {
-    dueDate.setDate(dueDate.getDate() + 1);
-    return dueDate.toISOString().split('T')[0];
-  }
-
-  const recurrenceType = template.recurrence.type;
-  const selectedDays = template.recurrence.days || [];
-
-  if (recurrenceType === 'daily') {
-    dueDate.setDate(dueDate.getDate() + 1);
-    return dueDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'weekly' && selectedDays.length > 0) {
-    const sortedDays = [...selectedDays].sort((a, b) => a - b);
-    const currentDayOfWeek = dueDate.getDay();
-    let daysToAdd = null;
-
-    for (const day of sortedDays) {
-      if (day > currentDayOfWeek) {
-        daysToAdd = day - currentDayOfWeek;
-        break;
-      }
-    }
-
-    if (daysToAdd === null) {
-      daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
-    }
-
-    dueDate.setDate(dueDate.getDate() + daysToAdd);
-    return dueDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'weekly') {
-    dueDate.setDate(dueDate.getDate() + 7);
-    return dueDate.toISOString().split('T')[0];
-  }
-
-  dueDate.setDate(dueDate.getDate() + 1);
-  return dueDate.toISOString().split('T')[0];
-};
 
 // Memoized task card component for performance
 const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
@@ -134,6 +88,9 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
     const diffTime = taskDate - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+    // Check if year differs from current year
+    const showYear = taskDate.getFullYear() !== now.getFullYear();
+
     // Format the date part
     let dateDisplay;
     if (diffDays === 0) {
@@ -142,10 +99,18 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       dateDisplay = 'Tomorrow';
     } else if (diffDays < 0) {
       // Overdue - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: showYear ? 'numeric' : undefined
+      });
     } else {
       // Future - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: showYear ? 'numeric' : undefined
+      });
     }
 
     // Add time if present
@@ -311,6 +276,9 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
                 {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
+                {task.templateId && (
+                  <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                )}
               </p>
             )}
           </div>
@@ -382,6 +350,8 @@ const Dashboard = ({ setActiveTab }) => {
     taskType: 'academic',
     attachments: []
   });
+  // Edit scope ref for recurring tasks (synced with TaskForm)
+  const editScopeRef = useRef('instance');
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -407,7 +377,7 @@ const Dashboard = ({ setActiveTab }) => {
         // Calculate default values for next semester
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        setNextBreakStart(nextDay.toISOString().split('T')[0]);
+        setNextBreakStart(dateToLocalISO(nextDay));
 
         setShowSemesterEndModal(true);
       }
@@ -624,8 +594,8 @@ const Dashboard = ({ setActiveTab }) => {
           const template = templates.find(t => t.id === task.templateId);
 
           if (template) {
-            // Calculate the next due date based on the original task's due date
-            const nextDueDate = calculateNextDueDate(task.dueDate, template);
+            // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
+            const nextDueDate = calculateNextDueDate(task, template);
 
             // Create the new task instance for the next occurrence
             const nextOccurrence = {
@@ -634,6 +604,7 @@ const Dashboard = ({ setActiveTab }) => {
               description: template.description || '',
               url: template.url || null,
               dueDate: nextDueDate,
+              recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
               time: template.time || null,
               status: 'not-started',
               taskType: template.taskType || 'academic',
@@ -675,6 +646,8 @@ const Dashboard = ({ setActiveTab }) => {
             }));
 
             console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
+          } else {
+            console.warn(`[Dashboard] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
           }
         }
 
@@ -788,6 +761,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
+    setEditScope('instance'); // Reset to default scope
     setEditForm({
       title: task.title,
       description: task.description || '',
@@ -902,12 +876,8 @@ const Dashboard = ({ setActiveTab }) => {
 
     // Check if this is a recurring task instance
     if (task.templateId) {
-      // Show popup: Delete instance or template?
-      const deleteInstance = window.confirm(
-        'Delete this recurring task?\n\n[OK] = Delete just this one instance.\n[Cancel] = Delete the entire series (the template).'
-      );
-
-      if (deleteInstance) {
+      // Use editScopeRef to determine whether to delete instance or series
+      if (editScopeRef.current === 'instance') {
         // Delete just this instance
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
@@ -993,12 +963,8 @@ const Dashboard = ({ setActiveTab }) => {
 
     // Check if this is a recurring task instance
     if (task.templateId) {
-      // Show popup: Edit instance or template?
-      const editInstance = window.confirm(
-        'Edit this recurring task?\n\n[OK] = Edit just this one instance.\n[Cancel] = Edit the entire series (the template).'
-      );
-
-      if (editInstance) {
+      // Use editScopeRef to determine whether to edit instance or series
+      if (editScopeRef.current === 'instance') {
         // Edit just this instance
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
@@ -1429,13 +1395,20 @@ const Dashboard = ({ setActiveTab }) => {
                           const diffTime = taskDate - now;
                           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+                          // Check if year differs from current year
+                          const showYear = taskDate.getFullYear() !== now.getFullYear();
+
                           let dateDisplay;
                           if (diffDays === 0) {
                             dateDisplay = 'Today';
                           } else if (diffDays === 1) {
                             dateDisplay = 'Tomorrow';
                           } else {
-                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: showYear ? 'numeric' : undefined
+                            });
                           }
 
                           if (timeString) {
@@ -1493,222 +1466,159 @@ const Dashboard = ({ setActiveTab }) => {
                             {/* Task Details Card or Edit Form */}
                             <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
                               {isEditingDetail ? (
-                                /* Edit Form */
-                                <>
-                                  {/* Title Input */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Task Title <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={editForm.title}
-                                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                      placeholder="Enter task title"
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                      autoFocus
-                                    />
-                                  </div>
+                                /* Edit Form - Using TaskForm Component */
+                                <div className="space-y-4">
+                                  <TaskForm
+                                    initialData={detailTask}
+                                        onTaskCreate={(data) => {
+                                          try {
+                                            const { scope, ...updatedFields } = data;
 
-                                  {/* Description Textarea */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Description
-                                    </label>
-                                    <textarea
-                                      value={editForm.description}
-                                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                      placeholder="Enter task description (optional)"
-                                      rows={3}
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none transition-colors"
-                                    />
-                                  </div>
+                                            // Sync edit scope from TaskForm
+                                            if (scope) editScopeRef.current = scope;
 
-                                  {/* URL Input */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Related Link
-                                    </label>
-                                    <input
-                                      type="url"
-                                      value={editForm.url}
-                                      onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
-                                      placeholder="https://example.com"
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                    />
-                                  </div>
+                                            console.log('[Dashboard] Edit handler:', { hasTemplateId: !!detailTask.templateId, scope, hasRecurrence: !!updatedFields.recurrence });
 
-                                  {/* Due Date and Time Row */}
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm text-text-secondary mb-2">
-                                        Due Date
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={editForm.dueDate}
-                                        onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
-                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                                            // CASE 1: Converting plain task → recurring
+                                          if (!detailTask.templateId && updatedFields.recurrence) {
+                                            console.log('[Dashboard] Plain → Recurring');
+                                            const newTemplateId = 'template-' + Date.now();
+                                            const newTemplate = { ...updatedFields, id: newTemplateId, createdAt: new Date().toISOString() };
+
+                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                            const updatedTasks = tasks.map(t => t.id === detailTask.id ? {
+                                              ...t, ...updatedFields, templateId: newTemplateId,
+                                              recurrenceAnchor: updatedFields.dueDate || t.dueDate, customPriority: 0
+                                            } : t);
+
+                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                            templates.push(newTemplate);
+                                            localStorage.setItem('recurringTasks', JSON.stringify(templates));
+                                            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                            setTasks(updatedTasks);
+                                            handleCancelEdit();
+                                            backupManager.saveAutoBackup();
+                                            window.dispatchEvent(new Event('storage'));
+                                            return;
+                                          }
+
+                                          // CASE 2: Recurring → plain (remove recurrence)
+                                          if (detailTask.templateId && !updatedFields.recurrence) {
+                                            console.log('[Dashboard] Recurring → Plain');
+                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+
+                                            if (scope === 'series') {
+                                              const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                              const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
+                                              newTasks.push({ ...updatedFields, id: detailTask.id, recurrence: null, templateId: null, recurrenceAnchor: null, status: detailTask.status, createdAt: detailTask.createdAt, completedAt: null });
+                                              localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                              localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                              setTasks(newTasks);
+                                            } else {
+                                              const updatedTasks = tasks.map(t => t.id === detailTask.id ? { ...t, ...updatedFields, recurrence: null, templateId: null, recurrenceAnchor: null } : t);
+                                              localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                              setTasks(updatedTasks);
+                                            }
+                                            handleCancelEdit();
+                                            backupManager.saveAutoBackup();
+                                            window.dispatchEvent(new Event('storage'));
+                                            return;
+                                          }
+
+                                          // CASE 3: SERIES EDIT - Nuclear rebuild (recurrence type changes)
+                                          if (detailTask.templateId && scope === 'series' && updatedFields.recurrence) {
+                                            console.log('[Dashboard] Series edit - nuclear rebuild');
+                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                            const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+
+                                            // 1. DELETE OLD - Remove old template and all instances (including completed)
+                                            const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                            const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
+                                            const newCompletedTasks = completedTasks.filter(t => t.templateId !== detailTask.templateId);
+
+                                            // 2. CREATE NEW template - ONLY template-specific properties (no dueDate, status, etc.)
+                                            const newTemplateId = 'template-' + Date.now();
+                                            const newTemplate = {
+                                              id: newTemplateId,
+                                              title: updatedFields.title,
+                                              description: updatedFields.description || '',
+                                              url: updatedFields.url || null,
+                                              time: updatedFields.time || null,
+                                              taskType: updatedFields.taskType || 'academic',
+                                              attachments: updatedFields.attachments || [],
+                                              recurrence: updatedFields.recurrence,
+                                              createdAt: new Date().toISOString()
+                                            };
+                                            newTemplates.push(newTemplate);
+
+                                            // 3. CREATE NEW instance - ONLY instance-specific properties (no recurrence object)
+                                            const instanceDueDate = updatedFields.dueDate || detailTask.dueDate;
+                                            const newInstance = {
+                                              id: detailTask.id,
+                                              title: updatedFields.title,
+                                              description: updatedFields.description || '',
+                                              url: updatedFields.url || null,
+                                              dueDate: instanceDueDate,
+                                              time: updatedFields.time || null,
+                                              taskType: updatedFields.taskType || 'academic',
+                                              attachments: updatedFields.attachments || [],
+                                              templateId: newTemplateId,
+                                              recurrenceAnchor: instanceDueDate,
+                                              customPriority: 0,
+                                              status: detailTask.status || 'not-started',
+                                              createdAt: detailTask.createdAt || new Date().toISOString(),
+                                              completedAt: null
+                                            };
+                                            newTasks.push(newInstance);
+
+                                            localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                            localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+                                            setTasks(newTasks);
+                                            handleCancelEdit();
+                                            backupManager.saveAutoBackup();
+                                            window.dispatchEvent(new Event('storage'));
+                                            console.log('[Dashboard] Nuclear rebuild complete:', { newTemplate, newInstance });
+                                            return;
+                                          }
+
+                                          // CASE 4: INSTANCE EDIT (or plain task edit)
+                                          console.log('[Dashboard] Instance edit');
+                                          const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                          const updatedTasks = storedTasks.map(t => {
+                                            if (t.id === detailTask.id) {
+                                              return {
+                                                ...t,
+                                                ...updatedFields,
+                                              };
+                                            }
+                                            return t;
+                                          });
+
+                                          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                          setTasks(updatedTasks);
+                                          backupManager.saveAutoBackup();
+                                          window.dispatchEvent(new Event('storage'));
+                                          handleCancelEdit();
+                                          } catch (error) {
+                                            console.error('[Dashboard] Error saving task edit:', error);
+                                            alert('Failed to save task changes. Please try again.');
+                                          }
+                                        }}
                                       />
-                                    </div>
-                                    <div>
-                                      <label className="block text-sm text-text-secondary mb-2">
-                                        Time (optional)
-                                      </label>
-                                      <input
-                                        type="time"
-                                        value={editForm.time}
-                                        onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-                                        className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                      />
-                                    </div>
-                                  </div>
 
-                                  {/* Task Type Toggle */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Task Type
-                                    </label>
-                                    <div className="flex gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditForm({ ...editForm, taskType: 'academic' })}
-                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                          editForm.taskType === 'academic'
-                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                                        }`}
-                                      >
-                                        📚 Academic
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditForm({ ...editForm, taskType: 'personal' })}
-                                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                          editForm.taskType === 'personal'
-                                            ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                                            : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                                        }`}
-                                      >
-                                        🏠 Personal
-                                      </button>
-                                    </div>
-                                  </div>
 
-                                  {/* Status Select */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      Status
-                                    </label>
-                                    <select
-                                      value={editForm.status}
-                                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                      className="w-full bg-bg-secondary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                                    >
-                                      <option value="not-started">Not Started</option>
-                                      <option value="in-progress">In Progress</option>
-                                      <option value="complete">Complete</option>
-                                    </select>
-                                  </div>
-
-                                  {/* File Attachments */}
-                                  <div>
-                                    <label className="block text-sm text-text-secondary mb-2">
-                                      File Attachments
-                                    </label>
+                                  {/* Cancel and Delete Buttons */}
+                                  <div className="space-y-3">
                                     <button
-                                      type="button"
-                                      onClick={handleAttachFilesClick}
-                                      className="w-full px-4 py-2 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                      onClick={handleCancelEdit}
+                                      className="w-full px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
-                                      <FileText size={16} />
-                                      Attach More Files
+                                      <X size={16} />
+                                      Cancel
                                     </button>
-
-                                    {/* Attached Files List */}
-                                    {editForm.attachments && editForm.attachments.length > 0 && (
-                                      <div className="mt-3 space-y-2">
-                                        {editForm.attachments.map((filePath, index) => {
-                                          const fileName = filePath.split(/[\\/]/).pop();
-                                          const isDragging = draggedAttachmentIndex === index;
-                                          const isDragOver = dragOverAttachmentIndex === index;
-                                          return (
-                                            <div
-                                              key={index}
-                                              draggable
-                                              onDragStart={(e) => handleAttachmentDragStart(e, index)}
-                                              onDragOver={(e) => handleAttachmentDragOver(e, index)}
-                                              onDrop={(e) => handleAttachmentDrop(e, index)}
-                                              onDragEnd={handleAttachmentDragEnd}
-                                              className={`flex items-center gap-2 bg-bg-secondary rounded-lg px-3 py-2 border transition-all ${
-                                                isDragging ? 'opacity-50 border-green-glow' :
-                                                isDragOver ? 'border-green-glow shadow-lg' :
-                                                'border-bg-primary'
-                                              }`}
-                                            >
-                                              {/* Drag Handle */}
-                                              <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
-                                                <GripVertical size={16} />
-                                              </div>
-
-                                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <FileText size={14} className="text-green-glow flex-shrink-0" />
-                                                <span className="text-xs text-text-primary truncate" title={filePath}>
-                                                  {fileName}
-                                                </span>
-                                              </div>
-                                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleShowInFolder(filePath)}
-                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
-                                                  title="Show in Folder"
-                                                >
-                                                  <Folder size={14} className="text-green-glow" />
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleOpenFile(filePath)}
-                                                  className="p-1 hover:bg-green-glow/20 rounded transition-colors"
-                                                  title="Open file"
-                                                >
-                                                  <ExternalLink size={14} className="text-green-glow" />
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleRemoveAttachment(filePath)}
-                                                  className="p-1 hover:bg-red-500/20 rounded transition-colors"
-                                                  title="Remove attachment"
-                                                >
-                                                  <X size={14} className="text-red-500" />
-                                                </button>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Action Buttons */}
-                                  <div className="space-y-3 pt-2">
-                                    <div className="flex gap-3">
-                                      <button
-                                        onClick={() => handleSaveEdit(detailTask.id)}
-                                        disabled={!editForm.title.trim()}
-                                        className="flex-1 bg-green-glow hover:bg-green-glow/90 disabled:bg-green-glow/50 disabled:cursor-not-allowed text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                                      >
-                                        <Save size={16} />
-                                        Save Changes
-                                      </button>
-                                      <button
-                                        onClick={handleCancelEdit}
-                                        className="px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                                      >
-                                        <X size={16} />
-                                        Cancel
-                                      </button>
-                                    </div>
 
                                     {/* Delete Button */}
                                     <button
@@ -1716,10 +1626,13 @@ const Dashboard = ({ setActiveTab }) => {
                                       className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <Trash2 size={16} />
-                                      Delete Task
+                                      {detailTask.templateId
+                                        ? (editScopeRef.current === 'instance' ? 'Delete Instance' : 'Delete Series')
+                                        : 'Delete Task'
+                                      }
                                     </button>
                                   </div>
-                                </>
+                                </div>
                               ) : (
                                 /* Detail View */
                                 <>
