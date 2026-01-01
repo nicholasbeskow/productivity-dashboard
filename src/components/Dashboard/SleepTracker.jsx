@@ -358,13 +358,13 @@ const SleepTracker = () => {
       {/* Sleep Debt Summary */}
       {sleepDebt && view === 'month' && (
         <div className="mb-4 grid grid-cols-2 gap-3">
-          <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
-            <p className="text-xs text-text-tertiary mb-1">7-Day Average</p>
+          <div className="liquid-bubble-filled rounded-lg p-3">
+            <p className="text-xs text-white/50 mb-1">7-Day Average</p>
             <p className="text-lg font-bold text-purple-400">{sleepDebt.avgSleep}h</p>
-            <p className="text-[10px] text-text-tertiary">{sleepDebt.daysTracked} days tracked</p>
+            <p className="text-[10px] text-white/40">{sleepDebt.daysTracked} days tracked</p>
           </div>
-          <div className="bg-bg-tertiary rounded-lg p-3 border border-bg-primary">
-            <p className="text-xs text-text-tertiary mb-1">Weekly Sleep Debt</p>
+          <div className="liquid-bubble-filled rounded-lg p-3">
+            <p className="text-xs text-white/50 mb-1">Weekly Sleep Debt</p>
             <p className={`text-lg font-bold ${
               sleepDebt.hasSurplus ? 'text-green-glow' :
               parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
@@ -372,7 +372,7 @@ const SleepTracker = () => {
             }`}>
               {sleepDebt.hasSurplus ? `+${Math.abs(parseFloat(sleepDebt.debt)).toFixed(1)}h` : `${sleepDebt.debt}h`}
             </p>
-            <p className="text-[10px] text-text-tertiary">vs {sleepDebt.targetPerNight}h/night target</p>
+            <p className="text-[10px] text-white/40">vs {sleepDebt.targetPerNight}h/night target</p>
           </div>
         </div>
       )}

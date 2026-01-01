@@ -1241,9 +1241,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('all')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'all'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'all' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     All
                   </button>
@@ -1251,9 +1252,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('academic')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'academic'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'academic' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Academic
                   </button>
@@ -1261,9 +1263,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('personal')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'personal'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-white/60 hover:bg-glass-surface border border-white/18'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'personal' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Personal
                   </button>

@@ -129,41 +129,41 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Dashboard Task Card Glow Effects */
+/* Dashboard Task Card Glow Effects - Subtle */
 .task-glow-not-started {
-  box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
+  box-shadow: 0 0 8px rgba(100, 200, 255, 0.12);
   transition: box-shadow 200ms ease-in-out;
 }
 
 .task-glow-not-started:hover {
-  box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+  box-shadow: 0 0 10px rgba(100, 200, 255, 0.18);
 }
 
 .task-glow-in-progress {
-  box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
+  box-shadow: 0 0 8px rgba(255, 200, 50, 0.15);
   transition: box-shadow 200ms ease-in-out;
 }
 
 .task-glow-in-progress:hover {
-  box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
+  box-shadow: 0 0 10px rgba(255, 200, 50, 0.2);
 }
 
 .task-glow-complete {
-  box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+  box-shadow: 0 0 6px rgba(61, 214, 140, 0.1);
   transition: box-shadow 200ms ease-in-out;
 }
 
 .task-glow-complete:hover {
-  box-shadow: 0 0 18px rgba(61, 214, 140, 0.4);
+  box-shadow: 0 0 8px rgba(61, 214, 140, 0.15);
 }
 
 .task-glow-overdue {
-  box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
+  box-shadow: 0 0 10px rgba(255, 50, 50, 0.18);
   transition: box-shadow 200ms ease-in-out;
 }
 
 .task-glow-overdue:hover {
-  box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
+  box-shadow: 0 0 12px rgba(255, 50, 50, 0.25);
 }
 
 /* Dashboard Checkbox Hover Effects */

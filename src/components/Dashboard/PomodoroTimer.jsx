@@ -245,7 +245,7 @@ const PomodoroTimer = () => {
           {/* Reset Button */}
           <motion.button
             onClick={handleReset}
-            className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            className="p-3 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="Reset"
@@ -257,7 +257,7 @@ const PomodoroTimer = () => {
           {/* Skip Button */}
           <motion.button
             onClick={handleSkip}
-            className="p-3 rounded-full bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            className="p-3 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="Skip"
@@ -327,7 +327,7 @@ const PomodoroTimer = () => {
                 {/* Reset Button */}
                 <motion.button
                   onClick={handleReset}
-                  className="p-5 rounded-full bg-bg-tertiary hover:glass-panel border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  className="p-5 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   title="Reset"
@@ -339,7 +339,7 @@ const PomodoroTimer = () => {
                 {/* Skip Button */}
                 <motion.button
                   onClick={handleSkip}
-                  className="p-5 rounded-full bg-bg-tertiary hover:glass-panel border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                  className="p-5 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   title="Skip"
