@@ -1685,13 +1685,13 @@ const Dashboard = ({ setActiveTab }) => {
                                           const { scope, ...updatedFields } = data;
 
                                           // SERIES UPDATE - Nuclear Destroy/Rebuild Pattern
-                                          if (data.templateId && scope === 'series') {
+                                          if (detailTask.templateId && scope === 'series') {
                                             const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
                                             const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
 
                                             // 1. DELETE OLD - Remove old template and all instances
-                                            const newTemplates = templates.filter(t => t.id !== data.templateId);
-                                            const newTasks = tasks.filter(t => t.templateId !== data.templateId);
+                                            const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                            const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
 
                                             // 2. CREATE NEW - If recurrence is still active
                                             if (updatedFields.recurrence) {
