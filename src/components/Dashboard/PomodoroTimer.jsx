@@ -210,7 +210,7 @@ const PomodoroTimer = () => {
           </h3>
           <motion.button
             onClick={() => setIsFullscreen(true)}
-            className="p-2 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
+            className="p-2 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="Fullscreen mode"
@@ -234,7 +234,10 @@ const PomodoroTimer = () => {
           {/* Start/Pause Button */}
           <motion.button
             onClick={handleStartPause}
-            className="p-4 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
+            className="p-4 rounded-full liquid-bubble-filled text-green-glow hover:text-green-400 transition-all"
+            style={{
+              boxShadow: '0 0 20px rgba(61, 214, 140, 0.3), inset 0 0 20px rgba(61, 214, 140, 0.1)'
+            }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title={isActive ? 'Pause' : 'Start'}
@@ -318,7 +321,10 @@ const PomodoroTimer = () => {
                   {/* Start/Pause Button */}
                   <motion.button
                     onClick={handleStartPause}
-                    className="p-6 rounded-full bg-green-glow hover:bg-green-glow/90 text-bg-primary transition-all shadow-lg"
+                    className="p-6 rounded-full liquid-bubble-filled text-green-glow hover:text-green-400 transition-all"
+                    style={{
+                      boxShadow: '0 0 20px rgba(61, 214, 140, 0.3), inset 0 0 20px rgba(61, 214, 140, 0.1)'
+                    }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     title={isActive ? 'Pause' : 'Start'}

@@ -232,7 +232,7 @@ const MoodTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none ${
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none group ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             mood ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
@@ -241,13 +241,16 @@ const MoodTracker = () => {
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {mood ? (
-            <mood.icon size={24} className={mood.color} strokeWidth={2} />
+            <>
+              <mood.icon size={24} className={`${mood.color} transition-opacity duration-200 ${sleepEntry ? 'group-hover:opacity-0' : ''}`} strokeWidth={2} />
+              {sleepEntry && (
+                <span className="absolute text-sm text-purple-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {sleepEntry.hours}h
+                </span>
+              )}
+            </>
           ) : (
             <span className="text-zinc-500 text-sm font-medium">{day}</span>
-          )}
-          {/* Sleep Indicator (top-right corner, inside cell) */}
-          {sleepEntry && (
-            <span className="absolute top-1 right-1 text-[8px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
           )}
           {/* Journal Indicator Dot */}
           {getJournalForDate(date) && (
@@ -264,8 +267,7 @@ const MoodTracker = () => {
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Smile className="text-yellow-500" size={24} />
+        <h3 className="text-xl font-bold text-white">
           {view === 'month' && 'Mood Calendar'}
           {view === 'select' && 'Log Mood'}
           {view === 'details' && 'Entry Details'}

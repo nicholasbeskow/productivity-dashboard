@@ -331,7 +331,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             e.stopPropagation();
             onStartEdit(task);
           }}
-          className="p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
+          className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all flex-shrink-0"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Edit task"
@@ -1415,7 +1415,7 @@ const Dashboard = ({ setActiveTab }) => {
                               {!isEditingDetail && (
                                 <button
                                   onClick={() => handleStartEdit(detailTask)}
-                                  className="p-2 rounded-lg bg-glass-surface hover:bg-glass-overlay border border-white/18 hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all"
+                                  className="p-2 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
                                   title="Edit task"
                                 >
                                   <Pencil size={16} />

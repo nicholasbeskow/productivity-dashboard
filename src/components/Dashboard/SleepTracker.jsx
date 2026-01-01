@@ -289,7 +289,7 @@ const SleepTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none ${
+          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none group ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             sleepEntry ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
@@ -299,8 +299,10 @@ const SleepTracker = () => {
         >
           {sleepEntry ? (
             <>
-              <Moon size={16} className="text-purple-400" />
-              <span className="text-[10px] text-white/70 mt-0.5">{(sleepEntry.totalSleep ?? sleepEntry.hours)}h</span>
+              <Moon size={16} className="text-purple-400 group-hover:opacity-0 transition-opacity duration-200" />
+              <span className="absolute text-sm text-purple-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {(sleepEntry.totalSleep ?? sleepEntry.hours)}h
+              </span>
               {/* Quality indicator dot */}
               <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${getQualityColor(sleepEntry.quality)}`} />
             </>
@@ -318,8 +320,7 @@ const SleepTracker = () => {
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Moon className="text-purple-400" size={24} />
+        <h3 className="text-xl font-bold text-white">
           {view === 'month' && 'Sleep Calendar'}
           {view === 'log' && 'Log Sleep'}
           {view === 'details' && 'Sleep Details'}
