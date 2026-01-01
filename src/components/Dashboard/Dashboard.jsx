@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef } from 'react';
+import { useState, useEffect, memo, useRef, useMemo } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -1125,43 +1125,46 @@ const Dashboard = ({ setActiveTab }) => {
   };
 
   // Sort and limit tasks for dashboard - show top 5
-  const displayTasks = tasks
-    .filter(task => {
-      if (taskFilter === 'all') return true;
-      if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
-      if (taskFilter === 'personal') return task.taskType === 'personal';
-      return true;
-    })
-    .sort((a, b) => {
-      const aOverdue = isOverdue(a);
-      const bOverdue = isOverdue(b);
+  // Memoized to prevent expensive recalculation on every render
+  const displayTasks = useMemo(() => {
+    return tasks
+      .filter(task => {
+        if (taskFilter === 'all') return true;
+        if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
+        if (taskFilter === 'personal') return task.taskType === 'personal';
+        return true;
+      })
+      .sort((a, b) => {
+        const aOverdue = isOverdue(a);
+        const bOverdue = isOverdue(b);
 
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
 
-      if (aOverdue && bOverdue) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
+        if (aOverdue && bOverdue) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
 
-      const aHasPriority = (a.customPriority ?? 0) > 0;
-      const bHasPriority = (b.customPriority ?? 0) > 0;
+        const aHasPriority = (a.customPriority ?? 0) > 0;
+        const bHasPriority = (b.customPriority ?? 0) > 0;
 
-      if (aHasPriority && !bHasPriority) return -1;
-      if (!aHasPriority && bHasPriority) return 1;
+        if (aHasPriority && !bHasPriority) return -1;
+        if (!aHasPriority && bHasPriority) return 1;
 
-      if (aHasPriority && bHasPriority) {
-        return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-      }
+        if (aHasPriority && bHasPriority) {
+          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
+        }
 
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && b.dueDate) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        if (a.dueDate && b.dueDate) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
 
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    })
-    .slice(0, 5); // Show up to 5 tasks
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+      .slice(0, 5); // Show up to 5 tasks
+  }, [tasks, taskFilter]);
 
   // Format user name - capitalize first letter of each word
   const formatUserName = (name) => {
