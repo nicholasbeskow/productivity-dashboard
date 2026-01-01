@@ -8,6 +8,7 @@ import SleepTab from './components/Sleep/SleepTab';
 import StatsTab from './components/Stats/StatsTab';
 import SettingsTab from './components/Settings/SettingsTab';
 import backupManager from './utils/backupManager';
+import { getLocalISOString } from './utils/dateHelpers';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -70,9 +71,8 @@ function App() {
       try {
         console.log('[Task Generator] Running task generator...');
 
-        // Get today's date string (YYYY-MM-DD)
-        const today = new Date();
-        const todayString = today.toISOString().split('T')[0];
+        // Get today's date string (YYYY-MM-DD) in local timezone
+        const todayString = getLocalISOString();
 
         // Get all recurring task templates
         const templatesString = localStorage.getItem('recurringTasks');
@@ -192,7 +192,7 @@ function App() {
     };
 
     // Check if generator has already run today
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalISOString();
     const lastRun = localStorage.getItem('taskGeneratorLastRun');
 
     if (lastRun !== today) {
