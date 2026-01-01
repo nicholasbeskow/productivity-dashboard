@@ -191,12 +191,24 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
         'border-transparent'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:brightness-110 hover:scale-[1.01]' : 'cursor-move'}`}
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer' : 'cursor-move'}`}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backdropFilter: 'blur(12px) saturate(180%)',
         background: 'rgba(255, 255, 255, 0.03)'
+      }}
+      onMouseEnter={(e) => {
+        if ((task.description || task.url) && !draggedTask) {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
+          e.currentTarget.style.transform = 'translateY(-2px) translateZ(0)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if ((task.description || task.url) && !draggedTask) {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+          e.currentTarget.style.transform = 'translateZ(0)';
+        }
       }}
       onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
     >

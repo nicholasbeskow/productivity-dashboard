@@ -31,12 +31,12 @@ const TimerDisplay = ({
         height={size}
         className="transform -rotate-90"
       >
-        {/* Background circle - Dark glassy track */}
+        {/* Background circle - Carved groove */}
         <circle
           cx={center}
           cy={center}
           r={radius}
-          stroke="rgba(0, 0, 0, 0.4)"
+          stroke="rgba(0, 0, 0, 0.5)"
           strokeWidth={strokeWidth}
           fill="none"
         />

@@ -23,12 +23,12 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
       onMouseLeave={() => setIsHovered(false)}
     >
       <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle - Dark glassy track */}
+        {/* Background circle - Carved groove */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(0, 0, 0, 0.4)"
+          stroke="rgba(0, 0, 0, 0.5)"
           strokeWidth={strokeWidth}
           fill="none"
         />
