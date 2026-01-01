@@ -204,28 +204,44 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         updatedTaskData.recurrenceAnchor = dueDate || null;
       }
 
-      // If recurrence fields were modified, include them
+      // Rebuild recurrence object cleanly (no merging with old data)
       if (recurrenceType !== 'does-not-repeat') {
-        let recurrence;
-        if (recurrenceType === 'custom') {
-          recurrence = {
-            type: 'custom',
-            interval: parseInt(customInterval),
-            unit: customUnit,
-          };
-        } else if (recurrenceType === 'monthly') {
-          recurrence = { type: 'monthly' };
-        } else if (recurrenceType === 'yearly') {
-          recurrence = { type: 'yearly' };
-        } else if (recurrenceType === 'weekly') {
-          recurrence = {
-            type: 'weekly',
-            days: weeklyDays,
-          };
-        } else {
-          recurrence = { type: recurrenceType };
+        const newRecurrence = { type: recurrenceType };
+
+        switch (recurrenceType) {
+          case 'daily':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'weekly':
+            newRecurrence.interval = 1;
+            if (weeklyDays && weeklyDays.length > 0) {
+              newRecurrence.days = weeklyDays;
+            }
+            break;
+
+          case 'monthly':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'yearly':
+            newRecurrence.interval = 1;
+            break;
+
+          case 'custom':
+            newRecurrence.interval = parseInt(customInterval);
+            newRecurrence.unit = customUnit;
+            // Sanitize: Only include weeklyDays for custom weeks if data exists
+            if (customUnit === 'weeks' && weeklyDays && weeklyDays.length > 0) {
+              newRecurrence.days = weeklyDays;
+            }
+            break;
+
+          default:
+            newRecurrence.interval = 1;
         }
-        updatedTaskData.recurrence = recurrence;
+
+        updatedTaskData.recurrence = newRecurrence;
       } else {
         // User changed to does-not-repeat - detach from series
         updatedTaskData.recurrence = null;
@@ -238,27 +254,43 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     // Check if this is a recurring task (creating new)
     if (recurrenceType !== 'does-not-repeat') {
       // Create a recurring task template instead of a normal task
-      // Build recurrence object based on type
-      let recurrence;
-      if (recurrenceType === 'custom') {
-        recurrence = {
-          type: 'custom',
-          interval: parseInt(customInterval),
-          unit: customUnit,
-        };
-      } else if (recurrenceType === 'monthly') {
-        recurrence = { type: 'monthly' };
-      } else if (recurrenceType === 'yearly') {
-        recurrence = { type: 'yearly' };
-      } else if (recurrenceType === 'weekly') {
-        recurrence = {
-          type: 'weekly',
-          days: weeklyDays,
-        };
-      } else {
-        // daily or other types
-        recurrence = { type: recurrenceType };
+      // Build recurrence object cleanly with switch statement
+      const newRecurrence = { type: recurrenceType };
+
+      switch (recurrenceType) {
+        case 'daily':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'weekly':
+          newRecurrence.interval = 1;
+          if (weeklyDays && weeklyDays.length > 0) {
+            newRecurrence.days = weeklyDays;
+          }
+          break;
+
+        case 'monthly':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'yearly':
+          newRecurrence.interval = 1;
+          break;
+
+        case 'custom':
+          newRecurrence.interval = parseInt(customInterval);
+          newRecurrence.unit = customUnit;
+          // Sanitize: Only include weeklyDays for custom weeks if data exists
+          if (customUnit === 'weeks' && weeklyDays && weeklyDays.length > 0) {
+            newRecurrence.days = weeklyDays;
+          }
+          break;
+
+        default:
+          newRecurrence.interval = 1;
       }
+
+      const recurrence = newRecurrence;
 
       const template = {
         id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

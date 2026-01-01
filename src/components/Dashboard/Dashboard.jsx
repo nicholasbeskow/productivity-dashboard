@@ -12,124 +12,158 @@ import { ArrowRight, Moon } from 'lucide-react';
 /**
  * Calculate the next due date for a recurring task based on its template's recurrence pattern.
  * Uses recurrenceAnchor to maintain consistent schedules even when tasks are completed late.
+ * Includes fail-safe error handling - returns tomorrow if calculation fails.
  */
 const calculateNextDueDate = (task, template) => {
-  // Use recurrenceAnchor if available, fallback to dueDate for legacy tasks
-  const baseDate = new Date((task.recurrenceAnchor || task.dueDate) + 'T12:00:00');
+  try {
+    // Use recurrenceAnchor if available, fallback to dueDate for legacy tasks
+    const baseDate = new Date((task.recurrenceAnchor || task.dueDate) + 'T12:00:00');
 
-  if (!template || !template.recurrence) {
+    // Validate baseDate
+    if (isNaN(baseDate.getTime())) {
+      throw new Error('Invalid base date');
+    }
+
+    if (!template || !template.recurrence) {
+      baseDate.setDate(baseDate.getDate() + 1);
+      return baseDate.toISOString().split('T')[0];
+    }
+
+    const recurrenceType = template.recurrence.type;
+
+    // DAILY: Add 1 day
+    if (recurrenceType === 'daily') {
+      baseDate.setDate(baseDate.getDate() + 1);
+      const result = baseDate.toISOString().split('T')[0];
+      if (!result || result === 'Invalid Date') throw new Error('Invalid daily calculation');
+      return result;
+    }
+
+    // WEEKLY: Use days array (ignore for non-weekly types)
+    if (recurrenceType === 'weekly') {
+      const selectedDays = template.recurrence.days || [];
+
+      if (selectedDays.length > 0) {
+        const sortedDays = [...selectedDays].sort((a, b) => a - b);
+        const currentDayOfWeek = baseDate.getDay();
+        let daysToAdd = null;
+
+        for (const day of sortedDays) {
+          if (day > currentDayOfWeek) {
+            daysToAdd = day - currentDayOfWeek;
+            break;
+          }
+        }
+
+        if (daysToAdd === null) {
+          daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
+        }
+
+        baseDate.setDate(baseDate.getDate() + daysToAdd);
+      } else {
+        // Fallback: add 7 days
+        baseDate.setDate(baseDate.getDate() + 7);
+      }
+
+      const result = baseDate.toISOString().split('T')[0];
+      if (!result || result === 'Invalid Date') throw new Error('Invalid weekly calculation');
+      return result;
+    }
+
+    // MONTHLY: Explicitly ignore days array, use recurrenceAnchor date
+    if (recurrenceType === 'monthly') {
+      const originalDay = baseDate.getDate();
+      baseDate.setMonth(baseDate.getMonth() + 1);
+
+      // Smart date clamping for month-end dates
+      if (baseDate.getDate() !== originalDay) {
+        baseDate.setDate(0); // Clamp to last day of target month
+      }
+
+      const result = baseDate.toISOString().split('T')[0];
+      if (!result || result === 'Invalid Date') throw new Error('Invalid monthly calculation');
+      return result;
+    }
+
+    // YEARLY: Handle leap year edge case
+    if (recurrenceType === 'yearly') {
+      const originalMonth = baseDate.getMonth();
+      const originalDay = baseDate.getDate();
+      const isFeb29 = originalMonth === 1 && originalDay === 29;
+
+      baseDate.setFullYear(baseDate.getFullYear() + 1);
+
+      // Handle Feb 29 in non-leap years
+      if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
+        baseDate.setMonth(1);
+        baseDate.setDate(28);
+      }
+
+      const result = baseDate.toISOString().split('T')[0];
+      if (!result || result === 'Invalid Date') throw new Error('Invalid yearly calculation');
+      return result;
+    }
+
+    // CUSTOM: Handle all unit types
+    if (recurrenceType === 'custom') {
+      const interval = template.recurrence.interval || 1;
+      const unit = template.recurrence.unit || 'days';
+
+      switch (unit) {
+        case 'days':
+          baseDate.setDate(baseDate.getDate() + interval);
+          break;
+
+        case 'weeks':
+          baseDate.setDate(baseDate.getDate() + (interval * 7));
+          break;
+
+        case 'months': {
+          const originalDay = baseDate.getDate();
+          baseDate.setMonth(baseDate.getMonth() + interval);
+
+          // Smart date clamping
+          if (baseDate.getDate() !== originalDay) {
+            baseDate.setDate(0);
+          }
+          break;
+        }
+
+        case 'years': {
+          const originalMonth = baseDate.getMonth();
+          const originalDay = baseDate.getDate();
+          const isFeb29 = originalMonth === 1 && originalDay === 29;
+
+          baseDate.setFullYear(baseDate.getFullYear() + interval);
+
+          // Handle Feb 29
+          if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
+            baseDate.setMonth(1);
+            baseDate.setDate(28);
+          }
+          break;
+        }
+
+        default:
+          baseDate.setDate(baseDate.getDate() + 1);
+      }
+
+      const result = baseDate.toISOString().split('T')[0];
+      if (!result || result === 'Invalid Date') throw new Error('Invalid custom calculation');
+      return result;
+    }
+
+    // Fallback
     baseDate.setDate(baseDate.getDate() + 1);
     return baseDate.toISOString().split('T')[0];
+
+  } catch (error) {
+    // Fail-safe: Return tomorrow if calculation fails
+    console.warn('Recurrence math failed for task:', task?.id, error.message, 'Defaulting to tomorrow.');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
   }
-
-  const recurrenceType = template.recurrence.type;
-  const selectedDays = template.recurrence.days || [];
-
-  if (recurrenceType === 'daily') {
-    baseDate.setDate(baseDate.getDate() + 1);
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'weekly' && selectedDays.length > 0) {
-    const sortedDays = [...selectedDays].sort((a, b) => a - b);
-    const currentDayOfWeek = baseDate.getDay();
-    let daysToAdd = null;
-
-    for (const day of sortedDays) {
-      if (day > currentDayOfWeek) {
-        daysToAdd = day - currentDayOfWeek;
-        break;
-      }
-    }
-
-    if (daysToAdd === null) {
-      daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
-    }
-
-    baseDate.setDate(baseDate.getDate() + daysToAdd);
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'weekly') {
-    baseDate.setDate(baseDate.getDate() + 7);
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'monthly') {
-    // Smart Add Month: Clamp to last day of target month if day overflows
-    const originalDay = baseDate.getDate();
-    baseDate.setMonth(baseDate.getMonth() + 1);
-
-    // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
-    if (baseDate.getDate() !== originalDay) {
-      baseDate.setDate(0); // Sets to last day of previous month (the target month)
-    }
-
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'yearly') {
-    // Smart Add Year: Handle Feb 29 in non-leap years
-    const originalMonth = baseDate.getMonth();
-    const originalDay = baseDate.getDate();
-    const isFeb29 = originalMonth === 1 && originalDay === 29;
-
-    baseDate.setFullYear(baseDate.getFullYear() + 1);
-
-    // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
-    if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
-      baseDate.setMonth(1); // February
-      baseDate.setDate(28); // Feb 28
-    }
-
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  if (recurrenceType === 'custom') {
-    const interval = template.recurrence.interval || 1;
-    const unit = template.recurrence.unit || 'days';
-
-    switch (unit) {
-      case 'days':
-        baseDate.setDate(baseDate.getDate() + interval);
-        break;
-      case 'weeks':
-        baseDate.setDate(baseDate.getDate() + (interval * 7));
-        break;
-      case 'months': {
-        // Smart Add Month: Clamp to last day of target month if day overflows
-        const originalDay = baseDate.getDate();
-        baseDate.setMonth(baseDate.getMonth() + interval);
-
-        // If the day changed (e.g., Jan 31 -> Mar 3), clamp to last day of target month
-        if (baseDate.getDate() !== originalDay) {
-          baseDate.setDate(0); // Sets to last day of previous month (the target month)
-        }
-        break;
-      }
-      case 'years': {
-        // Smart Add Year: Handle Feb 29 in non-leap years
-        const originalMonth = baseDate.getMonth();
-        const originalDay = baseDate.getDate();
-        const isFeb29 = originalMonth === 1 && originalDay === 29;
-
-        baseDate.setFullYear(baseDate.getFullYear() + interval);
-
-        // If original was Feb 29 and new date rolled to Mar 1 (non-leap year), clamp to Feb 28
-        if (isFeb29 && baseDate.getMonth() === 2 && baseDate.getDate() === 1) {
-          baseDate.setMonth(1); // February
-          baseDate.setDate(28); // Feb 28
-        }
-        break;
-      }
-      default:
-        baseDate.setDate(baseDate.getDate() + 1);
-    }
-    return baseDate.toISOString().split('T')[0];
-  }
-
-  baseDate.setDate(baseDate.getDate() + 1);
-  return baseDate.toISOString().split('T')[0];
 };
 
 // Memoized task card component for performance
