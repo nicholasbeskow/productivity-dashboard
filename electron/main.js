@@ -26,6 +26,7 @@ const initialWorkMinutes = store.get('pomodoroWorkDuration', 50);
 const initialBreakMinutes = store.get('pomodoroBreakDuration', 10);
 
 let timerInterval = null;
+let timerTargetEndTime = null; // Target timestamp when timer should end (ms)
 let timerState = {
   mode: 'idle', // 'work', 'break', 'idle'
   timeLeft: initialWorkMinutes * 60, // Initialize with loaded work duration in seconds
@@ -130,22 +131,32 @@ function startTimer() {
   // ---------------------------------------
 
   timerState.isActive = true;
+
+  // Calculate target end time for drift-free timer
+  // Store when the timer should end (current time + remaining seconds)
+  timerTargetEndTime = Date.now() + (timerState.timeLeft * 1000);
+
   sendTimerUpdate();
 
-  // Start countdown interval
+  // Start countdown interval with drift compensation
   timerInterval = setInterval(() => {
-    timerState.timeLeft--;
+    // Calculate actual time remaining using Date.now() comparison
+    const now = Date.now();
+    const msRemaining = timerTargetEndTime - now;
+    const secondsRemaining = Math.ceil(msRemaining / 1000);
+
+    // Update timeLeft based on actual time remaining (drift-free)
+    timerState.timeLeft = Math.max(0, secondsRemaining);
 
     if (timerState.timeLeft <= 0) {
       // Timer reached zero - switch modes
       clearInterval(timerInterval);
       timerInterval = null;
+      timerTargetEndTime = null;
 
       const finishedMode = timerState.mode;
       let nextMode;
       let nextDuration;
-      let notificationTitle = '';
-      let notificationBody = '';
 
       if (finishedMode === 'work') {
         // Work completed -> Break
@@ -186,6 +197,8 @@ function stopTimer() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  // Clear target end time when stopping
+  timerTargetEndTime = null;
   timerState.isActive = false;
   sendTimerUpdate();
 }
