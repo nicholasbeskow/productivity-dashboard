@@ -215,8 +215,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
           case 'weekly':
             newRecurrence.interval = 1;
+            // Critical: Derive days from dueDate if weeklyDays is empty
             if (weeklyDays && weeklyDays.length > 0) {
               newRecurrence.days = weeklyDays;
+            } else if (dueDate) {
+              // Default to the current weekday from dueDate
+              const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+              newRecurrence.days = [currentDay];
             }
             break;
 
@@ -231,9 +236,15 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           case 'custom':
             newRecurrence.interval = parseInt(customInterval);
             newRecurrence.unit = customUnit;
-            // Sanitize: Only include weeklyDays for custom weeks if data exists
-            if (customUnit === 'weeks' && weeklyDays && weeklyDays.length > 0) {
-              newRecurrence.days = weeklyDays;
+            // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+            if (customUnit === 'weeks') {
+              if (weeklyDays && weeklyDays.length > 0) {
+                newRecurrence.days = weeklyDays;
+              } else if (dueDate) {
+                // Default to the current weekday from dueDate
+                const currentDay = new Date(dueDate).getDay();
+                newRecurrence.days = [currentDay];
+              }
             }
             break;
 
@@ -264,8 +275,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
         case 'weekly':
           newRecurrence.interval = 1;
+          // Critical: Derive days from dueDate if weeklyDays is empty
           if (weeklyDays && weeklyDays.length > 0) {
             newRecurrence.days = weeklyDays;
+          } else if (dueDate) {
+            // Default to the current weekday from dueDate
+            const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+            newRecurrence.days = [currentDay];
           }
           break;
 
@@ -280,9 +296,15 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         case 'custom':
           newRecurrence.interval = parseInt(customInterval);
           newRecurrence.unit = customUnit;
-          // Sanitize: Only include weeklyDays for custom weeks if data exists
-          if (customUnit === 'weeks' && weeklyDays && weeklyDays.length > 0) {
-            newRecurrence.days = weeklyDays;
+          // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+          if (customUnit === 'weeks') {
+            if (weeklyDays && weeklyDays.length > 0) {
+              newRecurrence.days = weeklyDays;
+            } else if (dueDate) {
+              // Default to the current weekday from dueDate
+              const currentDay = new Date(dueDate).getDay();
+              newRecurrence.days = [currentDay];
+            }
           }
           break;
 
