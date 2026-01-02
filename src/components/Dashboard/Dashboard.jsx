@@ -804,6 +804,8 @@ const Dashboard = ({ setActiveTab }) => {
       taskType: 'academic',
       attachments: []
     });
+    // Scroll to top when returning to main dashboard
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // File attachment handlers for detail/edit view
