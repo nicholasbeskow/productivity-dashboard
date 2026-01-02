@@ -309,12 +309,9 @@ const SleepTracker = () => {
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {sleepEntry ? (
-            <>
-              <Moon size={16} className={`${getQualityTextColor(sleepEntry.quality)} group-hover:opacity-0 transition-opacity duration-200`} />
-              <span className={`absolute text-sm ${getQualityTextColor(sleepEntry.quality)} font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                {(sleepEntry.totalSleep ?? sleepEntry.hours)}h
-              </span>
-            </>
+            <span className={`text-sm ${getQualityTextColor(sleepEntry.quality)} font-medium`}>
+              {(sleepEntry.totalSleep ?? sleepEntry.hours)}h
+            </span>
           ) : (
             <span className="text-zinc-500 text-sm font-medium">{day}</span>
           )}
