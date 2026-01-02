@@ -7,7 +7,7 @@ import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -72,7 +72,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       case 'in-progress':
         return <Clock size={20} className="text-yellow-500" />;
       default:
-        return <Circle size={20} className="text-text-tertiary" />;
+        return <Circle size={20} className="text-white/40" />;
     }
   };
 
@@ -270,23 +270,43 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       onDragOver={(e) => !isEditing && onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => !isEditing && onDrop(e, task)}
-      className={`relative bg-bg-secondary rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${
-        task.status === 'complete' ? 'opacity-75 border-bg-tertiary' :
+      className={`relative rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${
+        task.status === 'complete' ? 'opacity-75 border-transparent' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
-        taskIsOverdue ? 'border-red-500' : 'border-bg-tertiary'
+        taskIsOverdue ? 'border-red-500/50' : 'border-transparent'
       } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
-      style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+      style={{
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backdropFilter: 'blur(12px) saturate(180%)',
+        background: 'rgba(255, 255, 255, 0.03)'
+      }}
     >
-      {/* 3-Dot Menu Button */}
+      {/* Action Buttons (Edit & More Menu) */}
       {!isEditing && (
-        <div className="absolute top-3 right-3 z-30">
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {/* Edit Button */}
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEdit(task);
+            }}
+            className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Edit task"
+          >
+            <Pencil size={14} />
+          </motion.button>
+
+          {/* 3-Dot Menu Button */}
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
               const buttonRect = e.currentTarget.getBoundingClientRect();
               onMenuToggle(buttonRect);
             }}
-            className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+            className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="More options"
@@ -345,19 +365,47 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             initialData={task}
             onTaskCreate={(data) => onSaveEdit(task.id, data)}
           />
-          <button
-            onClick={onCancelEdit}
-            className="mt-4 w-full px-6 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            <X size={16} />
-            Cancel
-          </button>
+
+          {/* Action Buttons */}
+          <div className="space-y-3 mt-4">
+            {/* Cancel Button */}
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="w-full px-6 liquid-bubble-filled text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <X size={16} />
+              Cancel
+            </button>
+
+            {/* Update Task Submit Button */}
+            <button
+              type="submit"
+              form="edit-task-form"
+              className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
+            >
+              <Save size={16} />
+              Update Task
+            </button>
+
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => {
+                onDeleteTask(task);
+              }}
+              className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <Trash2 size={16} />
+              {task.templateId ? 'Delete Task' : 'Delete Task'}
+            </button>
+          </div>
         </motion.div>
       ) : (
         /* View Mode */
         <div className="flex items-start gap-4">
           {/* Drag Handle */}
-          <div className="mt-1 text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+          <div className="mt-1 text-white/40 hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
             <GripVertical size={20} />
           </div>
 
@@ -393,7 +441,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <motion.h3
                 className={`text-lg font-semibold transition-all duration-300 ${
-                  task.status === 'complete' ? 'text-text-secondary line-through' : 'text-text-primary'
+                  task.status === 'complete' ? 'text-white/70 line-through' : 'text-white'
                 }`}
                 animate={{ opacity: task.status === 'complete' ? 0.6 : 1 }}
               >
@@ -414,7 +462,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             </div>
 
             {task.description && (
-              <p className="text-text-secondary text-sm mb-2">{task.description}</p>
+              <p className="text-white/70 text-sm mb-2">{task.description}</p>
             )}
 
             {task.url && (
@@ -429,13 +477,13 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
               </div>
             )}
 
-            <div className="flex items-center gap-4 text-xs text-text-tertiary flex-wrap">
+            <div className="flex items-center gap-4 text-xs text-white/40 flex-wrap">
               {task.dueDate && (
                 <span className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-bold' : ''}`}>
                   {taskIsOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
                   {formatDateTimeDisplay(task.dueDate, task.time)}
                   {task.templateId && (
-                    <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                    <Repeat size={10} className="text-white/40 ml-0.5" title="Recurring task" />
                   )}
                 </span>
               )}
@@ -445,7 +493,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                     ? 'bg-green-muted text-green-glow'
                     : task.status === 'in-progress'
                     ? 'bg-yellow-500/10 text-yellow-500'
-                    : 'bg-bg-tertiary text-text-tertiary'
+                    : 'liquid-bubble-filled text-white/40'
                 }`}
                 animate={{ scale: isJustCompleted ? [1, 1.1, 1] : 1 }}
                 transition={{ duration: 0.3 }}
@@ -453,7 +501,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                 {getStatusLabel(task.status)}
               </motion.span>
               {task.attachments && task.attachments.length > 0 && (
-                <span className="flex items-center gap-1 text-text-tertiary" title="Task has attachments">
+                <span className="flex items-center gap-1 text-white/40" title="Task has attachments">
                   <FileText size={14} />
                   <span className="text-xs">{task.attachments.length}</span>
                 </span>
@@ -983,6 +1031,63 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     }
   };
 
+  const handleDeleteFromEdit = (task) => {
+    if (task.templateId) {
+      // For recurring tasks, ask which scope to delete
+      const deleteScope = window.confirm(
+        'Delete just this task instance?\n\nClick OK to delete this instance only.\nClick Cancel to delete the entire series.'
+      );
+
+      if (deleteScope) {
+        // Delete instance
+        const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
+        if (confirmed) {
+          const storedTasks = localStorage.getItem('tasks');
+          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+          backupManager.saveAutoBackup();
+          setTasks(updatedTasks);
+          window.dispatchEvent(new Event('storage'));
+          handleCancelEdit();
+        }
+      } else {
+        // Delete series
+        const confirmed = window.confirm(
+          `Are you sure you want to delete the entire "${task.title}" series? This will delete the template and all future tasks.`
+        );
+
+        if (confirmed) {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
+          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+
+          const storedTasks = localStorage.getItem('tasks');
+          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+          backupManager.saveAutoBackup();
+          setTasks(updatedTasks);
+          window.dispatchEvent(new Event('storage'));
+          handleCancelEdit();
+        }
+      }
+    } else {
+      // Normal task delete
+      const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
+      if (confirmed) {
+        const storedTasks = localStorage.getItem('tasks');
+        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+        const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        backupManager.saveAutoBackup();
+        setTasks(updatedTasks);
+        window.dispatchEvent(new Event('storage'));
+        handleCancelEdit();
+      }
+    }
+  };
+
   const handleMenuToggle = useCallback((task, buttonRect) => {
     const clickedTaskId = task.id;
 
@@ -1017,8 +1122,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
   if (tasks.length === 0) {
     return (
-      <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
-        <p className="text-text-secondary">No tasks yet. Create your first task above!</p>
+      <div className="rounded-xl p-8 border border-transparent text-center" style={{ backdropFilter: 'blur(12px) saturate(180%)', background: 'rgba(255, 255, 255, 0.03)' }}>
+        <p className="text-white/70">No tasks yet. Create your first task above!</p>
       </div>
     );
   }
@@ -1027,40 +1132,41 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     <>
       <style>
         {`
+          /* Task Card Glow Effects - Hover Only (matching Dashboard) */
           .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.18);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
+            box-shadow: 0 0 10px rgba(255, 200, 50, 0.2);
           }
 
           .task-glow-complete {
-            box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-complete:hover {
-            box-shadow: 0 0 18px rgba(61, 214, 140, 0.4);
+            box-shadow: 0 0 8px rgba(61, 214, 140, 0.15);
           }
 
           .task-glow-overdue {
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
+            box-shadow: 0 0 12px rgba(255, 50, 50, 0.25);
           }
 
           /* Checkbox hover effects */
@@ -1113,6 +1219,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               isMenuOpen={openMenuTaskId === task.id}
               onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
               isEditingTemplate={isEditingTemplate}
+              onDeleteTask={handleDeleteFromEdit}
             />
           ))}
         </AnimatePresence>
@@ -1126,35 +1233,26 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="fixed z-30 w-48 bg-bg-secondary rounded-lg border border-bg-primary shadow-xl overflow-hidden"
+            className="fixed z-30 w-48 rounded-lg border border-white/10 shadow-xl overflow-hidden"
             style={{
               position: 'absolute',
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
+              backdropFilter: 'blur(12px) saturate(180%)',
+              background: 'rgba(24, 24, 27, 0.6)'
             }}
           >
-            <button
-              onClick={() => {
-                const task = tasks.find(t => t.id === openMenuTaskId);
-                if (task) handleStartEdit(task);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-            >
-              <Pencil size={14} />
-              Edit
-            </button>
             <button
               onClick={() => {
                 handleDuplicate(openMenuTaskId);
                 setOpenMenuTaskId(null);
               }}
-              className="w-full px-4 py-2 text-left text-text-primary hover:bg-bg-tertiary transition-colors flex items-center gap-2"
+              className="w-full px-4 py-2 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2"
             >
               <Copy size={14} />
               Duplicate
             </button>
-            <div className="border-t border-bg-primary" />
+            <div className="border-t border-white/10" />
             {/* Show split delete options for recurring tasks */}
             {tasks.find(t => t.id === openMenuTaskId)?.templateId ? (
               <>

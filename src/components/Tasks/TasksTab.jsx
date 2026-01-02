@@ -219,15 +219,17 @@ const TasksTab = () => {
 
         <div className="space-y-6">
           {/* Task Form */}
-          <TaskForm onTaskCreate={handleTaskCreate} />
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <TaskForm onTaskCreate={handleTaskCreate} />
+          </div>
 
           {/* Task List */}
-          <div>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Your Tasks</h3>
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">Your Tasks</h3>
 
             {/* Task Filter */}
             <div className="mb-4">
-              <label className="block text-sm text-text-secondary mb-2">
+              <label className="block text-sm text-white/70 mb-2">
                 Show:
               </label>
               <div className="flex gap-2">
@@ -235,9 +237,10 @@ const TasksTab = () => {
                   onClick={() => handleFilterChange('all')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     taskFilter === 'all'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                   }`}
+                  style={taskFilter === 'all' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   All
                 </button>
@@ -245,9 +248,10 @@ const TasksTab = () => {
                   onClick={() => handleFilterChange('academic')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     taskFilter === 'academic'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                   }`}
+                  style={taskFilter === 'academic' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   Academic
                 </button>
@@ -255,9 +259,10 @@ const TasksTab = () => {
                   onClick={() => handleFilterChange('personal')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     taskFilter === 'personal'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                   }`}
+                  style={taskFilter === 'personal' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   Personal
                 </button>
@@ -266,7 +271,7 @@ const TasksTab = () => {
 
             {/* Task Search */}
             <div className="mb-4">
-              <label className="block text-sm text-text-secondary mb-2">
+              <label className="block text-sm text-white/70 mb-2">
                 Search Tasks
               </label>
               <div className="relative">
@@ -275,11 +280,11 @@ const TasksTab = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by title or description..."
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 pl-10 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 pl-10 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
                 />
                 <Search
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
                 />
               </div>
             </div>
