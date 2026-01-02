@@ -311,7 +311,104 @@ const MoodTracker = () => {
                 <div key={i} className="text-center text-xs text-text-tertiary h-8 flex items-center justify-center">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-2">{renderCalendar()}</div>
+            <div className="grid grid-cols-7 gap-2 mb-4">{renderCalendar()}</div>
+
+            {/* Mood Statistics */}
+            {(() => {
+              // Calculate 7-day average mood
+              const today = new Date();
+              const last7Days = Array.from({ length: 7 }, (_, i) => {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                return getDateString(date);
+              });
+
+              const last7Moods = moodLog.filter(entry => last7Days.includes(entry.date));
+              const avgMood = last7Moods.length > 0
+                ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
+                : null;
+
+              // Calculate mood-sleep correlation
+              const moodSleepPairs = moodLog
+                .map(moodEntry => {
+                  const sleepEntry = sleepLog.find(s => s.date === moodEntry.date);
+                  return sleepEntry ? { mood: moodEntry.level, sleep: sleepEntry.totalSleep ?? sleepEntry.hours } : null;
+                })
+                .filter(Boolean);
+
+              let correlation = null;
+              if (moodSleepPairs.length >= 3) {
+                const avgMoodVal = moodSleepPairs.reduce((sum, p) => sum + p.mood, 0) / moodSleepPairs.length;
+                const avgSleepVal = moodSleepPairs.reduce((sum, p) => sum + p.sleep, 0) / moodSleepPairs.length;
+
+                const numerator = moodSleepPairs.reduce((sum, p) => sum + (p.mood - avgMoodVal) * (p.sleep - avgSleepVal), 0);
+                const denomMood = Math.sqrt(moodSleepPairs.reduce((sum, p) => sum + Math.pow(p.mood - avgMoodVal, 2), 0));
+                const denomSleep = Math.sqrt(moodSleepPairs.reduce((sum, p) => sum + Math.pow(p.sleep - avgSleepVal, 2), 0));
+
+                if (denomMood !== 0 && denomSleep !== 0) {
+                  correlation = (numerator / (denomMood * denomSleep)).toFixed(2);
+                }
+              }
+
+              const getMoodLabel = (avgMood) => {
+                const moodVal = parseFloat(avgMood);
+                if (moodVal >= 4.5) return 'Great';
+                if (moodVal >= 3.5) return 'Good';
+                if (moodVal >= 2.5) return 'Okay';
+                if (moodVal >= 1.5) return 'Down';
+                return 'Rocky';
+              };
+
+              const getMoodColor = (avgMood) => {
+                const moodVal = parseFloat(avgMood);
+                if (moodVal >= 4.5) return 'text-yellow-500';
+                if (moodVal >= 3.5) return 'text-green-glow';
+                if (moodVal >= 2.5) return 'text-blue-400';
+                if (moodVal >= 1.5) return 'text-orange-500';
+                return 'text-red-500';
+              };
+
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="liquid-bubble-filled rounded-lg p-3">
+                    <p className="text-xs text-white/50 mb-1">7-Day Average</p>
+                    {avgMood ? (
+                      <>
+                        <p className={`text-lg font-bold ${getMoodColor(avgMood)}`}>
+                          {getMoodLabel(avgMood)} ({avgMood})
+                        </p>
+                        <p className="text-[10px] text-white/40">{last7Moods.length} days tracked</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-white/40">No data yet</p>
+                    )}
+                  </div>
+                  <div className="liquid-bubble-filled rounded-lg p-3">
+                    <p className="text-xs text-white/50 mb-1">Mood-Sleep Link</p>
+                    {correlation !== null ? (
+                      <>
+                        <p className={`text-lg font-bold ${
+                          parseFloat(correlation) >= 0.5 ? 'text-green-glow' :
+                          parseFloat(correlation) >= 0.3 ? 'text-yellow-500' :
+                          parseFloat(correlation) >= 0 ? 'text-blue-400' :
+                          parseFloat(correlation) >= -0.3 ? 'text-orange-500' : 'text-red-500'
+                        }`}>
+                          {parseFloat(correlation) >= 0 ? '+' : ''}{correlation}
+                        </p>
+                        <p className="text-[10px] text-white/40">
+                          {parseFloat(correlation) >= 0.5 ? 'Strong positive' :
+                           parseFloat(correlation) >= 0.3 ? 'Moderate positive' :
+                           parseFloat(correlation) >= 0 ? 'Weak positive' :
+                           parseFloat(correlation) >= -0.3 ? 'Weak negative' : 'Moderate negative'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-white/40">Need 3+ days</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
 
