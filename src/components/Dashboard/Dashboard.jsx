@@ -1570,14 +1570,25 @@ const Dashboard = ({ setActiveTab }) => {
                                       />
 
 
-                                  {/* Cancel and Delete Buttons */}
+                                  {/* Action Buttons */}
                                   <div className="space-y-3">
+                                    {/* Cancel Button */}
                                     <button
                                       onClick={handleCancelEdit}
-                                      className="w-full px-6 liquid-bubble-filled hover:border-red-500/50 text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      className="w-full px-6 liquid-bubble-filled text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <X size={16} />
                                       Cancel
+                                    </button>
+
+                                    {/* Edit Task Submit Button */}
+                                    <button
+                                      type="submit"
+                                      form="edit-task-form"
+                                      className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
+                                    >
+                                      <Save size={16} />
+                                      Update Task
                                     </button>
 
                                     {/* Delete Button */}

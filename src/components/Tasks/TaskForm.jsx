@@ -513,7 +513,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id={initialData ? 'edit-task-form' : undefined} onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
         <div>
           <label className="block text-sm text-white/50 mb-2">
@@ -792,13 +792,15 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         </div>
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
-        >
-          <Plus size={20} />
-          {recurrenceType !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
-        </button>
+        {!initialData && (
+          <button
+            type="submit"
+            className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
+          >
+            <Plus size={20} />
+            {recurrenceType !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
+          </button>
+        )}
       </form>
     </>
   );
