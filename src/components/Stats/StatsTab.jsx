@@ -1278,7 +1278,7 @@ const StatsTab = () => {
               className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
-              <div className="text-5xl font-bold text-green-glow mb-1">
+              <div className="text-5xl font-bold text-white mb-1">
                 {totalCompleted}
               </div>
               <p className="text-text-tertiary text-xs">
@@ -1330,7 +1330,7 @@ const StatsTab = () => {
               className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2"># Tasks ({periodStats.periodName})</p>
-              <div className="text-4xl font-bold text-green-glow mb-1">
+              <div className="text-4xl font-bold text-white mb-1">
                 {periodStats.periodTotal}
               </div>
               <p className="text-text-tertiary text-xs">
@@ -1348,7 +1348,7 @@ const StatsTab = () => {
               <p className="text-text-secondary text-sm mb-2">
                 {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
               </p>
-              <div className="text-4xl font-bold text-green-glow mb-1">
+              <div className="text-4xl font-bold text-white mb-1">
                 {periodStats.periodAverage}
               </div>
               <p className="text-text-tertiary text-xs">
