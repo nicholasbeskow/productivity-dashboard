@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, FileText, UploadCloud, X, Repeat } from 'lucide-react';
+import { Plus, FileText, UploadCloud, X, Repeat, Link as LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
 import { getToday, getTomorrow } from '../../utils/dateHelpers';
 
@@ -13,6 +13,11 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [status, setStatus] = useState('not-started');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Collapsible section states
+  const [showFiles, setShowFiles] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
+  const [showRecurrence, setShowRecurrence] = useState(false);
 
   // Recurrence state
   const [recurrenceType, setRecurrenceType] = useState('does-not-repeat');
@@ -36,6 +41,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setStatus(initialData.status || 'not-started');
       setAttachments(initialData.attachments || []);
 
+      // Auto-expand sections if they have content
+      setShowFiles((initialData.attachments || []).length > 0);
+      setShowLinks(!!(initialData.url || ''));
+
       // BUG FIX: If task instance has templateId but no recurrence, fetch from template
       let recurrence = initialData.recurrence;
       if (!recurrence && initialData.templateId) {
@@ -55,6 +64,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       // Check if this is a recurring task (has recurrence or templateId)
       const isRecurring = !!(recurrence || initialData.templateId);
       setIsRecurringEdit(isRecurring);
+      setShowRecurrence(isRecurring); // Auto-expand recurrence if editing recurring task
 
       // Handle recurrence fields - crucial for editing recurring tasks
       if (recurrence) {
@@ -100,6 +110,9 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setCustomUnit('days');
       setIsRecurringEdit(false);
       setEditScope('instance');
+      setShowFiles(false);
+      setShowLinks(false);
+      setShowRecurrence(false);
     }
   }, [initialData]);
 
@@ -109,6 +122,23 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         ? prev.filter(d => d !== dayIndex)
         : [...prev, dayIndex]
     );
+  };
+
+  // Toggle section and close others
+  const toggleSection = (section) => {
+    if (section === 'files') {
+      setShowFiles(!showFiles);
+      setShowLinks(false);
+      setShowRecurrence(false);
+    } else if (section === 'links') {
+      setShowLinks(!showLinks);
+      setShowFiles(false);
+      setShowRecurrence(false);
+    } else if (section === 'recurrence') {
+      setShowRecurrence(!showRecurrence);
+      setShowFiles(false);
+      setShowLinks(false);
+    }
   };
 
   // File attachment handlers
@@ -546,22 +576,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           />
         </div>
 
-        {/* URL Input */}
-        <div>
-          <label className="block text-sm text-white/50 mb-2">
-            Related Link
-          </label>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com (optional)"
-            className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-          />
-        </div>
-
-        {/* Due Date and Time Row - Hide for weekly tasks (they use day selector) */}
-        {recurrenceType !== 'weekly' && (
+        {/* Due Date and Time Row - Show for non-weekly tasks OR when editing (even weekly tasks need dates when editing) */}
+        {(recurrenceType !== 'weekly' || initialData) && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex justify-between items-center text-sm text-white/50 mb-2">
@@ -604,8 +620,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           </div>
         )}
 
-        {/* Time input for weekly tasks (no date needed) */}
-        {recurrenceType === 'weekly' && (
+        {/* Time input for weekly tasks (no date needed) - only show when creating new tasks */}
+        {recurrenceType === 'weekly' && !initialData && (
           <div>
             <label className="block text-sm text-white/50 mb-2">
               Time (optional)
@@ -683,149 +699,211 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           </div>
         )}
 
-        {/* Recurrence Section */}
-        <div>
-          <label className="block text-sm text-white/50 mb-2 flex items-center gap-2">
-            <Repeat size={16} />
-            Recurrence
-          </label>
-          <select
-            value={recurrenceType}
-            onChange={(e) => setRecurrenceType(e.target.value)}
-            className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
-          >
-            <option value="does-not-repeat">Does not repeat</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-            <option value="custom">Custom</option>
-          </select>
-
-          {/* Weekly Day Toggles - Only show when Weekly is selected */}
-          {recurrenceType === 'weekly' && (
-            <div className="mt-3">
-              <p className="text-xs text-white/40 mb-2">Repeat on:</p>
-              <div className="flex gap-2">
-                {[
-                  { index: 0, label: 'S' },
-                  { index: 1, label: 'M' },
-                  { index: 2, label: 'T' },
-                  { index: 3, label: 'W' },
-                  { index: 4, label: 'T' },
-                  { index: 5, label: 'F' },
-                  { index: 6, label: 'S' },
-                ].map(({ index, label }) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleWeeklyDayToggle(index)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      weeklyDays.includes(index)
-                        ? 'text-green-glow liquid-bubble-filled'
-                        : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Custom Interval - Only show when Custom is selected */}
-          {recurrenceType === 'custom' && (
-            <div className="mt-3">
-              <p className="text-xs text-white/40 mb-2">Repeat every:</p>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={customInterval}
-                  onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
-                  className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-                <select
-                  value={customUnit}
-                  onChange={(e) => setCustomUnit(e.target.value)}
-                  className="flex-1 liquid-bubble-filled rounded-lg px-3 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
-                >
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
-                  <option value="months">Months</option>
-                  <option value="years">Years</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* File Attachments Section */}
+        {/* Options Section */}
         <div>
           <label className="block text-sm text-white/50 mb-2">
-            File Attachments
+            Options
           </label>
-
-          {/* Drag & Drop Zone */}
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
-              isDragging
-                ? 'border-green-glow bg-green-glow/10'
-                : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
-            }`}
-          >
-            <UploadCloud
-              size={32}
-              className={`mx-auto mb-2 ${isDragging ? 'text-green-glow' : 'text-white/40'}`}
-            />
-            <p className="text-sm text-white/60 mb-2">
-              Drag & drop files here
-            </p>
-            <p className="text-xs text-white/40 mb-3">or</p>
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleAttachFilesClick}
-              className="px-4 py-2 liquid-bubble-filled hover:border-green-glow/50 text-white/80 hover:text-green-glow rounded-lg transition-all text-sm font-medium"
+              onClick={() => toggleSection('files')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showFiles
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
-              <FileText size={16} className="inline mr-2" />
-              Browse Files
+              <FileText size={14} />
+              Files
+              {attachments.length > 0 && (
+                <span className="text-[10px] bg-green-glow/20 text-green-glow px-1.5 py-0.5 rounded-full">
+                  {attachments.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleSection('links')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showLinks
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+            >
+              <LinkIcon size={14} />
+              Link
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleSection('recurrence')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showRecurrence
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+            >
+              <Repeat size={14} />
+              Recurring
             </button>
           </div>
-
-          {/* Attached Files List */}
-          {attachments.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {attachments.map((filePath, index) => {
-                const fileName = filePath.split(/[\\/]/).pop();
-                return (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <FileText size={16} className="text-green-glow flex-shrink-0" />
-                      <span className="text-sm text-white truncate" title={filePath}>
-                        {fileName}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAttachment(filePath)}
-                      className="ml-2 p-1 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
-                      title="Remove attachment"
-                    >
-                      <X size={16} className="text-red-500" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+
+        {/* Collapsible Content - Files */}
+        {showFiles && (
+          <div className="space-y-3">
+            {/* Drag & Drop Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                isDragging
+                  ? 'border-green-glow bg-green-glow/10'
+                  : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
+              }`}
+            >
+              <UploadCloud
+                size={32}
+                className={`mx-auto mb-2 ${isDragging ? 'text-green-glow' : 'text-white/40'}`}
+              />
+              <p className="text-sm text-white/60 mb-2">
+                Drag & drop files here
+              </p>
+              <p className="text-xs text-white/40 mb-3">or</p>
+              <button
+                type="button"
+                onClick={handleAttachFilesClick}
+                className="px-4 py-2 liquid-bubble-filled hover:border-green-glow/50 text-white/80 hover:text-green-glow rounded-lg transition-all text-sm font-medium"
+              >
+                <FileText size={16} className="inline mr-2" />
+                Browse Files
+              </button>
+            </div>
+
+            {/* Attached Files List */}
+            {attachments.length > 0 && (
+              <div className="space-y-2">
+                {attachments.map((filePath, index) => {
+                  const fileName = filePath.split(/[\\/]/).pop();
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText size={16} className="text-green-glow flex-shrink-0" />
+                        <span className="text-sm text-white truncate" title={filePath}>
+                          {fileName}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(filePath)}
+                        className="ml-2 p-1 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
+                        title="Remove attachment"
+                      >
+                        <X size={16} className="text-red-500" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Collapsible Content - Links */}
+        {showLinks && (
+          <div>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+            />
+          </div>
+        )}
+
+        {/* Collapsible Content - Recurrence */}
+        {showRecurrence && (
+          <div className="space-y-3">
+            <select
+              value={recurrenceType}
+              onChange={(e) => setRecurrenceType(e.target.value)}
+              className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+            >
+              <option value="does-not-repeat">Does not repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom</option>
+            </select>
+
+            {/* Weekly Day Toggles - Only show when Weekly is selected */}
+            {recurrenceType === 'weekly' && (
+              <div>
+                <p className="text-xs text-white/40 mb-2">Repeat on:</p>
+                <div className="flex gap-2">
+                  {[
+                    { index: 0, label: 'S' },
+                    { index: 1, label: 'M' },
+                    { index: 2, label: 'T' },
+                    { index: 3, label: 'W' },
+                    { index: 4, label: 'T' },
+                    { index: 5, label: 'F' },
+                    { index: 6, label: 'S' },
+                  ].map(({ index, label }) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleWeeklyDayToggle(index)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        weeklyDays.includes(index)
+                          ? 'text-green-glow liquid-bubble-filled'
+                          : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Interval - Only show when Custom is selected */}
+            {recurrenceType === 'custom' && (
+              <div>
+                <p className="text-xs text-white/40 mb-2">Repeat every:</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={customInterval}
+                    onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
+                    className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
+                  />
+                  <select
+                    value={customUnit}
+                    onChange={(e) => setCustomUnit(e.target.value)}
+                    className="flex-1 liquid-bubble-filled rounded-lg px-3 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                    <option value="years">Years</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Submit Button */}
         {!initialData && (
