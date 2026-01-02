@@ -457,6 +457,69 @@ const SettingsTab = () => {
             </div>
           </div>
 
+          {/* Canvas Integration */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Canvas Integration
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Canvas URL
+                </label>
+                <input
+                  type="text"
+                  value={canvasUrl}
+                  onChange={(e) => setCanvasUrl(e.target.value)}
+                  placeholder="e.g., usf.instructure.com"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+                />
+                <p className="text-xs text-white/40 mt-2">
+                  Enter your school's Canvas domain (without https://)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Canvas API Token
+                </label>
+                <input
+                  type="password"
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="Paste your token here"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+                />
+                <p className="text-xs text-white/40 mt-2">
+                  Generate a token from your Canvas Profile → Settings → New Access Token
+                </p>
+              </div>
+
+              <button
+                onClick={handleSaveAndTest}
+                disabled={!canvasUrl || !apiToken}
+                className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
+                  canvasUrl && apiToken
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                    : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
+                }`}
+              >
+                Save & Test Connection
+              </button>
+
+              {/* Connection Status Feedback */}
+              {connectionStatus && (
+                <div className={`p-3 rounded-lg ${
+                  connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' :
+                  connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
+                  'bg-blue-500/20 text-blue-500'
+                }`}>
+                  {connectionStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Statistics */}
           <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <h3 className="text-lg font-semibold text-white mb-4">
@@ -591,69 +654,6 @@ const SettingsTab = () => {
               <p className="text-white/40 pt-2">
                 Built with React, Electron, and Tailwind CSS
               </p>
-            </div>
-          </div>
-
-          {/* Canvas Integration */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Canvas Integration
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Canvas URL
-                </label>
-                <input
-                  type="text"
-                  value={canvasUrl}
-                  onChange={(e) => setCanvasUrl(e.target.value)}
-                  placeholder="e.g., usf.instructure.com"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-                <p className="text-xs text-white/40 mt-2">
-                  Enter your school's Canvas domain (without https://)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Canvas API Token
-                </label>
-                <input
-                  type="password"
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="Paste your token here"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-                <p className="text-xs text-white/40 mt-2">
-                  Generate a token from your Canvas Profile → Settings → New Access Token
-                </p>
-              </div>
-
-              <button
-                onClick={handleSaveAndTest}
-                disabled={!canvasUrl || !apiToken}
-                className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
-                  canvasUrl && apiToken
-                    ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                    : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
-                }`}
-              >
-                Save & Test Connection
-              </button>
-
-              {/* Connection Status Feedback */}
-              {connectionStatus && (
-                <div className={`p-3 rounded-lg ${
-                  connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' :
-                  connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
-                  'bg-blue-500/20 text-blue-500'
-                }`}>
-                  {connectionStatus.message}
-                </div>
-              )}
             </div>
           </div>
         </div>
