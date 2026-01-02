@@ -369,6 +369,8 @@ const Dashboard = ({ setActiveTab }) => {
   });
   // Edit scope ref for recurring tasks (synced with TaskForm)
   const editScopeRef = useRef('instance');
+  // Ref for scrollable container
+  const scrollContainerRef = useRef(null);
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -805,7 +807,9 @@ const Dashboard = ({ setActiveTab }) => {
       attachments: []
     });
     // Scroll to top when returning to main dashboard
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // File attachment handlers for detail/edit view
@@ -1201,7 +1205,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   return (
     <>
-      <div className="h-full p-8 overflow-y-auto">
+      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
           <div className="mb-8 flex items-start justify-between">
