@@ -1,4 +1,4 @@
-import { Settings, Lock, Shield } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
 
@@ -290,12 +290,12 @@ const SettingsTab = () => {
 
         <div className="space-y-6">
           {/* Personal Information */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
               Personal Information
             </h3>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">
+              <label className="block text-sm text-white/70 mb-2">
                 Your Name
               </label>
               <input
@@ -303,23 +303,168 @@ const SettingsTab = () => {
                 value={userName}
                 onChange={handleUserNameChange}
                 placeholder="Enter your name"
-                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
               />
-              <p className="text-xs text-text-tertiary mt-2">
+              <p className="text-xs text-white/40 mt-2">
                 This will personalize your dashboard welcome message
               </p>
             </div>
           </div>
 
+          {/* Semester Information */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Semester Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Break Start Date <span className="text-white/40">(Optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={breakStartDate}
+                  onChange={handleBreakStartDateChange}
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
+                />
+                <p className="text-xs text-white/40 mt-1">
+                  Track break progress before semester starts
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Semester Start Date
+                </label>
+                <input
+                  type="date"
+                  value={semesterStartDate}
+                  onChange={handleStartDateChange}
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Last Day of Classes
+                </label>
+                <input
+                  type="date"
+                  value={semesterEndDate}
+                  onChange={handleEndDateChange}
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-white/40 mt-3">
+              This will show a circular progress indicator on your dashboard
+            </p>
+          </div>
+
+          {/* Pomodoro Timer */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Pomodoro Timer
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Work Duration (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={pomodoroWorkDuration}
+                  onChange={handleWorkDurationChange}
+                  min="1"
+                  max="120"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Break Duration (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={pomodoroBreakDuration}
+                  onChange={handleBreakDurationChange}
+                  min="1"
+                  max="60"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-white/40 mt-4">
+              Changes take effect immediately when you reset or start a new session
+            </p>
+          </div>
+
+          {/* Focus Mode (SelfControl) */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Focus Mode (SelfControl)
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={focusEnabled}
+                  onChange={handleFocusToggle}
+                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
+                />
+                <span className="text-white/70">Enable Focus Mode</span>
+              </label>
+
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  SelfControl Blocklist File
+                </label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={blocklistPath}
+                    readOnly
+                    placeholder="No file selected"
+                    className="flex-1 liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30"
+                  />
+                  <button
+                    onClick={handleSelectBlocklist}
+                    className="px-4 py-2 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all"
+                  >
+                    Select File
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm">
+                <p className="font-semibold mb-1">How to use:</p>
+                <p>Open SelfControl, add your sites, go to File → Save Blocklist, and select that file here.</p>
+              </div>
+
+              <p className="text-xs text-white/40">
+                When enabled, starting a Work session will automatically block distracting websites for the session duration.
+              </p>
+              <p className="text-xs text-white/40 mt-2">
+                <strong>Note:</strong> Requires the{' '}
+                <a
+                  href="https://selfcontrolapp.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white/70"
+                >
+                  SelfControl app
+                </a>{' '}
+                installed in your Applications folder (macOS only).
+              </p>
+            </div>
+          </div>
+
           {/* Canvas Integration */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <Lock size={20} className="text-green-glow" />
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
               Canvas Integration
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-text-secondary mb-2">
+                <label className="block text-sm text-white/70 mb-2">
                   Canvas URL
                 </label>
                 <input
@@ -327,15 +472,15 @@ const SettingsTab = () => {
                   value={canvasUrl}
                   onChange={(e) => setCanvasUrl(e.target.value)}
                   placeholder="e.g., usf.instructure.com"
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
                 />
-                <p className="text-xs text-text-tertiary mt-2">
+                <p className="text-xs text-white/40 mt-2">
                   Enter your school's Canvas domain (without https://)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm text-text-secondary mb-2">
+                <label className="block text-sm text-white/70 mb-2">
                   Canvas API Token
                 </label>
                 <input
@@ -343,9 +488,9 @@ const SettingsTab = () => {
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
                   placeholder="Paste your token here"
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
                 />
-                <p className="text-xs text-text-tertiary mt-2">
+                <p className="text-xs text-white/40 mt-2">
                   Generate a token from your Canvas Profile → Settings → New Access Token
                 </p>
               </div>
@@ -356,7 +501,7 @@ const SettingsTab = () => {
                 className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
                   canvasUrl && apiToken
                     ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                    : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                    : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
                 }`}
               >
                 Save & Test Connection
@@ -375,188 +520,14 @@ const SettingsTab = () => {
             </div>
           </div>
 
-          {/* Timer Settings */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Pomodoro Timer
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  Work Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={pomodoroWorkDuration}
-                  onChange={handleWorkDurationChange}
-                  min="1"
-                  max="120"
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  Break Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={pomodoroBreakDuration}
-                  onChange={handleBreakDurationChange}
-                  min="1"
-                  max="60"
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow transition-colors"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-text-tertiary mt-4">
-              Changes take effect immediately when you reset or start a new session
-            </p>
-          </div>
-
-          {/* Focus Mode (SelfControl) */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <Shield size={20} className="text-green-glow" />
-              Focus Mode (SelfControl)
-            </h3>
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={focusEnabled}
-                  onChange={handleFocusToggle}
-                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
-                />
-                <span className="text-text-secondary">Enable Focus Mode</span>
-              </label>
-
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  SelfControl Blocklist File
-                </label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={blocklistPath}
-                    readOnly
-                    placeholder="No file selected"
-                    className="flex-1 bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary"
-                  />
-                  <button
-                    onClick={handleSelectBlocklist}
-                    className="px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-opacity-80 transition-all border border-bg-primary"
-                  >
-                    Select File
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm">
-                <p className="font-semibold mb-1">How to use:</p>
-                <p>Open SelfControl, add your sites, go to File → Save Blocklist, and select that file here.</p>
-              </div>
-
-              <p className="text-xs text-text-tertiary">
-                When enabled, starting a Work session will automatically block distracting websites for the session duration.
-              </p>
-              <p className="text-xs text-text-tertiary mt-2">
-                <strong>Note:</strong> Requires the{' '}
-                <a
-                  href="https://selfcontrolapp.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-text-secondary"
-                >
-                  SelfControl app
-                </a>{' '}
-                installed in your Applications folder (macOS only).
-              </p>
-            </div>
-          </div>
-
-          {/* Notifications Placeholder */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Notifications
-            </h3>
-            <div className="space-y-3">
-              {[
-                'Timer completed',
-                'Break ended',
-                'Task due in 6 hours'
-              ].map((label) => (
-                <label key={label} className="flex items-center gap-3 cursor-not-allowed opacity-50">
-                  <input
-                    type="checkbox"
-                    checked
-                    disabled
-                    className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary"
-                  />
-                  <span className="text-text-secondary">{label}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-text-tertiary mt-4">
-              Notification preferences will be enabled in Week 4
-            </p>
-          </div>
-
-          {/* Semester Settings */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Semester Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  Break Start Date <span className="text-text-tertiary">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={breakStartDate}
-                  onChange={handleBreakStartDateChange}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                />
-                <p className="text-xs text-text-tertiary mt-1">
-                  Track break progress before semester starts
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  Semester Start Date
-                </label>
-                <input
-                  type="date"
-                  value={semesterStartDate}
-                  onChange={handleStartDateChange}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">
-                  Last Day of Classes
-                </label>
-                <input
-                  type="date"
-                  value={semesterEndDate}
-                  onChange={handleEndDateChange}
-                  className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-text-tertiary mt-3">
-              This will show a circular progress indicator on your dashboard
-            </p>
-          </div>
-
-          {/* Statistics Settings */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
+          {/* Statistics */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
               Statistics
             </h3>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-text-secondary mb-3">
+                <p className="text-sm text-white/70 mb-3">
                   Permanently delete all task completion history
                 </p>
                 <button
@@ -575,31 +546,17 @@ const SettingsTab = () => {
                 >
                   Reset All Statistics
                 </button>
-                <p className="text-xs text-text-tertiary mt-2">
+                <p className="text-xs text-white/40 mt-2">
                   This cannot be undone
                 </p>
               </div>
             </div>
           </div>
 
-          {/* About */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              About
-            </h3>
-            <div className="space-y-2 text-sm text-text-secondary">
-              <p><strong className="text-text-primary">Version:</strong> 1.5.0</p>
-              <p><strong className="text-text-primary">Status:</strong> Phase 2: Stats & Backup</p>
-              <p className="text-text-tertiary pt-2">
-                Built with React, Electron, and Tailwind CSS
-              </p>
-            </div>
-          </div>
-
-          {/* Backup & Recovery (MOVED TO BOTTOM) */}
-          <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              💾 Backup & Recovery
+          {/* Backup & Recovery */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Backup & Recovery
             </h3>
 
             {/* Message Display */}
@@ -616,16 +573,16 @@ const SettingsTab = () => {
             <div className="space-y-6">
               {/* Automatic Protection Info */}
               <div>
-                <p className="text-text-secondary mb-2">
-                  <strong className="text-text-primary">🛡️ Automatic Protection:</strong>
+                <p className="text-white/70 mb-2">
+                  <strong className="text-white">Automatic Protection:</strong>
                 </p>
-                <ul className="text-text-secondary text-sm space-y-1 ml-4">
+                <ul className="text-white/70 text-sm space-y-1 ml-4">
                   <li>• Instant auto-save on every change</li>
                   <li>• Daily backup at midnight</li>
                   <li>• Backup on app launch</li>
                 </ul>
-                <p className="text-text-tertiary text-sm mt-3">
-                  📁 Backups stored in: {'{'}userData{'}'}/backups/
+                <p className="text-white/40 text-sm mt-3">
+                  Backups stored in: {'{'}userData{'}'}/backups/
                 </p>
               </div>
 
@@ -635,31 +592,31 @@ const SettingsTab = () => {
                   onClick={handleExport}
                   className="px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold"
                 >
-                  📥 Export Data
+                  Export Data
                 </button>
 
                 <button
                   onClick={handleImport}
-                  className="px-6 py-3 bg-bg-tertiary text-text-primary rounded-lg hover:bg-opacity-80 transition-all font-semibold border border-bg-primary"
+                  className="px-6 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-semibold"
                 >
-                  📤 Import Data
+                  Import Data
                 </button>
               </div>
 
               {/* Restore from Backup Dropdown */}
-              <div className="border-t border-bg-tertiary pt-6">
-                <label className="block text-text-primary font-semibold mb-3">
-                  🕐 Restore from Backup
+              <div className="border-t border-white/10 pt-6">
+                <label className="block text-white font-semibold mb-3">
+                  Restore from Backup
                 </label>
 
                 {backups.length === 0 ? (
-                  <p className="text-text-secondary text-sm">No backups available yet.</p>
+                  <p className="text-white/70 text-sm">No backups available yet.</p>
                 ) : (
                   <>
                     <select
                       value={selectedBackup}
                       onChange={(e) => setSelectedBackup(e.target.value)}
-                      className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3 mb-3 focus:outline-none focus:border-green-glow"
+                      className="w-full liquid-bubble-filled text-white rounded-lg px-4 py-3 mb-3 focus:outline-none focus:border-green-glow/50"
                     >
                       <option value="">Select a backup to restore...</option>
                       {backups.map((backup) => (
@@ -675,7 +632,7 @@ const SettingsTab = () => {
                       className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
                         selectedBackup
                           ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                          : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                          : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
                       }`}
                     >
                       Restore Selected Backup
@@ -683,6 +640,20 @@ const SettingsTab = () => {
                   </>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* About */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              About
+            </h3>
+            <div className="space-y-2 text-sm text-white/70">
+              <p><strong className="text-white">Version:</strong> 2.0</p>
+              <p><strong className="text-white">Status:</strong> Optimization</p>
+              <p className="text-white/40 pt-2">
+                Built with React, Electron, and Tailwind CSS
+              </p>
             </div>
           </div>
         </div>
