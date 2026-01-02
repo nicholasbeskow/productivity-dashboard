@@ -1,6 +1,5 @@
 import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 
 const CanvasTab = () => {
@@ -272,90 +271,43 @@ const CanvasTab = () => {
         )}
 
         {/* Loading State */}
-        <AnimatePresence mode="wait">
-          {isLoading && (
-            <motion.div
-              key="loading-state"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="glass-panel p-8 text-center"
-              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-            >
-              <RefreshCw className="animate-spin text-green-glow mx-auto mb-4" size={40} />
-              <p className="text-text-primary">Loading assignments from Canvas...</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isLoading && (
+          <div className="glass-panel p-8 text-center" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <RefreshCw className="animate-spin text-green-glow mx-auto mb-4" size={40} />
+            <p className="text-text-primary">Loading assignments from Canvas...</p>
+          </div>
+        )}
 
         {/* Empty State */}
-        <AnimatePresence mode="wait">
-          {!isLoading && !error && newAssignments.length === 0 && (
-            <motion.div
-              key="empty-state"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="glass-panel p-8 text-center"
-              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-            >
-              <div className="max-w-md mx-auto">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 200 }}
-                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 liquid-bubble-filled"
-                  style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-                >
-                  <Check className="text-green-glow" size={40} />
-                </motion.div>
-                <motion.h3
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
-                  className="text-xl font-semibold text-text-primary mb-3"
-                >
-                  Inbox is empty!
-                </motion.h3>
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                  className="text-text-secondary"
-                >
-                  You've processed all your Canvas assignments. Check back later or click "Sync Now" to refresh.
-                </motion.p>
+        {!isLoading && !error && newAssignments.length === 0 && (
+          <div className="glass-panel p-8 text-center" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <div className="max-w-md mx-auto">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 liquid-bubble-filled" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+                <Check className="text-green-glow" size={40} />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <h3 className="text-xl font-semibold text-text-primary mb-3">
+                Inbox is empty!
+              </h3>
+              <p className="text-text-secondary">
+                You've processed all your Canvas assignments. Check back later or click "Sync Now" to refresh.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Assignments List */}
-        <AnimatePresence mode="wait">
-          {!isLoading && !error && newAssignments.length > 0 && (
-            <motion.div
-              key="assignments-list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4"
-            >
-              <p className="text-text-secondary mb-4">
-                {newAssignments.length} new assignment{newAssignments.length !== 1 ? 's' : ''} to review
-              </p>
+        {!isLoading && !error && newAssignments.length > 0 && (
+          <div className="space-y-4">
+            <p className="text-text-secondary mb-4">
+              {newAssignments.length} new assignment{newAssignments.length !== 1 ? 's' : ''} to review
+            </p>
 
-              {newAssignments.map((assignment, index) => (
-                <motion.div
-                  key={assignment.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.4, ease: "easeOut" }}
-                  className="glass-panel p-6 hover:shadow-[0_0_20px_rgba(61,214,140,0.15)] transition-all"
-                  style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-                >
+            {newAssignments.map((assignment) => (
+              <div
+                key={assignment.id}
+                className="glass-panel p-6 hover:shadow-[0_0_20px_rgba(61,214,140,0.15)] transition-all"
+                style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     {/* Assignment Title */}
@@ -414,11 +366,10 @@ const CanvasTab = () => {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );
