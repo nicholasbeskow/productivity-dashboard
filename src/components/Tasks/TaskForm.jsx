@@ -699,52 +699,57 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           </div>
         )}
 
-        {/* Toggle Buttons Row */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => toggleSection('files')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              showFiles
-                ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-            }`}
-            style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-          >
-            <FileText size={14} />
-            Files
-            {attachments.length > 0 && (
-              <span className="text-[10px] bg-green-glow/20 text-green-glow px-1.5 py-0.5 rounded-full">
-                {attachments.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => toggleSection('links')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              showLinks
-                ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-            }`}
-            style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-          >
-            <LinkIcon size={14} />
-            Link
-          </button>
-          <button
-            type="button"
-            onClick={() => toggleSection('recurrence')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              showRecurrence
-                ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-            }`}
-            style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-          >
-            <Repeat size={14} />
-            Recurring
-          </button>
+        {/* Options Section */}
+        <div>
+          <label className="block text-sm text-white/50 mb-2">
+            Options
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => toggleSection('files')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showFiles
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+            >
+              <FileText size={14} />
+              Files
+              {attachments.length > 0 && (
+                <span className="text-[10px] bg-green-glow/20 text-green-glow px-1.5 py-0.5 rounded-full">
+                  {attachments.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleSection('links')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showLinks
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+            >
+              <LinkIcon size={14} />
+              Link
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleSection('recurrence')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                showRecurrence
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+              }`}
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+            >
+              <Repeat size={14} />
+              Recurring
+            </button>
+          </div>
         </div>
 
         {/* Collapsible Content - Files */}
