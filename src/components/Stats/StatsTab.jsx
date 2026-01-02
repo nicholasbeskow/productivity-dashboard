@@ -704,59 +704,62 @@ const StatsTab = () => {
     };
   };
 
-  // Sleep quality distribution pie chart
+  // Sleep quality distribution pie chart (4 categories only)
   const getSleepQualityData = () => {
     if (sleepLog.length === 0) {
       return {
-        labels: ['Poor', 'Fair', 'Good', 'Great', 'Excellent'],
+        labels: ['Poor', 'Fair', 'Good', 'Excellent'],
         datasets: [{
           label: 'Nights',
-          data: [0, 0, 0, 0, 0],
+          data: [0, 0, 0, 0],
           backgroundColor: [
-            'rgba(239, 68, 68, 0.7)',
-            'rgba(249, 115, 22, 0.7)',
-            'rgba(234, 179, 8, 0.7)',
-            'rgba(61, 214, 140, 0.7)',
-            'rgba(34, 197, 94, 0.7)',
+            'rgba(239, 68, 68, 0.4)',
+            'rgba(249, 115, 22, 0.4)',
+            'rgba(234, 179, 8, 0.4)',
+            'rgba(61, 214, 140, 0.4)',
           ],
           borderColor: [
             'rgba(239, 68, 68, 1)',
             'rgba(249, 115, 22, 1)',
             'rgba(234, 179, 8, 1)',
             'rgba(61, 214, 140, 1)',
-            'rgba(34, 197, 94, 1)',
           ],
           borderWidth: 2,
         }]
       };
     }
 
-    const qualityCounts = [0, 0, 0, 0, 0];
+    // Map 1-5 quality to 4 categories: 1=Poor, 2=Fair, 3-4=Good, 5=Excellent
+    const qualityCounts = [0, 0, 0, 0];
     sleepLog.forEach(entry => {
       const quality = entry.quality;
-      if (quality >= 1 && quality <= 5) {
-        qualityCounts[quality - 1]++;
+      if (quality === 1) {
+        qualityCounts[0]++; // Poor
+      } else if (quality === 2) {
+        qualityCounts[1]++; // Fair
+      } else if (quality === 3 || quality === 4) {
+        qualityCounts[2]++; // Good
+      } else if (quality === 5) {
+        qualityCounts[3]++; // Excellent
       }
     });
 
     return {
-      labels: ['Poor', 'Fair', 'Good', 'Great', 'Excellent'],
+      labels: ['Poor', 'Fair', 'Good', 'Excellent'],
       datasets: [{
         label: 'Nights',
         data: qualityCounts,
         backgroundColor: [
-          'rgba(239, 68, 68, 0.7)',
-          'rgba(249, 115, 22, 0.7)',
-          'rgba(234, 179, 8, 0.7)',
-          'rgba(61, 214, 140, 0.7)',
-          'rgba(34, 197, 94, 0.7)',
+          'rgba(239, 68, 68, 0.4)',
+          'rgba(249, 115, 22, 0.4)',
+          'rgba(234, 179, 8, 0.4)',
+          'rgba(61, 214, 140, 0.4)',
         ],
         borderColor: [
           'rgba(239, 68, 68, 1)',
           'rgba(249, 115, 22, 1)',
           'rgba(234, 179, 8, 1)',
           'rgba(61, 214, 140, 1)',
-          'rgba(34, 197, 94, 1)',
         ],
         borderWidth: 2,
       }]
@@ -932,6 +935,7 @@ const StatsTab = () => {
       },
       y: {
         beginAtZero: true,
+        grace: '15%',
         ticks: {
           color: '#9195a0',
           stepSize: 1,
@@ -958,11 +962,15 @@ const StatsTab = () => {
       ...chartOptions.scales,
       y: {
         ...chartOptions.scales.y,
-        min: 1,
-        max: 5,
+        min: 0.5,
+        max: 5.5,
         ticks: {
           ...chartOptions.scales.y.ticks,
           stepSize: 1,
+          callback: function(value) {
+            // Only show labels for 1-5
+            return value >= 1 && value <= 5 ? value : '';
+          }
         },
       },
     },
@@ -994,6 +1002,27 @@ const StatsTab = () => {
         cornerRadius: 12,
         borderColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} nights (${percentage}%)`;
+          }
+        }
+      },
+      datalabels: {
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+          return percentage > 5 ? `${percentage}%` : ''; // Only show if > 5%
+        },
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 14,
+        },
       },
     },
     animation: {
@@ -1010,7 +1039,7 @@ const StatsTab = () => {
         type: 'linear',
         position: 'left',
         beginAtZero: true,
-        max: 12,
+        max: 13,
         ticks: {
           color: '#a78bfa',
           stepSize: 2,
@@ -1026,11 +1055,15 @@ const StatsTab = () => {
       'y-mood': {
         type: 'linear',
         position: 'right',
-        min: 1,
-        max: 5,
+        min: 0.5,
+        max: 5.5,
         ticks: {
           color: '#eab308',
           stepSize: 1,
+          callback: function(value) {
+            // Only show labels for 1-5
+            return value >= 1 && value <= 5 ? value : '';
+          }
         },
         grid: {
           display: false,
@@ -1237,12 +1270,12 @@ const StatsTab = () => {
           </div>
 
           {/* Stats Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 justify-items-center">
             {/* Total Tasks */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
               <div className="text-5xl font-bold text-green-glow mb-1">
@@ -1257,7 +1290,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <BookOpen className="text-green-glow" size={18} />
@@ -1275,7 +1308,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <Home className="text-blue-500" size={18} />
@@ -1294,7 +1327,7 @@ const StatsTab = () => {
               key={`period-total-${timePeriod}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6 border border-green-glow/50"
+              className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2"># Tasks ({periodStats.periodName})</p>
               <div className="text-4xl font-bold text-green-glow mb-1">
@@ -1310,7 +1343,7 @@ const StatsTab = () => {
               key={`period-avg-${timePeriod}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6 border border-green-glow/50"
+              className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">
                 {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
@@ -1327,7 +1360,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <Trophy className="text-yellow-500" size={18} />
@@ -1443,12 +1476,12 @@ const StatsTab = () => {
           </div>
 
           {/* Mood Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 justify-items-center">
             {/* All Time Average Mood */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">All Time Average Mood</p>
               <div className="text-4xl font-bold text-yellow-500 mb-1">
@@ -1464,7 +1497,7 @@ const StatsTab = () => {
               key={`period-mood-${timePeriod}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6 border border-yellow-500/50"
+              className="glass-panel p-6 border border-yellow-500/50 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">
                 Average Mood ({periodStats.periodName})
@@ -1481,7 +1514,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">Mood Correlation</p>
               <div className="text-4xl font-bold text-text-primary mb-1">
@@ -1594,12 +1627,12 @@ const StatsTab = () => {
           </div>
 
           {/* Sleep Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 justify-items-center">
             {/* Average Sleep (Selected Timeframe) */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6 border border-purple-400/50"
+              className="glass-panel p-6 border border-purple-400/50 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">Average Sleep ({periodStats.periodName})</p>
               <div className="text-4xl font-bold text-purple-400 mb-1">
@@ -1614,7 +1647,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <Trophy className="text-purple-400" size={18} />
@@ -1632,7 +1665,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <TrendingDown className="text-orange-500" size={18} />
@@ -1654,7 +1687,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2">Sleep-Mood Link</p>
               {sleepMoodCorrelation.avgHappySleep ? (
@@ -1683,7 +1716,7 @@ const StatsTab = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6"
+              className="glass-panel p-6 w-full max-w-sm"
             >
               <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
                 <Target className="text-green-glow" size={18} />
