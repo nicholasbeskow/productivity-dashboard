@@ -231,7 +231,7 @@ const CanvasTab = () => {
             <div>
               <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-center gap-3">
                 <BookOpen className="text-green-canvas" size={32} />
-                Canvas Triage Inbox
+                Canvas
               </h2>
               <p className="text-text-secondary">
                 Review and manage your upcoming Canvas assignments
@@ -242,7 +242,8 @@ const CanvasTab = () => {
             <button
               onClick={fetchAssignments}
               disabled={isLoading}
-              className="flex items-center gap-2 px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-3 liquid-bubble-filled text-green-glow rounded-lg hover:shadow-[0_0_12px_rgba(61,214,140,0.2)] transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
               <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
               {isLoading ? 'Syncing...' : 'Sync Now'}
@@ -259,7 +260,7 @@ const CanvasTab = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6">
+          <div className="glass-panel p-4 mb-6 border-red-500/50" style={{ backdropFilter: 'blur(12px) saturate(180%)', background: 'rgba(239, 68, 68, 0.1)' }}>
             <p className="text-red-500">{error}</p>
             {error.includes('credentials') && (
               <p className="text-sm text-text-tertiary mt-2">
@@ -271,7 +272,7 @@ const CanvasTab = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
+          <div className="glass-panel p-8 text-center" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <RefreshCw className="animate-spin text-green-glow mx-auto mb-4" size={40} />
             <p className="text-text-primary">Loading assignments from Canvas...</p>
           </div>
@@ -279,13 +280,13 @@ const CanvasTab = () => {
 
         {/* Empty State */}
         {!isLoading && !error && newAssignments.length === 0 && (
-          <div className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary text-center">
+          <div className="glass-panel p-8 text-center" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <div className="max-w-md mx-auto">
-              <div className="w-20 h-20 bg-green-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 liquid-bubble-filled" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
                 <Check className="text-green-glow" size={40} />
               </div>
               <h3 className="text-xl font-semibold text-text-primary mb-3">
-                Inbox is empty! 🎉
+                Inbox is empty!
               </h3>
               <p className="text-text-secondary">
                 You've processed all your Canvas assignments. Check back later or click "Sync Now" to refresh.
@@ -304,7 +305,8 @@ const CanvasTab = () => {
             {newAssignments.map((assignment) => (
               <div
                 key={assignment.id}
-                className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary hover:border-green-glow/50 transition-all"
+                className="glass-panel p-6 hover:shadow-[0_0_20px_rgba(61,214,140,0.15)] transition-all"
+                style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -345,7 +347,8 @@ const CanvasTab = () => {
                   <div className="flex flex-col gap-2 ml-4">
                     <button
                       onClick={() => handleAddTask(assignment)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold whitespace-nowrap"
+                      className="flex items-center gap-2 px-4 py-2 liquid-bubble-filled text-green-glow rounded-lg hover:shadow-[0_0_12px_rgba(61,214,140,0.2)] transition-all font-semibold whitespace-nowrap"
+                      style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
                       title="Add to Tasks"
                     >
                       <Check size={18} />
@@ -354,7 +357,8 @@ const CanvasTab = () => {
 
                     <button
                       onClick={() => handleIgnore(assignment.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-500 bg-opacity-20 text-red-500 rounded-lg hover:bg-opacity-30 transition-all font-semibold"
+                      className="flex items-center gap-2 px-4 py-2 liquid-bubble-filled text-red-500 rounded-lg hover:shadow-[0_0_12px_rgba(239,68,68,0.2)] transition-all font-semibold"
+                      style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
                       title="Ignore"
                     >
                       <X size={18} />
