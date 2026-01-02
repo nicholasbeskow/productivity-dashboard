@@ -1424,7 +1424,7 @@ const Dashboard = ({ setActiveTab }) => {
                             </div>
 
                             {/* Task Details Card or Edit Form */}
-                            <div className="bg-glass-surface rounded-lg p-4 border border-white/18 space-y-4">
+                            <div className="liquid-bubble-filled rounded-lg p-4 space-y-4">
                               {isEditingDetail ? (
                                 /* Edit Form - Using TaskForm Component */
                                 <div className="space-y-4">
@@ -1574,7 +1574,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   <div className="space-y-3">
                                     <button
                                       onClick={handleCancelEdit}
-                                      className="w-full px-6 bg-glass-surface hover:bg-glass-overlay border border-white/18 hover:border-red-500/50 text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      className="w-full px-6 liquid-bubble-filled hover:border-red-500/50 text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <X size={16} />
                                       Cancel
@@ -1607,7 +1607,7 @@ const Dashboard = ({ setActiveTab }) => {
                                           ? 'bg-green-muted text-green-glow'
                                           : detailTask.status === 'in-progress'
                                           ? 'bg-yellow-500/10 text-yellow-500'
-                                          : 'bg-glass-surface text-white/40'
+                                          : 'liquid-bubble-filled text-white/40'
                                       }`}>
                                         {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
                                       </span>
@@ -1663,7 +1663,7 @@ const Dashboard = ({ setActiveTab }) => {
                                           return (
                                             <div
                                               key={index}
-                                              className="flex items-center justify-between bg-glass-surface rounded-lg px-3 py-2 border border-white/18"
+                                              className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
                                             >
                                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                                 <FileText size={14} className="text-green-glow flex-shrink-0" />
@@ -1697,7 +1697,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   )}
 
                                   {/* Actions */}
-                                  <div className="pt-2 border-t border-white/18">
+                                  <div className="pt-2">
                                     <button
                                       onClick={() => {
                                         setDetailViewTaskId(null);
