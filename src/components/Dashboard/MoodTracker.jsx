@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
@@ -68,6 +68,8 @@ const MoodTracker = () => {
   const [moodLog, setMoodLog] = useState([]);
   const [journalLog, setJournalLog] = useState([]);
   const [sleepLog, setSleepLog] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
 
   // Editing State
   const [selectedMood, setSelectedMood] = useState(null);
@@ -82,9 +84,13 @@ const MoodTracker = () => {
       const storedMoods = JSON.parse(localStorage.getItem('moodLog') || '[]');
       const storedJournal = JSON.parse(localStorage.getItem('journalLog') || '[]');
       const storedSleep = JSON.parse(localStorage.getItem('sleepLog') || '[]');
+      const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const storedCompletedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
       setMoodLog(storedMoods);
       setJournalLog(storedJournal);
       setSleepLog(storedSleep);
+      setTasks(storedTasks);
+      setCompletedTasks(storedCompletedTasks);
 
       const todayEntry = storedMoods.find(e => e.date === getDateString(new Date()));
       // Start in month view by default unless you want to force entry
@@ -213,7 +219,27 @@ const MoodTracker = () => {
 
   // --- RENDER HELPERS ---
 
-  const renderCalendar = () => {
+  // Create lookup maps for O(1) access instead of O(n) find() operations
+  const moodMap = useMemo(() => {
+    const map = new Map();
+    moodLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [moodLog]);
+
+  const journalMap = useMemo(() => {
+    const map = new Map();
+    journalLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [journalLog]);
+
+  const sleepMap = useMemo(() => {
+    const map = new Map();
+    sleepLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [sleepLog]);
+
+  // Memoize calendar rendering
+  const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentMonth);
     const startDay = getDay(startOfMonth(currentMonth));
     const days = [];
@@ -222,8 +248,14 @@ const MoodTracker = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const mood = getMoodForDate(date);
-      const sleepEntry = getSleepForDate(date);
+      const dateStr = getDateString(date);
+
+      // Use maps for O(1) lookup instead of O(n) find
+      const moodEntry = moodMap.get(dateStr);
+      const mood = moodEntry ? moods.find(m => m.level === moodEntry.level) : null;
+      const sleepEntry = sleepMap.get(dateStr);
+      const journalEntry = journalMap.get(dateStr);
+
       const isToday = isSameDay(date, new Date());
       const isFuture = date > new Date().setHours(0,0,0,0);
 
@@ -232,39 +264,112 @@ const MoodTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-lg transition-all relative ${
-            isFuture ? 'opacity-30 cursor-not-allowed' :
-            isToday ? 'bg-bg-tertiary border border-green-glow' : 'hover:bg-bg-tertiary'
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none group ${
+            isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
+            mood ? 'liquid-bubble-filled' :
+            isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
           }`}
-          whileHover={!isFuture ? { scale: 1.05 } : {}}
+          whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
           {mood ? (
-            <mood.icon size={24} className={mood.color} strokeWidth={2} />
+            <>
+              <mood.icon size={24} className={`${mood.color} transition-opacity duration-200 ${sleepEntry ? 'group-hover:opacity-0' : ''}`} strokeWidth={2} />
+              {sleepEntry && (
+                <span className="absolute text-sm text-purple-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {sleepEntry.hours}h
+                </span>
+              )}
+            </>
           ) : (
-            <span className="text-text-tertiary text-sm">{day}</span>
-          )}
-          {/* Sleep Indicator (top-right corner, inside cell) */}
-          {sleepEntry && (
-            <span className="absolute top-0 right-0.5 text-[8px] text-purple-400 font-medium leading-none">{sleepEntry.hours}h</span>
+            <span className="text-zinc-500 text-sm font-medium">{day}</span>
           )}
           {/* Journal Indicator Dot */}
-          {getJournalForDate(date) && (
+          {journalEntry && (
             <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-text-tertiary" />
           )}
         </motion.button>
       );
     }
     return days;
-  };
+  }, [currentMonth, moodMap, sleepMap, journalMap]);
+
+  // Memoize mood statistics calculations
+  const moodStats = useMemo(() => {
+    // Calculate 7-day average mood
+    const today = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      return getDateString(date);
+    });
+
+    const last7DaysSet = new Set(last7Days); // Use Set for O(1) lookups
+    const last7Moods = moodLog.filter(entry => last7DaysSet.has(entry.date));
+    const avgMood = last7Moods.length > 0
+      ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
+      : null;
+
+    // Calculate mood-task completion correlation
+    const moodTaskPairs = moodLog
+      .map(moodEntry => {
+        const completedOnDate = completedTasks.filter(t => {
+          if (!t.completedAt) return false;
+          const completedDate = t.completedAt.split('T')[0];
+          return completedDate === moodEntry.date;
+        }).length;
+
+        const allTasksOnDate = [...tasks, ...completedTasks].filter(t => t.dueDate === moodEntry.date);
+
+        const completionRate = allTasksOnDate.length > 0
+          ? (completedOnDate / allTasksOnDate.length) * 100
+          : null;
+
+        return completionRate !== null ? { mood: moodEntry.level, completionRate } : null;
+      })
+      .filter(Boolean);
+
+    let correlation = null;
+    if (moodTaskPairs.length >= 3) {
+      const avgMoodVal = moodTaskPairs.reduce((sum, p) => sum + p.mood, 0) / moodTaskPairs.length;
+      const avgCompletionRate = moodTaskPairs.reduce((sum, p) => sum + p.completionRate, 0) / moodTaskPairs.length;
+
+      const numerator = moodTaskPairs.reduce((sum, p) => sum + (p.mood - avgMoodVal) * (p.completionRate - avgCompletionRate), 0);
+      const denomMood = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.mood - avgMoodVal, 2), 0));
+      const denomCompletion = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.completionRate - avgCompletionRate, 2), 0));
+
+      if (denomMood !== 0 && denomCompletion !== 0) {
+        correlation = (numerator / (denomMood * denomCompletion)).toFixed(2);
+      }
+    }
+
+    const getMoodLabel = (avgMood) => {
+      const moodVal = parseFloat(avgMood);
+      if (moodVal >= 4.5) return 'Great';
+      if (moodVal >= 3.5) return 'Good';
+      if (moodVal >= 2.5) return 'Okay';
+      if (moodVal >= 1.5) return 'Down';
+      return 'Rocky';
+    };
+
+    const getMoodColor = (avgMood) => {
+      const moodVal = parseFloat(avgMood);
+      if (moodVal >= 4.5) return 'text-yellow-500';
+      if (moodVal >= 3.5) return 'text-green-glow';
+      if (moodVal >= 2.5) return 'text-blue-400';
+      if (moodVal >= 1.5) return 'text-orange-500';
+      return 'text-red-500';
+    };
+
+    return { avgMood, correlation, last7Moods, getMoodLabel, getMoodColor };
+  }, [moodLog, tasks, completedTasks]);
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary h-full flex flex-col">
+    <div className="glass-panel rounded-xl p-6 border border-white/10 h-full flex flex-col">
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-text-primary flex items-center gap-2">
-          <Smile className="text-yellow-500" size={24} />
+        <h3 className="text-xl font-bold text-white">
           {view === 'month' && 'Mood Calendar'}
           {view === 'select' && 'Log Mood'}
           {view === 'details' && 'Entry Details'}
@@ -272,7 +377,7 @@ const MoodTracker = () => {
         {view !== 'month' && view !== 'confirm' && (
           <button
             onClick={() => setView('month')}
-            className="text-text-tertiary hover:text-text-primary transition-colors"
+            className="text-text-tertiary hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -288,11 +393,51 @@ const MoodTracker = () => {
             key="month"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
+            {/* Mood Statistics - Using memoized calculations */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="liquid-bubble-filled rounded-lg p-3">
+                <p className="text-xs text-white/50 mb-1">7-Day Average</p>
+                {moodStats.avgMood ? (
+                  <>
+                    <p className={`text-lg font-bold ${moodStats.getMoodColor(moodStats.avgMood)}`}>
+                      {moodStats.getMoodLabel(moodStats.avgMood)} ({moodStats.avgMood})
+                    </p>
+                    <p className="text-[10px] text-white/40">{moodStats.last7Moods.length} days tracked</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/40">No data yet</p>
+                )}
+              </div>
+              <div className="liquid-bubble-filled rounded-lg p-3">
+                <p className="text-xs text-white/50 mb-1">Mood-Task Link</p>
+                {moodStats.correlation !== null ? (
+                  <>
+                    <p className={`text-lg font-bold ${
+                      parseFloat(moodStats.correlation) >= 0.5 ? 'text-green-glow' :
+                      parseFloat(moodStats.correlation) >= 0.3 ? 'text-yellow-500' :
+                      parseFloat(moodStats.correlation) >= 0 ? 'text-blue-400' :
+                      parseFloat(moodStats.correlation) >= -0.3 ? 'text-orange-500' : 'text-red-500'
+                    }`}>
+                      {parseFloat(moodStats.correlation) >= 0 ? '+' : ''}{moodStats.correlation}
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      {parseFloat(moodStats.correlation) >= 0.5 ? 'Strong positive' :
+                       parseFloat(moodStats.correlation) >= 0.3 ? 'Moderate positive' :
+                       parseFloat(moodStats.correlation) >= 0 ? 'Weak positive' :
+                       parseFloat(moodStats.correlation) >= -0.3 ? 'Weak negative' : 'Moderate negative'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/40">Need 3+ days</p>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between mb-4">
               <button onClick={handlePrevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
                 <ChevronLeft size={20} />
               </button>
-              <span className="font-semibold text-text-primary">
+              <span className="font-semibold text-white">
                 {format(currentMonth, 'MMMM yyyy')}
               </span>
               <button
@@ -308,7 +453,7 @@ const MoodTracker = () => {
                 <div key={i} className="text-center text-xs text-text-tertiary h-8 flex items-center justify-center">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-2">{renderCalendar()}</div>
+            <div className="grid grid-cols-7 gap-2">{calendarDays}</div>
           </motion.div>
         )}
 
@@ -320,7 +465,7 @@ const MoodTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="text-center mb-6">
-              <p className="text-text-secondary">
+              <p className="text-white/70">
                 {isSameDay(editingDate, new Date()) ? 'How are you today?' : `How were you on ${format(editingDate, 'MMM d')}?`}
               </p>
             </div>
@@ -333,13 +478,13 @@ const MoodTracker = () => {
                   <motion.button
                     key={mood.level}
                     onClick={() => setSelectedMood(mood)}
-                    className={`p-3 rounded-2xl transition-all border-2 ${
+                    className={`p-3 rounded-2xl transition-all ${
                       isSelected
-                        ? `${mood.color} border-current bg-bg-tertiary`
-                        : 'border-transparent text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary'
+                        ? `${mood.color} liquid-bubble-filled`
+                        : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
                     }`}
                     style={{
-                      boxShadow: isSelected ? `0 0 20px ${mood.glowColor}` : 'none'
+                      boxShadow: isSelected ? `0 0 8px ${mood.glowColor}` : 'none'
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -352,12 +497,12 @@ const MoodTracker = () => {
 
             {/* Journal Input */}
             <div className="flex-1">
-              <label className="block text-sm text-text-secondary mb-2">Daily Note</label>
+              <label className="block text-sm text-white/70 mb-2">Daily Note</label>
               <textarea
                 value={currentJournalEntry}
                 onChange={(e) => setCurrentJournalEntry(e.target.value)}
                 placeholder="What's on your mind? (Optional)"
-                className="w-full h-32 bg-bg-tertiary border border-bg-primary rounded-xl p-4 text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none transition-colors"
+                className="w-full h-32 liquid-bubble-filled rounded-xl p-4 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none resize-none transition-colors"
               />
             </div>
 
@@ -387,7 +532,7 @@ const MoodTracker = () => {
             className="flex-1 flex flex-col"
           >
             <div className="flex items-center gap-2 mb-6 text-text-tertiary text-sm">
-              <button onClick={() => setView('month')} className="hover:text-text-primary flex items-center gap-1">
+              <button onClick={() => setView('month')} className="hover:text-white flex items-center gap-1">
                 <ArrowLeft size={16} /> Back
               </button>
               <span>•</span>
@@ -395,17 +540,17 @@ const MoodTracker = () => {
             </div>
 
             {/* Mood Card */}
-            <div className="bg-bg-tertiary rounded-2xl p-6 text-center mb-6 border border-bg-primary">
+            <div className="liquid-bubble-filled rounded-2xl p-6 text-center mb-6">
               <selectedMood.icon size={64} className={`mx-auto mb-4 ${selectedMood.color}`} strokeWidth={1.5} />
               <h2 className={`text-2xl font-bold ${selectedMood.color}`}>{selectedMood.label}</h2>
-              <p className="text-text-secondary mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
+              <p className="text-white/70 mt-2 text-sm">{getMoodMessage(selectedMood.level)}</p>
             </div>
 
             {/* Journal Card */}
             {currentJournalEntry && (
-              <div className="bg-bg-tertiary rounded-2xl p-6 border border-bg-primary flex-1">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Journal</h4>
-                <p className="text-text-primary whitespace-pre-wrap leading-relaxed">
+              <div className="liquid-bubble-filled rounded-2xl p-6 flex-1">
+                <h4 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Journal</h4>
+                <p className="text-white whitespace-pre-wrap leading-relaxed">
                   {currentJournalEntry}
                 </p>
               </div>
@@ -415,7 +560,7 @@ const MoodTracker = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setView('select')}
-                className="flex-1 py-3 bg-bg-tertiary border border-bg-primary rounded-xl text-text-primary font-medium hover:border-green-glow transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 liquid-bubble-filled rounded-xl text-white font-medium hover:text-green-glow transition-colors flex items-center justify-center gap-2"
               >
                 <Edit2 size={16} /> Edit
               </button>
@@ -456,7 +601,7 @@ const MoodTracker = () => {
               </div>
             )}
             <selectedMood.icon size={80} className={selectedMood.color} />
-            <h2 className="text-2xl font-bold text-text-primary mt-6">Entry Saved!</h2>
+            <h2 className="text-2xl font-bold text-white mt-6">Entry Saved!</h2>
           </motion.div>
         )}
 

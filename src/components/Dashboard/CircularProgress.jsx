@@ -10,11 +10,11 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progressPercentage / 100) * circumference;
 
-  // Use yellow for break mode, green for semester mode
+  // Use golden amber for break mode, green for semester mode
   const isBreakMode = breakDaysLeft !== null;
-  const strokeColor = isBreakMode ? '#facc15' : '#3dd68c';
-  const glowColor = isBreakMode ? 'rgba(250, 204, 21, 0.4)' : 'rgba(61, 214, 140, 0.4)';
-  const textColorClass = isBreakMode ? 'text-yellow-400' : 'text-green-glow';
+  const strokeColor = isBreakMode ? '#fbbf24' : '#3dd68c';
+  const glowColor = isBreakMode ? 'rgba(251, 191, 36, 0.4)' : 'rgba(61, 214, 140, 0.4)';
+  const textColorClass = isBreakMode ? 'text-amber-400' : 'text-green-glow';
 
   return (
     <div
@@ -23,29 +23,30 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
       onMouseLeave={() => setIsHovered(false)}
     >
       <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle */}
+        {/* Background circle - Carved groove */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#1e2530"
+          stroke="rgba(0, 0, 0, 0.5)"
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress circle */}
+        {/* Progress circle - Liquid neon glow */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           stroke={strokeColor}
           strokeWidth={strokeWidth}
+          strokeOpacity={0.9}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
           className="transition-all duration-500 ease-out"
           style={{
-            filter: `drop-shadow(0 0 8px ${glowColor})`,
+            filter: `drop-shadow(0 0 2px ${strokeColor})`,
           }}
         />
       </svg>
@@ -66,7 +67,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
                   <div className={`text-4xl font-bold ${textColorClass}`}>
                     {breakDaysLeft}
                   </div>
-                  <div className="text-xs text-text-secondary mt-1">
+                  <div className="text-xs text-white/70 mt-1">
                     days left
                   </div>
                 </>
@@ -75,7 +76,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
                   <div className={`text-4xl font-bold ${textColorClass}`}>
                     {Math.round(progressPercentage)}%
                   </div>
-                  <div className="text-xs text-text-secondary mt-1">
+                  <div className="text-xs text-white/70 mt-1">
                     complete
                   </div>
                 </>
@@ -93,7 +94,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
               <div className={`text-4xl font-bold ${textColorClass}`}>
                 {daysRemaining > 0 ? daysRemaining : '🌴'}
               </div>
-              <div className="text-xs text-text-secondary mt-1">
+              <div className="text-xs text-white/70 mt-1">
                 {daysRemaining > 0 ? 'days left' : 'on break'}
               </div>
             </motion.div>

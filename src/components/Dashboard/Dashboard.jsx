@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef, useMemo } from 'react';
+import { useState, useEffect, memo, useRef, useMemo, useCallback } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -12,146 +12,129 @@ import { dateToLocalISO } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { ArrowRight, Moon } from 'lucide-react';
 
-// Memoized task card component for performance
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
+// ===== UTILITY FUNCTIONS (extracted for performance) =====
+const isTaskOverdue = (task) => {
+  if (!task.dueDate || task.status === 'complete') return false;
 
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'complete':
-        return <Check size={18} className="text-green-glow" />;
-      case 'in-progress':
-        return <Clock size={18} className="text-yellow-500" />;
-      default:
-        return <Circle size={18} className="text-text-tertiary" />;
-    }
-  };
-
-  const getCardGlow = (task, isOverdue) => {
-    if (isOverdue) {
-      return 'task-glow-overdue';
-    }
-    switch (task.status) {
-      case 'complete':
-        return 'task-glow-complete';
-      case 'in-progress':
-        return 'task-glow-in-progress';
-      default:
-        return 'task-glow-not-started';
-    }
-  };
-
-  // Helper: Convert 24-hour time to 12-hour AM/PM
-  const formatTime12Hour = (time24) => {
-    if (!time24) return '';
-    const [hours, minutes] = time24.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Helper: Get time remaining in hours
-  const getTimeRemaining = (dateString, timeString) => {
-    if (!dateString || !timeString) return null;
-    const taskDateTime = new Date(`${dateString}T${timeString}`);
+  if (task.time) {
+    const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
     const now = new Date();
-    const diffMs = taskDateTime - now;
-    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-    return diffHours;
-  };
-
-  // Smart date/time display
-  const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
-    if (!dateString) return '';
-
+    return taskDateTime < now;
+  } else {
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const taskDate = new Date(dateString + 'T12:00:00');
-    taskDate.setHours(0, 0, 0, 0);
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
+    return dueDate < now;
+  }
+};
 
-    const diffTime = taskDate - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'complete':
+      return <Check size={18} className="text-green-glow" />;
+    case 'in-progress':
+      return <Clock size={18} className="text-yellow-500" />;
+    default:
+      return <Circle size={18} className="text-white/40" />;
+  }
+};
 
-    // Check if year differs from current year
-    const showYear = taskDate.getFullYear() !== now.getFullYear();
+const getCardGlow = (task, isOverdue) => {
+  if (isOverdue) return 'task-glow-overdue';
+  switch (task.status) {
+    case 'complete': return 'task-glow-complete';
+    case 'in-progress': return 'task-glow-in-progress';
+    default: return 'task-glow-not-started';
+  }
+};
 
-    // Format the date part
-    let dateDisplay;
-    if (diffDays === 0) {
-      dateDisplay = 'Today';
-    } else if (diffDays === 1) {
-      dateDisplay = 'Tomorrow';
-    } else if (diffDays < 0) {
-      // Overdue - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    } else {
-      // Future - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    }
+const formatTime12Hour = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minutes} ${ampm}`;
+};
 
-    // Add time if present
-    if (timeString) {
-      const time12 = formatTime12Hour(timeString);
+const getTimeRemaining = (dateString, timeString) => {
+  if (!dateString || !timeString) return null;
+  const taskDateTime = new Date(`${dateString}T${timeString}`);
+  const now = new Date();
+  const diffMs = taskDateTime - now;
+  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+  return diffHours;
+};
 
-      // For today's tasks, show countdown if not overdue
-      if (diffDays === 0 && !taskIsOverdue) {
-        const hoursRemaining = getTimeRemaining(dateString, timeString);
-        if (hoursRemaining !== null && hoursRemaining > 0) {
-          return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
-        }
+const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
+  if (!dateString) return '';
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const taskDate = new Date(dateString + 'T12:00:00');
+  taskDate.setHours(0, 0, 0, 0);
+
+  const diffTime = taskDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const showYear = taskDate.getFullYear() !== now.getFullYear();
+
+  let dateDisplay;
+  if (diffDays === 0) {
+    dateDisplay = 'Today';
+  } else if (diffDays === 1) {
+    dateDisplay = 'Tomorrow';
+  } else if (diffDays < 0) {
+    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: showYear ? 'numeric' : undefined
+    });
+  } else {
+    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: showYear ? 'numeric' : undefined
+    });
+  }
+
+  if (timeString) {
+    const time12 = formatTime12Hour(timeString);
+
+    if (diffDays === 0 && !taskIsOverdue) {
+      const hoursRemaining = getTimeRemaining(dateString, timeString);
+      if (hoursRemaining !== null && hoursRemaining > 0) {
+        return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
       }
-
-      return `${dateDisplay} » ${time12}`;
     }
 
-    return dateDisplay;
-  };
+    return `${dateDisplay} » ${time12}`;
+  }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    // Parse date at noon local time to avoid timezone shift
-    const date = new Date(dateString + 'T12:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  return dateDisplay;
+};
 
-  const taskIsOverdue = isOverdue(task);
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const getCheckboxClass = (task, taskIsOverdue) => {
+  if (taskIsOverdue) return 'checkbox-overdue';
+  if (task.status === 'complete') return 'checkbox-complete';
+  if (task.status === 'in-progress') return 'checkbox-in-progress';
+  return 'checkbox-not-started';
+};
+
+// ===== TASK CARD COMPONENT =====
+const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+  const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
-  // Determine checkbox class based on status
-  const getCheckboxClass = () => {
-    if (taskIsOverdue) return 'checkbox-overdue';
-    if (task.status === 'complete') return 'checkbox-complete';
-    if (task.status === 'in-progress') return 'checkbox-in-progress';
-    return 'checkbox-not-started';
-  };
-
-  // Handler for opening first attachment
-  const handleOpenFirstAttachment = async (e) => {
+  // Memoize event handlers
+  const handleOpenFirstAttachment = useCallback(async (e) => {
     e.stopPropagation();
     if (task.attachments && task.attachments.length > 0) {
       try {
@@ -164,7 +147,37 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         console.error('Error opening file:', error);
       }
     }
-  };
+  }, [task.attachments]);
+
+  const handleMouseEnter = useCallback((e) => {
+    if ((task.description || task.url) && !draggedTask) {
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
+      e.currentTarget.style.transform = 'translateY(-2px) translateZ(0)';
+    }
+  }, [task.description, task.url, draggedTask]);
+
+  const handleMouseLeave = useCallback((e) => {
+    if ((task.description || task.url) && !draggedTask) {
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+      e.currentTarget.style.transform = 'translateZ(0)';
+    }
+  }, [task.description, task.url, draggedTask]);
+
+  const handleCardClick = useCallback(() => {
+    if ((task.description || task.url) && !draggedTask) {
+      onViewDetails(task.id);
+    }
+  }, [task.description, task.url, task.id, draggedTask, onViewDetails]);
+
+  const handleCheckboxClick = useCallback((e) => {
+    e.stopPropagation();
+    onStatusChange(task.id);
+  }, [task.id, onStatusChange]);
+
+  const handleEditClick = useCallback((e) => {
+    e.stopPropagation();
+    onStartEdit(task);
+  }, [task, onStartEdit]);
 
   return (
     <motion.div
@@ -187,13 +200,20 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       onDragOver={(e) => onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => onDrop(e, task)}
-      className={`relative bg-bg-tertiary rounded-lg p-3 border transition-all ${glowClass} ${
+      className={`relative rounded-lg p-3 border transition-all ${glowClass} ${
         taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
-        'border-bg-primary hover:border-green-glow/30'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer hover:bg-bg-tertiary/80' : 'cursor-move'}`}
-      style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
+        'border-transparent'
+      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer' : 'cursor-move'}`}
+      style={{
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backdropFilter: 'blur(12px) saturate(180%)',
+        background: 'rgba(255, 255, 255, 0.03)'
+      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleCardClick}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -236,17 +256,14 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Drag Handle */}
-          <div className="text-text-tertiary hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
+          <div className="text-white/40 hover:text-green-glow transition-colors cursor-grab active:cursor-grabbing flex-shrink-0">
             <GripVertical size={16} />
           </div>
 
           {/* Checkbox */}
           <motion.button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStatusChange(task.id);
-            }}
-            className={`flex-shrink-0 ${getCheckboxClass()}`}
+            onClick={handleCheckboxClick}
+            className={`flex-shrink-0 ${getCheckboxClass(task, taskIsOverdue)}`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -258,8 +275,8 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             <div className="flex items-center gap-2 mb-0.5">
               <p className={`font-medium truncate ${
                 task.status === 'complete'
-                  ? 'text-text-secondary line-through'
-                  : 'text-text-primary'
+                  ? 'text-white/70 line-through'
+                  : 'text-white'
               }`}>
                 {task.title}
               </p>
@@ -272,12 +289,12 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
             </div>
             {task.dueDate && (
               <p className={`text-xs flex items-center gap-1 ${
-                taskIsOverdue ? 'text-red-500 font-semibold' : 'text-text-tertiary'
+                taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
               }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
                 {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
                 {task.templateId && (
-                  <Repeat size={10} className="text-text-tertiary ml-0.5" title="Recurring task" />
+                  <Repeat size={10} className="text-white/40 ml-0.5" title="Recurring task" />
                 )}
               </p>
             )}
@@ -288,7 +305,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         {task.attachments && task.attachments.length > 0 && (
           <motion.button
             onClick={handleOpenFirstAttachment}
-            className="relative p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+            className="relative p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title={`Open first attachment (${task.attachments.length} total)`}
@@ -310,11 +327,8 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
         {/* Edit Button */}
         <motion.button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartEdit(task);
-          }}
-          className="p-1.5 rounded-lg bg-bg-primary hover:bg-bg-secondary border border-bg-secondary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all flex-shrink-0"
+          onClick={handleEditClick}
+          className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all flex-shrink-0"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           title="Edit task"
@@ -352,6 +366,8 @@ const Dashboard = ({ setActiveTab }) => {
   });
   // Edit scope ref for recurring tasks (synced with TaskForm)
   const editScopeRef = useRef('instance');
+  // Ref for scrollable container
+  const scrollContainerRef = useRef(null);
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -571,7 +587,7 @@ const Dashboard = ({ setActiveTab }) => {
     }
   };
 
-  const handleStatusChange = (taskId) => {
+  const handleStatusChange = useCallback((taskId) => {
     const task = tasks.find(t => t.id === taskId);
 
     if (task && task.status === 'in-progress') {
@@ -686,7 +702,7 @@ const Dashboard = ({ setActiveTab }) => {
 
       window.dispatchEvent(new Event('storage'));
     }
-  };
+  }, [tasks]);
 
   const handleOpenUrl = (url) => {
     if (!url) return;
@@ -702,27 +718,27 @@ const Dashboard = ({ setActiveTab }) => {
     }
   };
 
-  const handleDragStart = (e, task) => {
+  const handleDragStart = useCallback((e, task) => {
     setDraggedTask(task);
     setDetailViewTaskId(null); // Close detail view when dragging starts
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.id);
-  };
+  }, []);
 
-  const handleDragOver = (e, task) => {
+  const handleDragOver = useCallback((e, task) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (draggedTask && task.id !== draggedTask.id) {
       setDragOverTask(task);
     }
-  };
+  }, [draggedTask]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedTask(null);
     setDragOverTask(null);
-  };
+  }, []);
 
-  const handleDrop = (e, dropTask) => {
+  const handleDrop = useCallback((e, dropTask) => {
     e.preventDefault();
 
     if (!draggedTask || draggedTask.id === dropTask.id) {
@@ -757,7 +773,7 @@ const Dashboard = ({ setActiveTab }) => {
 
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
-  };
+  }, [draggedTask, tasks, handleDragEnd]);
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
@@ -776,6 +792,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleCancelEdit = () => {
     setIsEditingDetail(false);
+    setDetailViewTaskId(null); // Close detail view, return to main dashboard
     setEditForm({
       title: '',
       description: '',
@@ -786,6 +803,10 @@ const Dashboard = ({ setActiveTab }) => {
       taskType: 'academic',
       attachments: []
     });
+    // Scroll to top when returning to main dashboard
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // File attachment handlers for detail/edit view
@@ -1181,15 +1202,15 @@ const Dashboard = ({ setActiveTab }) => {
 
   return (
     <>
-      <div className="h-full p-8 overflow-y-auto">
+      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
           <div className="mb-8 flex items-start justify-between">
             <div className="flex-1 mt-12">
-              <h2 className="text-3xl font-bold text-text-primary mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {welcomeMessage}
               </h2>
-              <p className="text-text-secondary">
+              <p className="text-white/70">
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -1211,10 +1232,10 @@ const Dashboard = ({ setActiveTab }) => {
           {/* Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Task List */}
-            <div className="lg:col-span-2 bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
+            <div className="lg:col-span-2 glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
               {/* Header with Filter Buttons */}
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                <h3 className="text-xl font-semibold text-text-primary">
+                <h3 className="text-xl font-semibold text-white">
                   Today's Tasks
                 </h3>
 
@@ -1224,9 +1245,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('all')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'all'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'all' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     All
                   </button>
@@ -1234,9 +1256,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('academic')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'academic'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'academic' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Academic
                   </button>
@@ -1244,9 +1267,10 @@ const Dashboard = ({ setActiveTab }) => {
                     onClick={() => handleFilterChange('personal')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       taskFilter === 'personal'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        ? 'liquid-bubble-filled text-green-glow'
+                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
                     }`}
+                    style={taskFilter === 'personal' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Personal
                   </button>
@@ -1255,7 +1279,7 @@ const Dashboard = ({ setActiveTab }) => {
 
               {displayTasks.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-text-secondary mb-2">No tasks yet!</p>
+                  <p className="text-white/70 mb-2">No tasks yet!</p>
                   <button
                     onClick={() => setActiveTab && setActiveTab('tasks')}
                     className="text-green-glow hover:underline text-sm"
@@ -1298,7 +1322,7 @@ const Dashboard = ({ setActiveTab }) => {
                       <motion.button
                         layout
                         onClick={() => setActiveTab && setActiveTab('tasks')}
-                        className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-bg-tertiary transition-all"
+                        className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-glass-surface transition-all"
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       >
                         View All Tasks →
@@ -1384,18 +1408,18 @@ const Dashboard = ({ setActiveTab }) => {
                                     setDetailViewTaskId(null);
                                     setIsEditingDetail(false);
                                   }}
-                                  className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors group"
+                                  className="p-2 rounded-lg hover:bg-glass-surface transition-colors group"
                                 >
-                                  <ArrowLeft size={20} className="text-text-tertiary group-hover:text-green-glow transition-colors" />
+                                  <ArrowLeft size={20} className="text-white/40 group-hover:text-green-glow transition-colors" />
                                 </button>
-                                <h4 className="text-lg font-semibold text-text-primary">
+                                <h4 className="text-lg font-semibold text-white">
                                   {isEditingDetail ? 'Edit Task' : 'Task Details'}
                                 </h4>
                               </div>
                               {!isEditingDetail && (
                                 <button
                                   onClick={() => handleStartEdit(detailTask)}
-                                  className="p-2 rounded-lg bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-tertiary hover:text-green-glow transition-all"
+                                  className="p-2 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
                                   title="Edit task"
                                 >
                                   <Pencil size={16} />
@@ -1404,7 +1428,7 @@ const Dashboard = ({ setActiveTab }) => {
                             </div>
 
                             {/* Task Details Card or Edit Form */}
-                            <div className="bg-bg-tertiary rounded-lg p-4 border border-bg-primary space-y-4">
+                            <div className="liquid-bubble-filled rounded-lg p-4 space-y-4">
                               {isEditingDetail ? (
                                 /* Edit Form - Using TaskForm Component */
                                 <div className="space-y-4">
@@ -1550,14 +1574,25 @@ const Dashboard = ({ setActiveTab }) => {
                                       />
 
 
-                                  {/* Cancel and Delete Buttons */}
+                                  {/* Action Buttons */}
                                   <div className="space-y-3">
+                                    {/* Cancel Button */}
                                     <button
                                       onClick={handleCancelEdit}
-                                      className="w-full px-6 bg-bg-secondary hover:bg-bg-primary border border-bg-primary hover:border-red-500/50 text-text-primary font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                      className="w-full px-6 liquid-bubble-filled text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <X size={16} />
                                       Cancel
+                                    </button>
+
+                                    {/* Edit Task Submit Button */}
+                                    <button
+                                      type="submit"
+                                      form="edit-task-form"
+                                      className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
+                                    >
+                                      <Save size={16} />
+                                      Update Task
                                     </button>
 
                                     {/* Delete Button */}
@@ -1578,7 +1613,7 @@ const Dashboard = ({ setActiveTab }) => {
                                 <>
                                   {/* Title */}
                                   <div>
-                                    <h3 className="text-xl font-bold text-text-primary mb-2">
+                                    <h3 className="text-xl font-bold text-white mb-2">
                                       {detailTask.title}
                                     </h3>
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -1587,7 +1622,7 @@ const Dashboard = ({ setActiveTab }) => {
                                           ? 'bg-green-muted text-green-glow'
                                           : detailTask.status === 'in-progress'
                                           ? 'bg-yellow-500/10 text-yellow-500'
-                                          : 'bg-bg-secondary text-text-tertiary'
+                                          : 'liquid-bubble-filled text-white/40'
                                       }`}>
                                         {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
                                       </span>
@@ -1602,8 +1637,8 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Due Date */}
                                   {detailTask.dueDate && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-1">Due Date{detailTask.time && ' & Time'}</p>
-                                      <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-text-primary'}`}>
+                                      <p className="text-sm text-white/40 mb-1">Due Date{detailTask.time && ' & Time'}</p>
+                                      <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-white'}`}>
                                         {formatDetailDateTime(detailTask.dueDate, detailTask.time)}
                                       </p>
                                     </div>
@@ -1612,8 +1647,8 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Description */}
                                   {detailTask.description && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-1">Description</p>
-                                      <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                                      <p className="text-sm text-white/40 mb-1">Description</p>
+                                      <p className="text-sm text-white/70 whitespace-pre-wrap">
                                         {detailTask.description}
                                       </p>
                                     </div>
@@ -1622,7 +1657,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* URL */}
                                   {detailTask.url && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-2">Related Link</p>
+                                      <p className="text-sm text-white/40 mb-2">Related Link</p>
                                       <button
                                         onClick={() => handleOpenUrl(detailTask.url)}
                                         className="inline-flex items-center gap-2 text-sm text-green-glow hover:text-green-glow/80 transition-colors group"
@@ -1636,18 +1671,18 @@ const Dashboard = ({ setActiveTab }) => {
                                   {/* Attachments */}
                                   {detailTask.attachments && detailTask.attachments.length > 0 && (
                                     <div>
-                                      <p className="text-sm text-text-tertiary mb-2">File Attachments</p>
+                                      <p className="text-sm text-white/40 mb-2">File Attachments</p>
                                       <div className="space-y-2">
                                         {detailTask.attachments.map((filePath, index) => {
                                           const fileName = filePath.split(/[\\/]/).pop();
                                           return (
                                             <div
                                               key={index}
-                                              className="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2 border border-bg-primary"
+                                              className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
                                             >
                                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                                 <FileText size={14} className="text-green-glow flex-shrink-0" />
-                                                <span className="text-xs text-text-primary truncate" title={filePath}>
+                                                <span className="text-xs text-white truncate" title={filePath}>
                                                   {fileName}
                                                 </span>
                                               </div>
@@ -1677,7 +1712,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   )}
 
                                   {/* Actions */}
-                                  <div className="pt-2 border-t border-bg-primary">
+                                  <div className="pt-2">
                                     <button
                                       onClick={() => {
                                         setDetailViewTaskId(null);
@@ -1711,27 +1746,6 @@ const Dashboard = ({ setActiveTab }) => {
               {/* Sleep Tracker */}
               <SleepTracker />
             </div>
-
-            {/* View Sleep Analytics Link */}
-            <div className="lg:col-span-3">
-              <button
-                onClick={() => setActiveTab('sleep')}
-                className="w-full bg-bg-secondary hover:bg-bg-tertiary border border-bg-tertiary hover:border-purple-500/50 rounded-xl p-4 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg">
-                      <Moon size={20} className="text-purple-400" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-text-primary font-medium">Sleep Insights</p>
-                      <p className="text-text-tertiary text-sm">View detailed analytics, correlations & trends</p>
-                    </div>
-                  </div>
-                  <ArrowRight size={20} className="text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
-                </div>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -1752,16 +1766,16 @@ const Dashboard = ({ setActiveTab }) => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-bg-secondary rounded-xl p-8 border border-bg-tertiary max-w-md w-full relative"
+              className="bg-glass-surface rounded-xl p-8 border border-white/10 max-w-md w-full relative"
               onClick={(e) => e.stopPropagation()}
             >
 
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-text-primary mb-2">
+                <h2 className="text-3xl font-bold text-white mb-2">
                   🎉 Semester Complete!
                 </h2>
-                <p className="text-text-secondary">
+                <p className="text-white/70">
                   Congratulations! Time to recharge. When does your next semester begin?
                 </p>
               </div>
@@ -1769,41 +1783,41 @@ const Dashboard = ({ setActiveTab }) => {
               {/* Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Break Start Date
                   </label>
                   <input
                     type="date"
                     value={nextBreakStart}
                     onChange={(e) => setNextBreakStart(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
-                  <p className="text-xs text-text-tertiary mt-1">
+                  <p className="text-xs text-white/40 mt-1">
                     Defaults to the day after semester ended
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Next Semester Start Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterStart}
                     onChange={(e) => setNextSemesterStart(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">
+                  <label className="block text-sm text-white/70 mb-2">
                     Next Semester End Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterEnd}
                     onChange={(e) => setNextSemesterEnd(e.target.value)}
-                    className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
                   />
                 </div>
               </div>
