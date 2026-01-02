@@ -1,17 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, Activity, Heart, ArrowLeft, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
+  ArcElement,
   Title,
   Tooltip,
-  Filler
+  Filler,
+  Legend
 } from 'chart.js';
 import { subDays, format } from 'date-fns';
 
@@ -21,26 +22,27 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
+  ArcElement,
   Title,
   Tooltip,
-  Filler
+  Filler,
+  Legend
 );
 
 // Sleep target hours
 const SLEEP_TARGET = 7.5;
 
 const StatsTab = () => {
-  const [activeSection, setActiveSection] = useState('main'); // 'main', 'productivity', 'wellbeing'
+  const [activeSection, setActiveSection] = useState('main'); // 'main', 'productivity', 'wellbeing', 'mood', 'sleep'
   const [completedTasks, setCompletedTasks] = useState([]);
   const [moodLog, setMoodLog] = useState([]);
   const [sleepLog, setSleepLog] = useState([]);
   const [timePeriod, setTimePeriod] = useState('Week');
   const [expandedSections, setExpandedSections] = useState({
-    completionTrend: false,
-    moodTrend: false,
-    sleepQuality: false,
-    sleepMoodTrends: false
+    completionTrend: true,
+    moodTrend: true,
+    sleepQuality: true,
+    sleepMoodTrends: true
   });
 
   // Load completed tasks from localStorage
@@ -483,7 +485,7 @@ const StatsTab = () => {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
+            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.3)');
             gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
             return gradient;
           },
@@ -491,7 +493,7 @@ const StatsTab = () => {
           fill: true,
           tension: 0.4,
           pointRadius: 0,
-          pointHoverRadius: 6,
+          pointHoverRadius: 8,
         }]
       };
     }
@@ -523,7 +525,6 @@ const StatsTab = () => {
         }
       }
     } else {
-      // For Day, Semester, All Time - show simplified view
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
@@ -560,15 +561,21 @@ const StatsTab = () => {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
+            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.3)');
             gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
             return gradient;
           },
           borderWidth: 3,
           fill: true,
           tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(61, 214, 140, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#3dd68c',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
         },
         {
           label: 'Personal',
@@ -577,15 +584,21 @@ const StatsTab = () => {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
             gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
             return gradient;
           },
           borderWidth: 3,
           fill: true,
           tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(59, 130, 246, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
         }
       ]
     };
@@ -603,7 +616,7 @@ const StatsTab = () => {
           backgroundColor: (context) => {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
             gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
             return gradient;
           },
@@ -611,7 +624,7 @@ const StatsTab = () => {
           fill: true,
           tension: 0.4,
           pointRadius: 0,
-          pointHoverRadius: 6,
+          pointHoverRadius: 8,
           spanGaps: true,
         }]
       };
@@ -671,21 +684,27 @@ const StatsTab = () => {
         backgroundColor: (context) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-          gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+          gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
           gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
           return gradient;
         },
         borderWidth: 3,
         fill: true,
         tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 6,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        pointBackgroundColor: 'rgba(234, 179, 8, 0.8)',
+        pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: '#eab308',
+        pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+        pointHoverBorderWidth: 3,
         spanGaps: true,
       }]
     };
   };
 
-  // Sleep quality distribution chart
+  // Sleep quality distribution pie chart
   const getSleepQualityData = () => {
     if (sleepLog.length === 0) {
       return {
@@ -694,11 +713,11 @@ const StatsTab = () => {
           label: 'Nights',
           data: [0, 0, 0, 0, 0],
           backgroundColor: [
-            'rgba(239, 68, 68, 0.6)',
-            'rgba(249, 115, 22, 0.6)',
-            'rgba(234, 179, 8, 0.6)',
-            'rgba(61, 214, 140, 0.6)',
-            'rgba(34, 197, 94, 0.6)',
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(249, 115, 22, 0.7)',
+            'rgba(234, 179, 8, 0.7)',
+            'rgba(61, 214, 140, 0.7)',
+            'rgba(34, 197, 94, 0.7)',
           ],
           borderColor: [
             'rgba(239, 68, 68, 1)',
@@ -726,11 +745,11 @@ const StatsTab = () => {
         label: 'Nights',
         data: qualityCounts,
         backgroundColor: [
-          'rgba(239, 68, 68, 0.6)',
-          'rgba(249, 115, 22, 0.6)',
-          'rgba(234, 179, 8, 0.6)',
-          'rgba(61, 214, 140, 0.6)',
-          'rgba(34, 197, 94, 0.6)',
+          'rgba(239, 68, 68, 0.7)',
+          'rgba(249, 115, 22, 0.7)',
+          'rgba(234, 179, 8, 0.7)',
+          'rgba(61, 214, 140, 0.7)',
+          'rgba(34, 197, 94, 0.7)',
         ],
         borderColor: [
           'rgba(239, 68, 68, 1)',
@@ -744,6 +763,124 @@ const StatsTab = () => {
     };
   };
 
+  // Sleep & Mood trends chart
+  const getSleepMoodTrendsData = () => {
+    if (sleepLog.length === 0 && moodLog.length === 0) {
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let dates = [];
+    let labels = [];
+
+    if (timePeriod === 'Week') {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(dayNames[date.getDay()]);
+      }
+    } else if (timePeriod === 'Month') {
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        const dayOfMonth = date.getDate();
+        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
+          labels.push(dayOfMonth.toString());
+        } else {
+          labels.push('');
+        }
+      }
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(format(date, 'MM/dd'));
+      }
+    }
+
+    // Sleep data
+    const sleepData = dates.map(date => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const sleepEntry = sleepLog.find(entry => entry.date === dateStr);
+      return sleepEntry ? (sleepEntry.totalSleep ?? sleepEntry.hours) : null;
+    });
+
+    // Mood data
+    const moodData = dates.map(date => {
+      const moodsForDate = moodLog.filter(entry => {
+        const entryDate = new Date(entry.date + 'T12:00:00');
+        return entryDate.toDateString() === date.toDateString();
+      });
+      const avg = calculateAverageMood(moodsForDate);
+      return avg;
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Sleep (hours)',
+          data: sleepData,
+          borderColor: '#a78bfa',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(167, 139, 250, 0.3)');
+            gradient.addColorStop(1, 'rgba(167, 139, 250, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(167, 139, 250, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#a78bfa',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+          spanGaps: true,
+          yAxisID: 'y-sleep',
+        },
+        {
+          label: 'Mood (1-5)',
+          data: moodData,
+          borderColor: '#eab308',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(234, 179, 8, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#eab308',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+          spanGaps: true,
+          yAxisID: 'y-mood',
+        }
+      ]
+    };
+  };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -753,34 +890,44 @@ const StatsTab = () => {
         position: 'top',
         align: 'end',
         labels: {
-          color: '#9195a0',
+          color: '#e6e8ea',
           usePointStyle: true,
-          pointStyle: 'line',
+          pointStyle: 'circle',
           padding: 15,
           font: {
             size: 12,
+            weight: '500',
           },
+          boxWidth: 8,
+          boxHeight: 8,
         },
       },
       tooltip: {
         backgroundColor: 'rgba(10, 14, 20, 0.95)',
-        titleColor: '#9195a0',
+        titleColor: '#e6e8ea',
+        bodyColor: '#9195a0',
         padding: 12,
-        cornerRadius: 8,
+        cornerRadius: 12,
         displayColors: true,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
       },
     },
     scales: {
       x: {
         grid: {
           display: true,
-          color: 'rgba(255, 255, 255, 0.1)',
+          color: 'rgba(255, 255, 255, 0.05)',
+          lineWidth: 1,
         },
         ticks: {
           color: '#9195a0',
           font: {
             size: 11,
           },
+        },
+        border: {
+          color: 'rgba(255, 255, 255, 0.1)',
         },
       },
       y: {
@@ -791,13 +938,17 @@ const StatsTab = () => {
           precision: 0,
         },
         grid: {
+          color: 'rgba(255, 255, 255, 0.05)',
+          lineWidth: 1,
+        },
+        border: {
           color: 'rgba(255, 255, 255, 0.1)',
         },
       },
     },
     animation: {
-      duration: 300,
-      easing: 'easeInOut',
+      duration: 500,
+      easing: 'easeInOutQuart',
     },
   };
 
@@ -817,12 +968,76 @@ const StatsTab = () => {
     },
   };
 
-  const barChartOptions = {
-    ...chartOptions,
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      ...chartOptions.plugins,
       legend: {
-        display: false,
+        display: true,
+        position: 'bottom',
+        labels: {
+          color: '#e6e8ea',
+          padding: 15,
+          font: {
+            size: 12,
+            weight: '500',
+          },
+          boxWidth: 15,
+          boxHeight: 15,
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(10, 14, 20, 0.95)',
+        titleColor: '#e6e8ea',
+        bodyColor: '#9195a0',
+        padding: 12,
+        cornerRadius: 12,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+      },
+    },
+    animation: {
+      duration: 500,
+      easing: 'easeInOutQuart',
+    },
+  };
+
+  const sleepMoodTrendsOptions = {
+    ...chartOptions,
+    scales: {
+      x: chartOptions.scales.x,
+      'y-sleep': {
+        type: 'linear',
+        position: 'left',
+        beginAtZero: true,
+        max: 12,
+        ticks: {
+          color: '#a78bfa',
+          stepSize: 2,
+        },
+        grid: {
+          color: 'rgba(167, 139, 250, 0.1)',
+          lineWidth: 1,
+        },
+        border: {
+          color: 'rgba(167, 139, 250, 0.3)',
+        },
+      },
+      'y-mood': {
+        type: 'linear',
+        position: 'right',
+        min: 1,
+        max: 5,
+        ticks: {
+          color: '#eab308',
+          stepSize: 1,
+        },
+        grid: {
+          display: false,
+        },
+        border: {
+          color: 'rgba(234, 179, 8, 0.3)',
+        },
       },
     },
   };
@@ -892,6 +1107,83 @@ const StatsTab = () => {
                   <div className="px-4 py-2 rounded-full bg-purple-400/10 border border-purple-400/30">
                     <span className="text-purple-400 font-semibold text-sm">{sleepLog.length} Sleep Logs</span>
                   </div>
+                </div>
+              </div>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // WELLBEING SELECTION SCREEN
+  if (activeSection === 'wellbeing') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-12 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+            >
+              <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+            </button>
+            <div>
+              <h2 className="text-4xl font-bold text-text-primary flex items-center gap-3">
+                <Heart className="text-purple-400" size={40} />
+                Wellbeing
+              </h2>
+              <p className="text-text-secondary text-lg">
+                Choose a category to explore your wellbeing insights
+              </p>
+            </div>
+          </div>
+
+          {/* Mood & Sleep Selection Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Mood Button */}
+            <motion.button
+              onClick={() => setActiveSection('mood')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors duration-300">
+                  <Smile className="text-yellow-500" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Mood</h3>
+                  <p className="text-text-secondary">
+                    Track your emotional patterns and correlations
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/30">
+                  <span className="text-yellow-500 font-semibold">{moodLog.length} Mood Entries</span>
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Sleep Button */}
+            <motion.button
+              onClick={() => setActiveSection('sleep')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-purple-400/10 flex items-center justify-center group-hover:bg-purple-400/20 transition-colors duration-300">
+                  <Moon className="text-purple-400" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Sleep</h3>
+                  <p className="text-text-secondary">
+                    Monitor your sleep quality and habits
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-purple-400/10 border border-purple-400/30">
+                  <span className="text-purple-400 font-semibold">{sleepLog.length} Sleep Logs</span>
                 </div>
               </div>
             </motion.button>
@@ -1107,8 +1399,8 @@ const StatsTab = () => {
     );
   }
 
-  // WELLBEING SECTION
-  if (activeSection === 'wellbeing') {
+  // MOOD SECTION
+  if (activeSection === 'mood') {
     return (
       <div className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
@@ -1116,18 +1408,169 @@ const StatsTab = () => {
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setActiveSection('main')}
+                onClick={() => setActiveSection('wellbeing')}
                 className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
               >
                 <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
               </button>
               <div>
                 <h2 className="text-3xl font-bold text-text-primary flex items-center gap-3">
-                  <Heart className="text-purple-400" size={32} />
-                  Wellbeing
+                  <Smile className="text-yellow-500" size={32} />
+                  Mood
                 </h2>
                 <p className="text-text-secondary">
-                  Monitor your mood and sleep patterns
+                  Track your emotional patterns and correlations
+                </p>
+              </div>
+            </div>
+
+            {/* Time Period Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    timePeriod === period
+                      ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mood Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            {/* All Time Average Mood */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <p className="text-text-secondary text-sm mb-2">All Time Average Mood</p>
+              <div className="text-4xl font-bold text-yellow-500 mb-1">
+                {allTimeAverageMood.value}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {allTimeAverageMood.label}
+              </p>
+            </motion.div>
+
+            {/* Average Mood (Selected Timeframe) */}
+            <motion.div
+              key={`period-mood-${timePeriod}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-yellow-500/50"
+            >
+              <p className="text-text-secondary text-sm mb-2">
+                Average Mood ({periodStats.periodName})
+              </p>
+              <div className="text-4xl font-bold text-yellow-500 mb-1">
+                {periodStats.periodMoodValue}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {periodStats.periodMoodLabel}
+              </p>
+            </motion.div>
+
+            {/* Mood Correlation (All Time) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <p className="text-text-secondary text-sm mb-2">Mood Correlation</p>
+              <div className="text-4xl font-bold text-text-primary mb-1">
+                {correlationStats.value ? (
+                  <span className="text-yellow-500">{correlationStats.value}</span>
+                ) : (
+                  <span className="text-2xl text-text-tertiary">No Data</span>
+                )}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {correlationStats.text}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Collapsible Mood Trend Chart */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass-panel p-6"
+          >
+            <button
+              onClick={() => toggleSection('moodTrend')}
+              className="w-full flex items-center justify-between mb-4"
+            >
+              <h3 className="text-xl font-semibold text-text-primary">
+                Mood Trend - {timePeriod}
+              </h3>
+              {expandedSections.moodTrend ? (
+                <ChevronUp className="text-text-secondary" size={24} />
+              ) : (
+                <ChevronDown className="text-text-secondary" size={24} />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {expandedSections.moodTrend && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="h-[400px]">
+                    {moodLog.length === 0 ? (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-center">
+                          <p className="text-text-secondary text-lg mb-2">
+                            Log moods to see your trend!
+                          </p>
+                          <p className="text-text-tertiary text-sm">
+                            Your mood trend will appear here
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <Line data={getMoodChartData()} options={moodChartOptions} />
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // SLEEP SECTION
+  if (activeSection === 'sleep') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveSection('wellbeing')}
+                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+              >
+                <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+              </button>
+              <div>
+                <h2 className="text-3xl font-bold text-text-primary flex items-center gap-3">
+                  <Moon className="text-purple-400" size={32} />
+                  Sleep
+                </h2>
+                <p className="text-text-secondary">
+                  Monitor your sleep quality and habits
                 </p>
               </div>
             </div>
@@ -1150,238 +1593,122 @@ const StatsTab = () => {
             </div>
           </div>
 
-          {/* MOOD SECTION */}
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-text-primary mb-6 flex items-center gap-3">
-              <Smile className="text-yellow-500" size={28} />
-              Mood
-            </h3>
+          {/* Sleep Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            {/* Average Sleep (Selected Timeframe) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-purple-400/50"
+            >
+              <p className="text-text-secondary text-sm mb-2">Average Sleep ({periodStats.periodName})</p>
+              <div className="text-4xl font-bold text-purple-400 mb-1">
+                {sleepStats ? `${sleepStats.avgHours}h` : 'N/A'}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {sleepStats ? `${sleepStats.daysTracked} nights tracked` : 'Start logging sleep'}
+              </p>
+            </motion.div>
 
-            {/* Mood Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              {/* All Time Average Mood */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2">All Time Average Mood</p>
-                <div className="text-4xl font-bold text-yellow-500 mb-1">
-                  {allTimeAverageMood.value}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  {allTimeAverageMood.label}
-                </p>
-              </motion.div>
-
-              {/* Average Mood (Selected Timeframe) */}
-              <motion.div
-                key={`period-mood-${timePeriod}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6 border border-yellow-500/50"
-              >
-                <p className="text-text-secondary text-sm mb-2">
-                  Average Mood ({periodStats.periodName})
-                </p>
-                <div className="text-4xl font-bold text-yellow-500 mb-1">
-                  {periodStats.periodMoodValue}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  {periodStats.periodMoodLabel}
-                </p>
-              </motion.div>
-
-              {/* Mood Correlation (All Time) */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2">Mood Correlation</p>
-                <div className="text-4xl font-bold text-text-primary mb-1">
-                  {correlationStats.value ? (
-                    <span className="text-yellow-500">{correlationStats.value}</span>
-                  ) : (
-                    <span className="text-2xl text-text-tertiary">No Data</span>
-                  )}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  {correlationStats.text}
-                </p>
-              </motion.div>
-            </div>
-
-            {/* Collapsible Mood Trend Chart */}
+            {/* Sleep Goal Streak */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="glass-panel p-6"
             >
-              <button
-                onClick={() => toggleSection('moodTrend')}
-                className="w-full flex items-center justify-between mb-4"
-              >
-                <h3 className="text-xl font-semibold text-text-primary">
-                  Mood Trend - {timePeriod}
-                </h3>
-                {expandedSections.moodTrend ? (
-                  <ChevronUp className="text-text-secondary" size={24} />
-                ) : (
-                  <ChevronDown className="text-text-secondary" size={24} />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {expandedSections.moodTrend && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="h-[400px]">
-                      {moodLog.length === 0 ? (
-                        <div className="h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-text-secondary text-lg mb-2">
-                              Log moods to see your trend!
-                            </p>
-                            <p className="text-text-tertiary text-sm">
-                              Your mood trend will appear here
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <Line data={getMoodChartData()} options={moodChartOptions} />
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Trophy className="text-purple-400" size={18} />
+                Sleep Goal Streak
+              </p>
+              <div className="text-4xl font-bold text-purple-400 mb-1">
+                {sleepStats ? sleepStats.currentStreak : 0}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                nights at 7+ hours
+              </p>
             </motion.div>
-          </div>
 
-          {/* SLEEP SECTION */}
-          <div>
-            <h3 className="text-2xl font-bold text-text-primary mb-6 flex items-center gap-3">
-              <Moon className="text-purple-400" size={28} />
-              Sleep
-            </h3>
-
-            {/* Sleep Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              {/* Average Sleep (Selected Timeframe) */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6 border border-purple-400/50"
-              >
-                <p className="text-text-secondary text-sm mb-2">Average Sleep ({periodStats.periodName})</p>
-                <div className="text-4xl font-bold text-purple-400 mb-1">
-                  {sleepStats ? `${sleepStats.avgHours}h` : 'N/A'}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  {sleepStats ? `${sleepStats.daysTracked} nights tracked` : 'Start logging sleep'}
-                </p>
-              </motion.div>
-
-              {/* Sleep Goal Streak */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-                  <Trophy className="text-yellow-500" size={18} />
-                  Sleep Goal Streak
-                </p>
-                <div className="text-4xl font-bold text-yellow-500 mb-1">
-                  {sleepStats ? sleepStats.currentStreak : 0}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  nights at 7+ hours
-                </p>
-              </motion.div>
-
-              {/* Sleep Debt (past 7 days) */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-                  <TrendingDown className="text-orange-500" size={18} />
-                  Sleep Debt (7 days)
-                </p>
-                <div className={`text-4xl font-bold mb-1 ${
-                  sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
-                  sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-green-glow'
-                }`}>
-                  {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  vs {SLEEP_TARGET}h target
-                </p>
-              </motion.div>
-
-              {/* Sleep-Mood Link */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2">Sleep-Mood Link</p>
-                {sleepMoodCorrelation.avgHappySleep ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-green-glow font-bold text-2xl">{sleepMoodCorrelation.avgHappySleep}h</span>
-                      <span className="text-text-tertiary text-xs">happy</span>
-                      <span className="text-text-tertiary mx-1">vs</span>
-                      <span className="text-red-500 font-bold text-2xl">{sleepMoodCorrelation.avgStressedSleep}h</span>
-                      <span className="text-text-tertiary text-xs">stressed</span>
-                    </div>
-                    <p className="text-text-tertiary text-xs flex items-center gap-1">
-                      {parseFloat(sleepMoodCorrelation.difference) > 0 ? (
-                        <><TrendingUp size={12} className="text-green-glow" /> {sleepMoodCorrelation.difference}h more on good days</>
-                      ) : (
-                        'No clear pattern'
-                      )}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-text-tertiary text-sm">{sleepMoodCorrelation.text}</p>
-                )}
-              </motion.div>
-
-              {/* Sleep-Productivity Link */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel p-6"
-              >
-                <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-                  <Target className="text-green-glow" size={18} />
-                  Sleep-Productivity Link
-                </p>
-                <div className="text-4xl font-bold text-text-primary mb-1">
-                  {sleepProductivityLink.value ? (
-                    <span className="text-green-glow">{sleepProductivityLink.value}</span>
-                  ) : (
-                    <span className="text-2xl text-text-tertiary">No Data</span>
-                  )}
-                </div>
-                <p className="text-text-tertiary text-xs">
-                  {sleepProductivityLink.text}
-                </p>
-              </motion.div>
-            </div>
-
-            {/* Collapsible Sleep Quality Distribution */}
+            {/* Sleep Debt (past 7 days) */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-panel p-6 mb-6"
+              className="glass-panel p-6"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <TrendingDown className="text-orange-500" size={18} />
+                Sleep Debt (7 days)
+              </p>
+              <div className={`text-4xl font-bold mb-1 ${
+                sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-purple-400' :
+                sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
+                sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-purple-400'
+              }`}>
+                {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                vs {SLEEP_TARGET}h target
+              </p>
+            </motion.div>
+
+            {/* Sleep-Mood Link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <p className="text-text-secondary text-sm mb-2">Sleep-Mood Link</p>
+              {sleepMoodCorrelation.avgHappySleep ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-green-glow font-bold text-2xl">{sleepMoodCorrelation.avgHappySleep}h</span>
+                    <span className="text-text-tertiary text-xs">happy</span>
+                    <span className="text-text-tertiary mx-1">vs</span>
+                    <span className="text-red-500 font-bold text-2xl">{sleepMoodCorrelation.avgStressedSleep}h</span>
+                    <span className="text-text-tertiary text-xs">stressed</span>
+                  </div>
+                  <p className="text-text-tertiary text-xs flex items-center gap-1">
+                    {parseFloat(sleepMoodCorrelation.difference) > 0 ? (
+                      <><TrendingUp size={12} className="text-green-glow" /> {sleepMoodCorrelation.difference}h more on good days</>
+                    ) : (
+                      'No clear pattern'
+                    )}
+                  </p>
+                </>
+              ) : (
+                <p className="text-text-tertiary text-sm">{sleepMoodCorrelation.text}</p>
+              )}
+            </motion.div>
+
+            {/* Sleep-Productivity Link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Target className="text-green-glow" size={18} />
+                Sleep-Productivity Link
+              </p>
+              <div className="text-4xl font-bold text-text-primary mb-1">
+                {sleepProductivityLink.value ? (
+                  <span className="text-green-glow">{sleepProductivityLink.value}</span>
+                ) : (
+                  <span className="text-2xl text-text-tertiary">No Data</span>
+                )}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {sleepProductivityLink.text}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Sleep Quality Distribution & Sleep/Mood Trends Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Collapsible Sleep Quality Distribution (Pie Chart) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
             >
               <button
                 onClick={() => toggleSection('sleepQuality')}
@@ -1405,7 +1732,7 @@ const StatsTab = () => {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="h-[300px]">
+                    <div className="h-[350px]">
                       {sleepLog.length === 0 ? (
                         <div className="h-full flex items-center justify-center">
                           <div className="text-center">
@@ -1418,7 +1745,7 @@ const StatsTab = () => {
                           </div>
                         </div>
                       ) : (
-                        <Bar data={getSleepQualityData()} options={barChartOptions} />
+                        <Pie data={getSleepQualityData()} options={pieChartOptions} />
                       )}
                     </div>
                   </motion.div>
@@ -1454,10 +1781,21 @@ const StatsTab = () => {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="text-center py-8">
-                      <p className="text-text-secondary text-lg">
-                        Combined sleep and mood visualization coming soon!
-                      </p>
+                    <div className="h-[350px]">
+                      {sleepLog.length === 0 && moodLog.length === 0 ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-text-secondary text-lg mb-2">
+                              Log sleep and mood to see trends!
+                            </p>
+                            <p className="text-text-tertiary text-sm">
+                              Combined visualization will appear here
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <Line data={getSleepMoodTrendsData()} options={sleepMoodTrendsOptions} />
+                      )}
                     </div>
                   </motion.div>
                 )}
