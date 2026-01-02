@@ -10,6 +10,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [dueDate, setDueDate] = useState('');
   const [time, setTime] = useState('');
   const [taskType, setTaskType] = useState('academic');
+  const [status, setStatus] = useState('not-started');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -32,6 +33,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setDueDate(initialData.dueDate || '');
       setTime(initialData.time || '');
       setTaskType(initialData.taskType || 'academic');
+      setStatus(initialData.status || 'not-started');
       setAttachments(initialData.attachments || []);
 
       // BUG FIX: If task instance has templateId but no recurrence, fetch from template
@@ -209,6 +211,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         dueDate: dueDate || null,
         time: time || null,
         taskType: taskType,
+        status: status,
         attachments: attachments,
         scope: editScope, // Include edit scope for parent to handle
       };
@@ -646,6 +649,39 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             </button>
           </div>
         </div>
+
+        {/* Task Status Toggle (only shown when editing) */}
+        {initialData && (
+          <div>
+            <label className="block text-sm text-white/50 mb-2">
+              Task Status
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStatus('not-started')}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  status === 'not-started'
+                    ? 'text-green-glow liquid-bubble-filled'
+                    : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                }`}
+              >
+                Not Started
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus('in-progress')}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  status === 'in-progress'
+                    ? 'text-green-glow liquid-bubble-filled'
+                    : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                }`}
+              >
+                In Progress
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Recurrence Section */}
         <div>

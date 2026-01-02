@@ -793,6 +793,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleCancelEdit = () => {
     setIsEditingDetail(false);
+    setDetailViewTaskId(null); // Close detail view, return to main dashboard
     setEditForm({
       title: '',
       description: '',
