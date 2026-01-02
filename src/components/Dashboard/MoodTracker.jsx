@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
@@ -219,7 +219,27 @@ const MoodTracker = () => {
 
   // --- RENDER HELPERS ---
 
-  const renderCalendar = () => {
+  // Create lookup maps for O(1) access instead of O(n) find() operations
+  const moodMap = useMemo(() => {
+    const map = new Map();
+    moodLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [moodLog]);
+
+  const journalMap = useMemo(() => {
+    const map = new Map();
+    journalLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [journalLog]);
+
+  const sleepMap = useMemo(() => {
+    const map = new Map();
+    sleepLog.forEach(entry => map.set(entry.date, entry));
+    return map;
+  }, [sleepLog]);
+
+  // Memoize calendar rendering
+  const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentMonth);
     const startDay = getDay(startOfMonth(currentMonth));
     const days = [];
@@ -228,8 +248,14 @@ const MoodTracker = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const mood = getMoodForDate(date);
-      const sleepEntry = getSleepForDate(date);
+      const dateStr = getDateString(date);
+
+      // Use maps for O(1) lookup instead of O(n) find
+      const moodEntry = moodMap.get(dateStr);
+      const mood = moodEntry ? moods.find(m => m.level === moodEntry.level) : null;
+      const sleepEntry = sleepMap.get(dateStr);
+      const journalEntry = journalMap.get(dateStr);
+
       const isToday = isSameDay(date, new Date());
       const isFuture = date > new Date().setHours(0,0,0,0);
 
@@ -259,14 +285,84 @@ const MoodTracker = () => {
             <span className="text-zinc-500 text-sm font-medium">{day}</span>
           )}
           {/* Journal Indicator Dot */}
-          {getJournalForDate(date) && (
+          {journalEntry && (
             <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-text-tertiary" />
           )}
         </motion.button>
       );
     }
     return days;
-  };
+  }, [currentMonth, moodMap, sleepMap, journalMap]);
+
+  // Memoize mood statistics calculations
+  const moodStats = useMemo(() => {
+    // Calculate 7-day average mood
+    const today = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      return getDateString(date);
+    });
+
+    const last7DaysSet = new Set(last7Days); // Use Set for O(1) lookups
+    const last7Moods = moodLog.filter(entry => last7DaysSet.has(entry.date));
+    const avgMood = last7Moods.length > 0
+      ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
+      : null;
+
+    // Calculate mood-task completion correlation
+    const moodTaskPairs = moodLog
+      .map(moodEntry => {
+        const completedOnDate = completedTasks.filter(t => {
+          if (!t.completedAt) return false;
+          const completedDate = t.completedAt.split('T')[0];
+          return completedDate === moodEntry.date;
+        }).length;
+
+        const allTasksOnDate = [...tasks, ...completedTasks].filter(t => t.dueDate === moodEntry.date);
+
+        const completionRate = allTasksOnDate.length > 0
+          ? (completedOnDate / allTasksOnDate.length) * 100
+          : null;
+
+        return completionRate !== null ? { mood: moodEntry.level, completionRate } : null;
+      })
+      .filter(Boolean);
+
+    let correlation = null;
+    if (moodTaskPairs.length >= 3) {
+      const avgMoodVal = moodTaskPairs.reduce((sum, p) => sum + p.mood, 0) / moodTaskPairs.length;
+      const avgCompletionRate = moodTaskPairs.reduce((sum, p) => sum + p.completionRate, 0) / moodTaskPairs.length;
+
+      const numerator = moodTaskPairs.reduce((sum, p) => sum + (p.mood - avgMoodVal) * (p.completionRate - avgCompletionRate), 0);
+      const denomMood = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.mood - avgMoodVal, 2), 0));
+      const denomCompletion = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.completionRate - avgCompletionRate, 2), 0));
+
+      if (denomMood !== 0 && denomCompletion !== 0) {
+        correlation = (numerator / (denomMood * denomCompletion)).toFixed(2);
+      }
+    }
+
+    const getMoodLabel = (avgMood) => {
+      const moodVal = parseFloat(avgMood);
+      if (moodVal >= 4.5) return 'Great';
+      if (moodVal >= 3.5) return 'Good';
+      if (moodVal >= 2.5) return 'Okay';
+      if (moodVal >= 1.5) return 'Down';
+      return 'Rocky';
+    };
+
+    const getMoodColor = (avgMood) => {
+      const moodVal = parseFloat(avgMood);
+      if (moodVal >= 4.5) return 'text-yellow-500';
+      if (moodVal >= 3.5) return 'text-green-glow';
+      if (moodVal >= 2.5) return 'text-blue-400';
+      if (moodVal >= 1.5) return 'text-orange-500';
+      return 'text-red-500';
+    };
+
+    return { avgMood, correlation, last7Moods, getMoodLabel, getMoodColor };
+  }, [moodLog, tasks, completedTasks]);
 
   return (
     <div className="glass-panel rounded-xl p-6 border border-white/10 h-full flex flex-col">
@@ -297,116 +393,45 @@ const MoodTracker = () => {
             key="month"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
-            {/* Mood Statistics */}
-            {(() => {
-              // Calculate 7-day average mood
-              const today = new Date();
-              const last7Days = Array.from({ length: 7 }, (_, i) => {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                return getDateString(date);
-              });
-
-              const last7Moods = moodLog.filter(entry => last7Days.includes(entry.date));
-              const avgMood = last7Moods.length > 0
-                ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
-                : null;
-
-              // Calculate mood-task completion correlation
-              const moodTaskPairs = moodLog
-                .map(moodEntry => {
-                  // Get tasks completed on this date
-                  const completedOnDate = completedTasks.filter(t => {
-                    if (!t.completedAt) return false;
-                    const completedDate = t.completedAt.split('T')[0];
-                    return completedDate === moodEntry.date;
-                  }).length;
-
-                  // Get tasks that were due on this date
-                  const allTasksOnDate = [...tasks, ...completedTasks].filter(t => t.dueDate === moodEntry.date);
-
-                  // Calculate completion rate for the day
-                  const completionRate = allTasksOnDate.length > 0
-                    ? (completedOnDate / allTasksOnDate.length) * 100
-                    : null;
-
-                  return completionRate !== null ? { mood: moodEntry.level, completionRate } : null;
-                })
-                .filter(Boolean);
-
-              let correlation = null;
-              if (moodTaskPairs.length >= 3) {
-                const avgMoodVal = moodTaskPairs.reduce((sum, p) => sum + p.mood, 0) / moodTaskPairs.length;
-                const avgCompletionRate = moodTaskPairs.reduce((sum, p) => sum + p.completionRate, 0) / moodTaskPairs.length;
-
-                const numerator = moodTaskPairs.reduce((sum, p) => sum + (p.mood - avgMoodVal) * (p.completionRate - avgCompletionRate), 0);
-                const denomMood = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.mood - avgMoodVal, 2), 0));
-                const denomCompletion = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.completionRate - avgCompletionRate, 2), 0));
-
-                if (denomMood !== 0 && denomCompletion !== 0) {
-                  correlation = (numerator / (denomMood * denomCompletion)).toFixed(2);
-                }
-              }
-
-              const getMoodLabel = (avgMood) => {
-                const moodVal = parseFloat(avgMood);
-                if (moodVal >= 4.5) return 'Great';
-                if (moodVal >= 3.5) return 'Good';
-                if (moodVal >= 2.5) return 'Okay';
-                if (moodVal >= 1.5) return 'Down';
-                return 'Rocky';
-              };
-
-              const getMoodColor = (avgMood) => {
-                const moodVal = parseFloat(avgMood);
-                if (moodVal >= 4.5) return 'text-yellow-500';
-                if (moodVal >= 3.5) return 'text-green-glow';
-                if (moodVal >= 2.5) return 'text-blue-400';
-                if (moodVal >= 1.5) return 'text-orange-500';
-                return 'text-red-500';
-              };
-
-              return (
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="liquid-bubble-filled rounded-lg p-3">
-                    <p className="text-xs text-white/50 mb-1">7-Day Average</p>
-                    {avgMood ? (
-                      <>
-                        <p className={`text-lg font-bold ${getMoodColor(avgMood)}`}>
-                          {getMoodLabel(avgMood)} ({avgMood})
-                        </p>
-                        <p className="text-[10px] text-white/40">{last7Moods.length} days tracked</p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-white/40">No data yet</p>
-                    )}
-                  </div>
-                  <div className="liquid-bubble-filled rounded-lg p-3">
-                    <p className="text-xs text-white/50 mb-1">Mood-Task Link</p>
-                    {correlation !== null ? (
-                      <>
-                        <p className={`text-lg font-bold ${
-                          parseFloat(correlation) >= 0.5 ? 'text-green-glow' :
-                          parseFloat(correlation) >= 0.3 ? 'text-yellow-500' :
-                          parseFloat(correlation) >= 0 ? 'text-blue-400' :
-                          parseFloat(correlation) >= -0.3 ? 'text-orange-500' : 'text-red-500'
-                        }`}>
-                          {parseFloat(correlation) >= 0 ? '+' : ''}{correlation}
-                        </p>
-                        <p className="text-[10px] text-white/40">
-                          {parseFloat(correlation) >= 0.5 ? 'Strong positive' :
-                           parseFloat(correlation) >= 0.3 ? 'Moderate positive' :
-                           parseFloat(correlation) >= 0 ? 'Weak positive' :
-                           parseFloat(correlation) >= -0.3 ? 'Weak negative' : 'Moderate negative'}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-white/40">Need 3+ days</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Mood Statistics - Using memoized calculations */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="liquid-bubble-filled rounded-lg p-3">
+                <p className="text-xs text-white/50 mb-1">7-Day Average</p>
+                {moodStats.avgMood ? (
+                  <>
+                    <p className={`text-lg font-bold ${moodStats.getMoodColor(moodStats.avgMood)}`}>
+                      {moodStats.getMoodLabel(moodStats.avgMood)} ({moodStats.avgMood})
+                    </p>
+                    <p className="text-[10px] text-white/40">{moodStats.last7Moods.length} days tracked</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/40">No data yet</p>
+                )}
+              </div>
+              <div className="liquid-bubble-filled rounded-lg p-3">
+                <p className="text-xs text-white/50 mb-1">Mood-Task Link</p>
+                {moodStats.correlation !== null ? (
+                  <>
+                    <p className={`text-lg font-bold ${
+                      parseFloat(moodStats.correlation) >= 0.5 ? 'text-green-glow' :
+                      parseFloat(moodStats.correlation) >= 0.3 ? 'text-yellow-500' :
+                      parseFloat(moodStats.correlation) >= 0 ? 'text-blue-400' :
+                      parseFloat(moodStats.correlation) >= -0.3 ? 'text-orange-500' : 'text-red-500'
+                    }`}>
+                      {parseFloat(moodStats.correlation) >= 0 ? '+' : ''}{moodStats.correlation}
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      {parseFloat(moodStats.correlation) >= 0.5 ? 'Strong positive' :
+                       parseFloat(moodStats.correlation) >= 0.3 ? 'Moderate positive' :
+                       parseFloat(moodStats.correlation) >= 0 ? 'Weak positive' :
+                       parseFloat(moodStats.correlation) >= -0.3 ? 'Weak negative' : 'Moderate negative'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/40">Need 3+ days</p>
+                )}
+              </div>
+            </div>
 
             <div className="flex items-center justify-between mb-4">
               <button onClick={handlePrevMonth} className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
@@ -428,7 +453,7 @@ const MoodTracker = () => {
                 <div key={i} className="text-center text-xs text-text-tertiary h-8 flex items-center justify-center">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-2">{renderCalendar()}</div>
+            <div className="grid grid-cols-7 gap-2">{calendarDays}</div>
           </motion.div>
         )}
 

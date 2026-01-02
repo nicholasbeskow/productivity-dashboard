@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef, useMemo } from 'react';
+import { useState, useEffect, memo, useRef, useMemo, useCallback } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -12,146 +12,129 @@ import { dateToLocalISO } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { ArrowRight, Moon } from 'lucide-react';
 
-// Memoized task card component for performance
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
+// ===== UTILITY FUNCTIONS (extracted for performance) =====
+const isTaskOverdue = (task) => {
+  if (!task.dueDate || task.status === 'complete') return false;
 
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'complete':
-        return <Check size={18} className="text-green-glow" />;
-      case 'in-progress':
-        return <Clock size={18} className="text-yellow-500" />;
-      default:
-        return <Circle size={18} className="text-white/40" />;
-    }
-  };
-
-  const getCardGlow = (task, isOverdue) => {
-    if (isOverdue) {
-      return 'task-glow-overdue';
-    }
-    switch (task.status) {
-      case 'complete':
-        return 'task-glow-complete';
-      case 'in-progress':
-        return 'task-glow-in-progress';
-      default:
-        return 'task-glow-not-started';
-    }
-  };
-
-  // Helper: Convert 24-hour time to 12-hour AM/PM
-  const formatTime12Hour = (time24) => {
-    if (!time24) return '';
-    const [hours, minutes] = time24.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Helper: Get time remaining in hours
-  const getTimeRemaining = (dateString, timeString) => {
-    if (!dateString || !timeString) return null;
-    const taskDateTime = new Date(`${dateString}T${timeString}`);
+  if (task.time) {
+    const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
     const now = new Date();
-    const diffMs = taskDateTime - now;
-    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-    return diffHours;
-  };
-
-  // Smart date/time display
-  const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
-    if (!dateString) return '';
-
+    return taskDateTime < now;
+  } else {
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const taskDate = new Date(dateString + 'T12:00:00');
-    taskDate.setHours(0, 0, 0, 0);
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(task.dueDate + 'T12:00:00');
+    return dueDate < now;
+  }
+};
 
-    const diffTime = taskDate - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'complete':
+      return <Check size={18} className="text-green-glow" />;
+    case 'in-progress':
+      return <Clock size={18} className="text-yellow-500" />;
+    default:
+      return <Circle size={18} className="text-white/40" />;
+  }
+};
 
-    // Check if year differs from current year
-    const showYear = taskDate.getFullYear() !== now.getFullYear();
+const getCardGlow = (task, isOverdue) => {
+  if (isOverdue) return 'task-glow-overdue';
+  switch (task.status) {
+    case 'complete': return 'task-glow-complete';
+    case 'in-progress': return 'task-glow-in-progress';
+    default: return 'task-glow-not-started';
+  }
+};
 
-    // Format the date part
-    let dateDisplay;
-    if (diffDays === 0) {
-      dateDisplay = 'Today';
-    } else if (diffDays === 1) {
-      dateDisplay = 'Tomorrow';
-    } else if (diffDays < 0) {
-      // Overdue - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    } else {
-      // Future - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    }
+const formatTime12Hour = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minutes} ${ampm}`;
+};
 
-    // Add time if present
-    if (timeString) {
-      const time12 = formatTime12Hour(timeString);
+const getTimeRemaining = (dateString, timeString) => {
+  if (!dateString || !timeString) return null;
+  const taskDateTime = new Date(`${dateString}T${timeString}`);
+  const now = new Date();
+  const diffMs = taskDateTime - now;
+  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+  return diffHours;
+};
 
-      // For today's tasks, show countdown if not overdue
-      if (diffDays === 0 && !taskIsOverdue) {
-        const hoursRemaining = getTimeRemaining(dateString, timeString);
-        if (hoursRemaining !== null && hoursRemaining > 0) {
-          return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
-        }
+const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
+  if (!dateString) return '';
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const taskDate = new Date(dateString + 'T12:00:00');
+  taskDate.setHours(0, 0, 0, 0);
+
+  const diffTime = taskDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const showYear = taskDate.getFullYear() !== now.getFullYear();
+
+  let dateDisplay;
+  if (diffDays === 0) {
+    dateDisplay = 'Today';
+  } else if (diffDays === 1) {
+    dateDisplay = 'Tomorrow';
+  } else if (diffDays < 0) {
+    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: showYear ? 'numeric' : undefined
+    });
+  } else {
+    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: showYear ? 'numeric' : undefined
+    });
+  }
+
+  if (timeString) {
+    const time12 = formatTime12Hour(timeString);
+
+    if (diffDays === 0 && !taskIsOverdue) {
+      const hoursRemaining = getTimeRemaining(dateString, timeString);
+      if (hoursRemaining !== null && hoursRemaining > 0) {
+        return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
       }
-
-      return `${dateDisplay} » ${time12}`;
     }
 
-    return dateDisplay;
-  };
+    return `${dateDisplay} » ${time12}`;
+  }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    // Parse date at noon local time to avoid timezone shift
-    const date = new Date(dateString + 'T12:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  return dateDisplay;
+};
 
-  const taskIsOverdue = isOverdue(task);
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const getCheckboxClass = (task, taskIsOverdue) => {
+  if (taskIsOverdue) return 'checkbox-overdue';
+  if (task.status === 'complete') return 'checkbox-complete';
+  if (task.status === 'in-progress') return 'checkbox-in-progress';
+  return 'checkbox-not-started';
+};
+
+// ===== TASK CARD COMPONENT =====
+const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+  const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
-  // Determine checkbox class based on status
-  const getCheckboxClass = () => {
-    if (taskIsOverdue) return 'checkbox-overdue';
-    if (task.status === 'complete') return 'checkbox-complete';
-    if (task.status === 'in-progress') return 'checkbox-in-progress';
-    return 'checkbox-not-started';
-  };
-
-  // Handler for opening first attachment
-  const handleOpenFirstAttachment = async (e) => {
+  // Memoize event handlers
+  const handleOpenFirstAttachment = useCallback(async (e) => {
     e.stopPropagation();
     if (task.attachments && task.attachments.length > 0) {
       try {
@@ -164,7 +147,37 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         console.error('Error opening file:', error);
       }
     }
-  };
+  }, [task.attachments]);
+
+  const handleMouseEnter = useCallback((e) => {
+    if ((task.description || task.url) && !draggedTask) {
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
+      e.currentTarget.style.transform = 'translateY(-2px) translateZ(0)';
+    }
+  }, [task.description, task.url, draggedTask]);
+
+  const handleMouseLeave = useCallback((e) => {
+    if ((task.description || task.url) && !draggedTask) {
+      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+      e.currentTarget.style.transform = 'translateZ(0)';
+    }
+  }, [task.description, task.url, draggedTask]);
+
+  const handleCardClick = useCallback(() => {
+    if ((task.description || task.url) && !draggedTask) {
+      onViewDetails(task.id);
+    }
+  }, [task.description, task.url, task.id, draggedTask, onViewDetails]);
+
+  const handleCheckboxClick = useCallback((e) => {
+    e.stopPropagation();
+    onStatusChange(task.id);
+  }, [task.id, onStatusChange]);
+
+  const handleEditClick = useCallback((e) => {
+    e.stopPropagation();
+    onStartEdit(task);
+  }, [task, onStartEdit]);
 
   return (
     <motion.div
@@ -198,19 +211,9 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
         backdropFilter: 'blur(12px) saturate(180%)',
         background: 'rgba(255, 255, 255, 0.03)'
       }}
-      onMouseEnter={(e) => {
-        if ((task.description || task.url) && !draggedTask) {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)';
-          e.currentTarget.style.transform = 'translateY(-2px) translateZ(0)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if ((task.description || task.url) && !draggedTask) {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-          e.currentTarget.style.transform = 'translateZ(0)';
-        }
-      }}
-      onClick={() => (task.description || task.url) && !draggedTask && onViewDetails(task.id)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleCardClick}
     >
       {/* Confetti Effect */}
       <AnimatePresence>
@@ -259,11 +262,8 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
           {/* Checkbox */}
           <motion.button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStatusChange(task.id);
-            }}
-            className={`flex-shrink-0 ${getCheckboxClass()}`}
+            onClick={handleCheckboxClick}
+            className={`flex-shrink-0 ${getCheckboxClass(task, taskIsOverdue)}`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -327,10 +327,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
         {/* Edit Button */}
         <motion.button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartEdit(task);
-          }}
+          onClick={handleEditClick}
           className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all flex-shrink-0"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -590,7 +587,7 @@ const Dashboard = ({ setActiveTab }) => {
     }
   };
 
-  const handleStatusChange = (taskId) => {
+  const handleStatusChange = useCallback((taskId) => {
     const task = tasks.find(t => t.id === taskId);
 
     if (task && task.status === 'in-progress') {
@@ -705,7 +702,7 @@ const Dashboard = ({ setActiveTab }) => {
 
       window.dispatchEvent(new Event('storage'));
     }
-  };
+  }, [tasks]);
 
   const handleOpenUrl = (url) => {
     if (!url) return;
@@ -721,27 +718,27 @@ const Dashboard = ({ setActiveTab }) => {
     }
   };
 
-  const handleDragStart = (e, task) => {
+  const handleDragStart = useCallback((e, task) => {
     setDraggedTask(task);
     setDetailViewTaskId(null); // Close detail view when dragging starts
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.id);
-  };
+  }, []);
 
-  const handleDragOver = (e, task) => {
+  const handleDragOver = useCallback((e, task) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (draggedTask && task.id !== draggedTask.id) {
       setDragOverTask(task);
     }
-  };
+  }, [draggedTask]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedTask(null);
     setDragOverTask(null);
-  };
+  }, []);
 
-  const handleDrop = (e, dropTask) => {
+  const handleDrop = useCallback((e, dropTask) => {
     e.preventDefault();
 
     if (!draggedTask || draggedTask.id === dropTask.id) {
@@ -776,7 +773,7 @@ const Dashboard = ({ setActiveTab }) => {
 
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
-  };
+  }, [draggedTask, tasks, handleDragEnd]);
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
