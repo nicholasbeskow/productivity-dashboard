@@ -163,6 +163,17 @@ const SleepTracker = () => {
     }
   };
 
+  // Get quality text color for moon icon
+  const getQualityTextColor = (quality) => {
+    switch (quality) {
+      case 4: return 'text-yellow-500';   // Excellent
+      case 3: return 'text-green-glow';   // Good
+      case 2: return 'text-orange-500';   // Fair
+      case 1: return 'text-red-500';      // Poor
+      default: return 'text-purple-400';
+    }
+  };
+
   // Core Logic
   const handleDayClick = (date) => {
     const today = new Date();
@@ -299,12 +310,10 @@ const SleepTracker = () => {
         >
           {sleepEntry ? (
             <>
-              <Moon size={16} className="text-purple-400 group-hover:opacity-0 transition-opacity duration-200" />
-              <span className="absolute text-sm text-purple-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <Moon size={16} className={`${getQualityTextColor(sleepEntry.quality)} group-hover:opacity-0 transition-opacity duration-200`} />
+              <span className={`absolute text-sm ${getQualityTextColor(sleepEntry.quality)} font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
                 {(sleepEntry.totalSleep ?? sleepEntry.hours)}h
               </span>
-              {/* Quality indicator dot */}
-              <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${getQualityColor(sleepEntry.quality)}`} />
             </>
           ) : (
             <span className="text-zinc-500 text-sm font-medium">{day}</span>
