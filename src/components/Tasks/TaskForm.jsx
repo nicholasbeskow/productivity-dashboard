@@ -467,11 +467,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   };
 
   return (
-    <div className="liquid-bubble-filled rounded-xl p-6">
-      <h3 className="text-lg font-semibold text-white mb-4">
-        {initialData ? 'Edit Task' : 'Create New Task'}
-      </h3>
-
+    <>
       {/* Show indicator when editing a recurring task */}
       {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && (
         <div className="mb-4 p-3 liquid-bubble-filled rounded-lg" style={{ boxShadow: '0 0 20px rgba(61, 214, 140, 0.2), inset 0 0 20px rgba(61, 214, 140, 0.05)' }}>
@@ -804,7 +800,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           {recurrenceType !== 'does-not-repeat' ? 'Create Recurring Task' : 'Create Task'}
         </button>
       </form>
-    </div>
+    </>
   );
 };
 
