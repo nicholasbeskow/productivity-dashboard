@@ -467,14 +467,14 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   };
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary">
-      <h3 className="text-lg font-semibold text-text-primary mb-4">
+    <div className="liquid-bubble-filled rounded-xl p-6">
+      <h3 className="text-lg font-semibold text-white mb-4">
         {initialData ? 'Edit Task' : 'Create New Task'}
       </h3>
 
       {/* Show indicator when editing a recurring task */}
       {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && (
-        <div className="mb-4 p-3 bg-green-glow bg-opacity-10 border border-green-glow rounded-lg">
+        <div className="mb-4 p-3 liquid-bubble-filled rounded-lg" style={{ boxShadow: '0 0 20px rgba(61, 214, 140, 0.2), inset 0 0 20px rgba(61, 214, 140, 0.05)' }}>
           <p className="text-sm text-green-glow">
             <Repeat size={16} className="inline mr-2" />
             Editing recurring task template - changes will affect future instances
@@ -485,16 +485,17 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       {/* Scope selector for recurring task edits */}
       {isRecurringEdit && (
         <div className="mb-4">
-          <label className="block text-sm text-text-secondary mb-2">Edit Scope</label>
+          <label className="block text-sm text-white/50 mb-2">Edit Scope</label>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setEditScope('instance')}
-              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+              className={`px-4 py-3 rounded-lg transition-all ${
                 editScope === 'instance'
-                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
-                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
               }`}
+              style={editScope === 'instance' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
               <div className="font-medium">This Instance Only</div>
               <div className="text-xs mt-1 opacity-80">Update just this one task</div>
@@ -502,11 +503,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => setEditScope('series')}
-              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+              className={`px-4 py-3 rounded-lg transition-all ${
                 editScope === 'series'
-                  ? 'border-green-glow bg-green-glow bg-opacity-10 text-green-glow'
-                  : 'border-bg-primary bg-bg-tertiary text-text-secondary hover:border-green-glow hover:border-opacity-50'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
               }`}
+              style={editScope === 'series' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
               <div className="font-medium">All Future Tasks</div>
               <div className="text-xs mt-1 opacity-80">Update the entire series</div>
@@ -518,7 +520,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title Input */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2">
+          <label className="block text-sm text-white/50 mb-2">
             Task Title <span className="text-red-500">*</span>
           </label>
           <input
@@ -526,14 +528,14 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter task title"
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
             required
           />
         </div>
 
         {/* Description Textarea */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2">
+          <label className="block text-sm text-white/50 mb-2">
             Description
           </label>
           <textarea
@@ -541,13 +543,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter task description (optional)"
             rows={3}
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow resize-none"
+            className="w-full liquid-bubble-filled rounded-xl p-4 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none resize-none transition-colors"
           />
         </div>
 
         {/* URL Input */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2">
+          <label className="block text-sm text-white/50 mb-2">
             Related Link
           </label>
           <input
@@ -555,7 +557,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com (optional)"
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary placeholder-text-tertiary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
           />
         </div>
 
@@ -563,20 +565,20 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         {recurrenceType !== 'weekly' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="flex justify-between items-center text-sm text-text-secondary mb-2">
+              <label className="flex justify-between items-center text-sm text-white/50 mb-2">
                 <span>Due Date</span>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={setDueToday}
-                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                    className="text-xs px-2 py-0.5 rounded liquid-bubble-empty text-white/60 hover:text-green-glow transition-colors"
                   >
                     Today
                   </button>
                   <button
                     type="button"
                     onClick={setDueTomorrow}
-                    className="text-xs px-2 py-0.5 rounded bg-bg-primary hover:text-green-glow"
+                    className="text-xs px-2 py-0.5 rounded liquid-bubble-empty text-white/60 hover:text-green-glow transition-colors"
                   >
                     Tomorrow
                   </button>
@@ -586,18 +588,18 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
               />
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">
+              <label className="block text-sm text-white/50 mb-2">
                 Time (optional)
               </label>
               <input
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -606,21 +608,21 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         {/* Time input for weekly tasks (no date needed) */}
         {recurrenceType === 'weekly' && (
           <div>
-            <label className="block text-sm text-text-secondary mb-2">
+            <label className="block text-sm text-white/50 mb-2">
               Time (optional)
             </label>
             <input
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+              className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
             />
           </div>
         )}
 
         {/* Task Type Toggle */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2">
+          <label className="block text-sm text-white/50 mb-2">
             Task Type
           </label>
           <div className="flex gap-2">
@@ -629,8 +631,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               onClick={() => setTaskType('academic')}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 taskType === 'academic'
-                  ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                  : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
               }`}
             >
               📚 Academic
@@ -640,8 +642,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               onClick={() => setTaskType('personal')}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 taskType === 'personal'
-                  ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                  : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
               }`}
             >
               🏠 Personal
@@ -651,14 +653,14 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
         {/* Recurrence Section */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2 flex items-center gap-2">
+          <label className="block text-sm text-white/50 mb-2 flex items-center gap-2">
             <Repeat size={16} />
             Recurrence
           </label>
           <select
             value={recurrenceType}
             onChange={(e) => setRecurrenceType(e.target.value)}
-            className="w-full bg-bg-tertiary border border-bg-primary rounded-lg px-4 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+            className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
           >
             <option value="does-not-repeat">Does not repeat</option>
             <option value="daily">Daily</option>
@@ -671,7 +673,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           {/* Weekly Day Toggles - Only show when Weekly is selected */}
           {recurrenceType === 'weekly' && (
             <div className="mt-3">
-              <p className="text-xs text-text-tertiary mb-2">Repeat on:</p>
+              <p className="text-xs text-white/40 mb-2">Repeat on:</p>
               <div className="flex gap-2">
                 {[
                   { index: 0, label: 'S' },
@@ -688,8 +690,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                     onClick={() => handleWeeklyDayToggle(index)}
                     className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       weeklyDays.includes(index)
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                        : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                        ? 'text-green-glow liquid-bubble-filled'
+                        : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                     }`}
                   >
                     {label}
@@ -702,7 +704,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           {/* Custom Interval - Only show when Custom is selected */}
           {recurrenceType === 'custom' && (
             <div className="mt-3">
-              <p className="text-xs text-text-tertiary mb-2">Repeat every:</p>
+              <p className="text-xs text-white/40 mb-2">Repeat every:</p>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -710,12 +712,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                   max="365"
                   value={customInterval}
                   onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
-                  className="w-20 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
                 />
                 <select
                   value={customUnit}
                   onChange={(e) => setCustomUnit(e.target.value)}
-                  className="flex-1 bg-bg-tertiary border border-bg-primary rounded-lg px-3 py-2 text-text-primary focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                  className="flex-1 liquid-bubble-filled rounded-lg px-3 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
                 >
                   <option value="days">Days</option>
                   <option value="weeks">Weeks</option>
@@ -729,7 +731,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
         {/* File Attachments Section */}
         <div>
-          <label className="block text-sm text-text-secondary mb-2">
+          <label className="block text-sm text-white/50 mb-2">
             File Attachments
           </label>
 
@@ -741,21 +743,21 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
               isDragging
                 ? 'border-green-glow bg-green-glow/10'
-                : 'border-bg-primary hover:border-green-glow/50 bg-bg-tertiary/50'
+                : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
             }`}
           >
             <UploadCloud
               size={32}
-              className={`mx-auto mb-2 ${isDragging ? 'text-green-glow' : 'text-text-tertiary'}`}
+              className={`mx-auto mb-2 ${isDragging ? 'text-green-glow' : 'text-white/40'}`}
             />
-            <p className="text-sm text-text-secondary mb-2">
+            <p className="text-sm text-white/60 mb-2">
               Drag & drop files here
             </p>
-            <p className="text-xs text-text-tertiary mb-3">or</p>
+            <p className="text-xs text-white/40 mb-3">or</p>
             <button
               type="button"
               onClick={handleAttachFilesClick}
-              className="px-4 py-2 bg-bg-tertiary hover:bg-bg-primary border border-bg-primary hover:border-green-glow/50 text-text-primary rounded-lg transition-all text-sm font-medium"
+              className="px-4 py-2 liquid-bubble-filled hover:border-green-glow/50 text-white/80 hover:text-green-glow rounded-lg transition-all text-sm font-medium"
             >
               <FileText size={16} className="inline mr-2" />
               Browse Files
@@ -770,11 +772,11 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 return (
                   <div
                     key={index}
-                    className="flex items-center justify-between bg-bg-tertiary rounded-lg px-3 py-2 border border-bg-primary"
+                    className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <FileText size={16} className="text-green-glow flex-shrink-0" />
-                      <span className="text-sm text-text-primary truncate" title={filePath}>
+                      <span className="text-sm text-white truncate" title={filePath}>
                         {fileName}
                       </span>
                     </div>
