@@ -576,8 +576,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           />
         </div>
 
-        {/* Due Date and Time Row - Hide for weekly tasks (they use day selector) */}
-        {recurrenceType !== 'weekly' && (
+        {/* Due Date and Time Row - Show for non-weekly tasks OR when editing (even weekly tasks need dates when editing) */}
+        {(recurrenceType !== 'weekly' || initialData) && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="flex justify-between items-center text-sm text-white/50 mb-2">
@@ -620,8 +620,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           </div>
         )}
 
-        {/* Time input for weekly tasks (no date needed) */}
-        {recurrenceType === 'weekly' && (
+        {/* Time input for weekly tasks (no date needed) - only show when creating new tasks */}
+        {recurrenceType === 'weekly' && !initialData && (
           <div>
             <label className="block text-sm text-white/50 mb-2">
               Time (optional)
