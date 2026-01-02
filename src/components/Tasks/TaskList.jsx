@@ -402,14 +402,14 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                     // Delete instance
                     const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
                     if (confirmed) {
-                      onCancelEdit(); // Exit edit mode first
-                      setTasks(prevTasks => {
-                        const updatedTasks = prevTasks.filter(t => t.id !== task.id);
-                        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                        backupManager.saveAutoBackup();
-                        window.dispatchEvent(new Event('storage'));
-                        return updatedTasks;
-                      });
+                      const storedTasks = localStorage.getItem('tasks');
+                      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+                      const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+                      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                      backupManager.saveAutoBackup();
+                      setTasks(updatedTasks);
+                      onCancelEdit(); // Exit edit mode after
+                      window.dispatchEvent(new Event('storage'));
                     }
                   } else {
                     // Delete series
@@ -418,32 +418,32 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
                     );
 
                     if (confirmed) {
-                      onCancelEdit(); // Exit edit mode first
                       const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
                       const updatedTemplates = templates.filter(t => t.id !== task.templateId);
                       localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
 
-                      setTasks(prevTasks => {
-                        const updatedTasks = prevTasks.filter(t => t.templateId !== task.templateId);
-                        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                        backupManager.saveAutoBackup();
-                        window.dispatchEvent(new Event('storage'));
-                        return updatedTasks;
-                      });
+                      const storedTasks = localStorage.getItem('tasks');
+                      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+                      const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
+                      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                      backupManager.saveAutoBackup();
+                      setTasks(updatedTasks);
+                      onCancelEdit(); // Exit edit mode after
+                      window.dispatchEvent(new Event('storage'));
                     }
                   }
                 } else {
                   // Normal task delete
                   const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
                   if (confirmed) {
-                    onCancelEdit(); // Exit edit mode first
-                    setTasks(prevTasks => {
-                      const updatedTasks = prevTasks.filter(t => t.id !== task.id);
-                      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                      backupManager.saveAutoBackup();
-                      window.dispatchEvent(new Event('storage'));
-                      return updatedTasks;
-                    });
+                    const storedTasks = localStorage.getItem('tasks');
+                    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+                    const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+                    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                    backupManager.saveAutoBackup();
+                    setTasks(updatedTasks);
+                    onCancelEdit(); // Exit edit mode after
+                    window.dispatchEvent(new Event('storage'));
                   }
                 }
               }}
