@@ -370,6 +370,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
           <div className="space-y-3 mt-4">
             {/* Cancel Button */}
             <button
+              type="button"
               onClick={onCancelEdit}
               className="w-full px-6 liquid-bubble-filled text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
@@ -389,6 +390,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
 
             {/* Delete Button */}
             <button
+              type="button"
               onClick={() => {
                 if (task.templateId) {
                   // For recurring tasks, ask which scope to delete
