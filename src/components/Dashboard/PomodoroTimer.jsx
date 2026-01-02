@@ -234,10 +234,7 @@ const PomodoroTimer = () => {
           {/* Start/Pause Button */}
           <motion.button
             onClick={handleStartPause}
-            className="p-4 rounded-full liquid-bubble-filled text-green-glow hover:text-green-400 transition-all"
-            style={{
-              boxShadow: '0 0 20px rgba(61, 214, 140, 0.3), inset 0 0 20px rgba(61, 214, 140, 0.1)'
-            }}
+            className="p-4 rounded-full liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title={isActive ? 'Pause' : 'Start'}
