@@ -282,9 +282,24 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
         background: 'rgba(255, 255, 255, 0.03)'
       }}
     >
-      {/* 3-Dot Menu Button */}
+      {/* Action Buttons (Edit & More Menu) */}
       {!isEditing && (
-        <div className="absolute top-3 right-3 z-30">
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {/* Edit Button */}
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEdit(task);
+            }}
+            className="p-1.5 rounded-lg liquid-bubble-filled text-white/70 hover:text-green-glow transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Edit task"
+          >
+            <Pencil size={14} />
+          </motion.button>
+
+          {/* 3-Dot Menu Button */}
           <motion.button
             onClick={(e) => {
               e.stopPropagation();
@@ -1032,40 +1047,41 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     <>
       <style>
         {`
+          /* Task Card Glow Effects - Hover Only (matching Dashboard) */
           .task-glow-not-started {
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.35);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-not-started:hover {
-            box-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.18);
           }
 
           .task-glow-in-progress {
-            box-shadow: 0 0 15px rgba(255, 200, 50, 0.45);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-in-progress:hover {
-            box-shadow: 0 0 20px rgba(255, 200, 50, 0.6);
+            box-shadow: 0 0 10px rgba(255, 200, 50, 0.2);
           }
 
           .task-glow-complete {
-            box-shadow: 0 0 12px rgba(61, 214, 140, 0.25);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-complete:hover {
-            box-shadow: 0 0 18px rgba(61, 214, 140, 0.4);
+            box-shadow: 0 0 8px rgba(61, 214, 140, 0.15);
           }
 
           .task-glow-overdue {
-            box-shadow: 0 0 20px rgba(255, 50, 50, 0.45);
+            box-shadow: none;
             transition: box-shadow 200ms ease-in-out;
           }
 
           .task-glow-overdue:hover {
-            box-shadow: 0 0 25px rgba(255, 50, 50, 0.65);
+            box-shadow: 0 0 12px rgba(255, 50, 50, 0.25);
           }
 
           /* Checkbox hover effects */
@@ -1140,17 +1156,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               background: 'rgba(24, 24, 27, 0.6)'
             }}
           >
-            <button
-              onClick={() => {
-                const task = tasks.find(t => t.id === openMenuTaskId);
-                if (task) handleStartEdit(task);
-                setOpenMenuTaskId(null);
-              }}
-              className="w-full px-4 py-2 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2"
-            >
-              <Pencil size={14} />
-              Edit
-            </button>
             <button
               onClick={() => {
                 handleDuplicate(openMenuTaskId);
