@@ -7,7 +7,7 @@ import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate }) => {
+const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask }) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -392,60 +392,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
             <button
               type="button"
               onClick={() => {
-                if (task.templateId) {
-                  // For recurring tasks, ask which scope to delete
-                  const deleteScope = window.confirm(
-                    'Delete just this task instance?\n\nClick OK to delete this instance only.\nClick Cancel to delete the entire series.'
-                  );
-
-                  if (deleteScope) {
-                    // Delete instance
-                    const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
-                    if (confirmed) {
-                      const storedTasks = localStorage.getItem('tasks');
-                      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-                      const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
-                      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                      backupManager.saveAutoBackup();
-                      setTasks(updatedTasks);
-                      onCancelEdit(); // Exit edit mode after
-                      window.dispatchEvent(new Event('storage'));
-                    }
-                  } else {
-                    // Delete series
-                    const confirmed = window.confirm(
-                      `Are you sure you want to delete the entire "${task.title}" series? This will delete the template and all future tasks.`
-                    );
-
-                    if (confirmed) {
-                      const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-                      const updatedTemplates = templates.filter(t => t.id !== task.templateId);
-                      localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
-
-                      const storedTasks = localStorage.getItem('tasks');
-                      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-                      const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
-                      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                      backupManager.saveAutoBackup();
-                      setTasks(updatedTasks);
-                      onCancelEdit(); // Exit edit mode after
-                      window.dispatchEvent(new Event('storage'));
-                    }
-                  }
-                } else {
-                  // Normal task delete
-                  const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
-                  if (confirmed) {
-                    const storedTasks = localStorage.getItem('tasks');
-                    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-                    const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
-                    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                    backupManager.saveAutoBackup();
-                    setTasks(updatedTasks);
-                    onCancelEdit(); // Exit edit mode after
-                    window.dispatchEvent(new Event('storage'));
-                  }
-                }
+                onDeleteTask(task);
               }}
               className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
@@ -1084,6 +1031,63 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     }
   };
 
+  const handleDeleteFromEdit = (task) => {
+    if (task.templateId) {
+      // For recurring tasks, ask which scope to delete
+      const deleteScope = window.confirm(
+        'Delete just this task instance?\n\nClick OK to delete this instance only.\nClick Cancel to delete the entire series.'
+      );
+
+      if (deleteScope) {
+        // Delete instance
+        const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
+        if (confirmed) {
+          const storedTasks = localStorage.getItem('tasks');
+          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+          backupManager.saveAutoBackup();
+          setTasks(updatedTasks);
+          window.dispatchEvent(new Event('storage'));
+          handleCancelEdit();
+        }
+      } else {
+        // Delete series
+        const confirmed = window.confirm(
+          `Are you sure you want to delete the entire "${task.title}" series? This will delete the template and all future tasks.`
+        );
+
+        if (confirmed) {
+          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
+          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
+
+          const storedTasks = localStorage.getItem('tasks');
+          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
+          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+          backupManager.saveAutoBackup();
+          setTasks(updatedTasks);
+          window.dispatchEvent(new Event('storage'));
+          handleCancelEdit();
+        }
+      }
+    } else {
+      // Normal task delete
+      const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
+      if (confirmed) {
+        const storedTasks = localStorage.getItem('tasks');
+        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+        const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        backupManager.saveAutoBackup();
+        setTasks(updatedTasks);
+        window.dispatchEvent(new Event('storage'));
+        handleCancelEdit();
+      }
+    }
+  };
+
   const handleMenuToggle = useCallback((task, buttonRect) => {
     const clickedTaskId = task.id;
 
@@ -1215,6 +1219,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               isMenuOpen={openMenuTaskId === task.id}
               onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
               isEditingTemplate={isEditingTemplate}
+              onDeleteTask={handleDeleteFromEdit}
             />
           ))}
         </AnimatePresence>
