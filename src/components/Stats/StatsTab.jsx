@@ -1009,13 +1009,14 @@ const StatsTab = () => {
       legend: {
         display: true,
         position: 'bottom',
+        onClick: null, // Disable legend item toggling
         labels: {
-          color: '#e6e8ea',
+          color: '#ffffff',
           padding: 18,
           font: {
             size: 13,
-            weight: '600',
-            family: "'Inter', sans-serif",
+            weight: '500',
+            family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
           },
           boxWidth: 18,
           boxHeight: 18,
