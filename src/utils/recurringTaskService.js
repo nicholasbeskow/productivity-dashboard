@@ -51,7 +51,6 @@ const safeSaveLocalStorage = (key, value) => {
  */
 export const generateRecurringTasks = () => {
   try {
-    console.log('[RecurringTaskService] Running continuous task generator...');
 
     const todayString = getLocalISOString();
 
@@ -59,7 +58,6 @@ export const generateRecurringTasks = () => {
     const templates = safeParseLocalStorage('recurringTasks', []);
 
     if (templates.length === 0) {
-      console.log('[RecurringTaskService] No recurring templates found.');
       return 0;
     }
 
@@ -113,7 +111,6 @@ export const generateRecurringTasks = () => {
       });
 
       if (instanceExistsForToday) {
-        console.log(`[RecurringTaskService] Task instance already exists for template "${template.title}" on ${todayString}`);
         return; // Skip - already generated
       }
 
@@ -125,7 +122,6 @@ export const generateRecurringTasks = () => {
         });
 
         if (incompleteInstanceExists) {
-          console.log(`[RecurringTaskService] Incomplete weekly task already exists for template "${template.title}"`);
           return; // Skip - incomplete instance exists
         }
       }
@@ -150,7 +146,6 @@ export const generateRecurringTasks = () => {
 
       tasks.push(newTask);
       newTasksGenerated++;
-      console.log(`[RecurringTaskService] Generated task instance for template "${template.title}"`);
     });
 
     if (newTasksGenerated > 0) {
@@ -176,9 +171,7 @@ export const generateRecurringTasks = () => {
         console.error('[RecurringTaskService] Failed to dispatch storage event:', error);
       }
 
-      console.log(`[RecurringTaskService] Generated ${newTasksGenerated} new task(s)`);
     } else {
-      console.log('[RecurringTaskService] No new tasks generated');
     }
 
     return newTasksGenerated;

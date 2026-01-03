@@ -171,6 +171,10 @@ const StatsTab = () => {
 
     if (avgTasksOnBadDays > 0) {
       const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
+      // Guard against infinity or NaN
+      if (!isFinite(multiplier)) {
+        return { text: 'Not enough data', value: null };
+      }
       return {
         text: 'more tasks on good days',
         value: `${multiplier.toFixed(1)}x`,
@@ -357,6 +361,10 @@ const StatsTab = () => {
 
     if (avgTasksOnBadSleep > 0) {
       const multiplier = avgTasksOnGoodSleep / avgTasksOnBadSleep;
+      // Guard against infinity or NaN
+      if (!isFinite(multiplier)) {
+        return { text: 'Not enough data', value: null };
+      }
       return {
         text: 'more tasks with good sleep',
         value: `${multiplier.toFixed(1)}x`,

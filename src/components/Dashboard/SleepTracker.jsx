@@ -440,7 +440,7 @@ const SleepTracker = () => {
         {view === 'log' && (
           <motion.div
             key="log"
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-1 flex flex-col"
           >
             <div className="text-center mb-6">

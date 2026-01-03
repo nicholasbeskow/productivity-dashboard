@@ -12,8 +12,14 @@ export const calculateNextDueDate = (task, template) => {
   let nextDate = null;
 
   try {
+    // Validate task parameter
+    if (!task || (!task.recurrenceAnchor && !task.dueDate)) {
+      throw new Error('Invalid task: missing recurrenceAnchor and dueDate');
+    }
+
     // Use recurrenceAnchor if available, fallback to dueDate for legacy tasks
-    const baseDate = new Date((task.recurrenceAnchor || task.dueDate) + 'T12:00:00');
+    const baseDateStr = task.recurrenceAnchor || task.dueDate;
+    const baseDate = new Date(baseDateStr + 'T12:00:00');
 
     // Validate baseDate
     if (isNaN(baseDate.getTime())) {
@@ -36,23 +42,32 @@ export const calculateNextDueDate = (task, template) => {
       else if (recurrenceType === 'weekly') {
         const selectedDays = template.recurrence.days || [];
 
-        if (selectedDays.length > 0) {
-          const sortedDays = [...selectedDays].sort((a, b) => a - b);
-          const currentDayOfWeek = baseDate.getDay();
-          let daysToAdd = null;
+        // Validate days array
+        if (selectedDays.length > 0 && Array.isArray(selectedDays)) {
+          // Filter out invalid day values (must be 0-6)
+          const validDays = selectedDays.filter(day => typeof day === 'number' && day >= 0 && day <= 6);
 
-          for (const day of sortedDays) {
-            if (day > currentDayOfWeek) {
-              daysToAdd = day - currentDayOfWeek;
-              break;
+          if (validDays.length > 0) {
+            const sortedDays = [...validDays].sort((a, b) => a - b);
+            const currentDayOfWeek = baseDate.getDay();
+            let daysToAdd = null;
+
+            for (const day of sortedDays) {
+              if (day > currentDayOfWeek) {
+                daysToAdd = day - currentDayOfWeek;
+                break;
+              }
             }
-          }
 
-          if (daysToAdd === null) {
-            daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
-          }
+            if (daysToAdd === null) {
+              daysToAdd = 7 - currentDayOfWeek + sortedDays[0];
+            }
 
-          baseDate.setDate(baseDate.getDate() + daysToAdd);
+            baseDate.setDate(baseDate.getDate() + daysToAdd);
+          } else {
+            // Invalid days array: fallback to 7 days
+            baseDate.setDate(baseDate.getDate() + 7);
+          }
         } else {
           // Fallback: add 7 days
           baseDate.setDate(baseDate.getDate() + 7);

@@ -10,24 +10,10 @@ import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
 import { dateToLocalISO } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
-import { ArrowRight, Moon } from 'lucide-react';
+import { isTaskOverdue } from '../../utils/taskHelpers';
+import { Moon } from 'lucide-react';
 
 // ===== UTILITY FUNCTIONS (extracted for performance) =====
-const isTaskOverdue = (task) => {
-  if (!task.dueDate || task.status === 'complete') return false;
-
-  if (task.time) {
-    const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-    const now = new Date();
-    return taskDateTime < now;
-  } else {
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
-  }
-};
-
 const getStatusIcon = (status) => {
   switch (status) {
     case 'complete':
@@ -537,9 +523,46 @@ const Dashboard = ({ setActiveTab }) => {
       if (storedTasks) {
         try {
           const parsedTasks = JSON.parse(storedTasks);
-          setTasks(parsedTasks);
+          // Validate that parsedTasks is an array
+          if (!Array.isArray(parsedTasks)) {
+            console.error('[Dashboard] Invalid tasks data: expected array, got', typeof parsedTasks);
+            console.warn('[Dashboard] Corrupted data detected. Please restore from backup or clear storage.');
+            setTasks([]);
+            return;
+          }
+
+          // Filter out tasks with invalid dates to prevent crashes
+          const validTasks = parsedTasks.filter(task => {
+            // Basic validation: must have an id and title
+            if (!task.id || !task.title) {
+              console.warn('[Dashboard] Skipping task with missing id or title:', task);
+              return false;
+            }
+
+            // Validate dueDate if present
+            if (task.dueDate) {
+              const testDate = new Date(task.dueDate + 'T12:00:00');
+              if (isNaN(testDate.getTime())) {
+                console.warn('[Dashboard] Skipping task with invalid dueDate:', task.id, task.dueDate);
+                return false;
+              }
+            }
+
+            return true;
+          });
+
+          // If we filtered out invalid tasks, save the cleaned array back to localStorage
+          if (validTasks.length !== parsedTasks.length) {
+            console.warn(`[Dashboard] Filtered out ${parsedTasks.length - validTasks.length} invalid task(s)`);
+            localStorage.setItem('tasks', JSON.stringify(validTasks));
+            backupManager.saveAutoBackup();
+          }
+
+          setTasks(validTasks);
         } catch (error) {
-          console.error('Error loading tasks:', error);
+          console.error('[Dashboard] Error loading tasks:', error);
+          console.warn('[Dashboard] Tasks data is corrupted. Please restore from backup.');
+          // Don't set empty array - keep existing state to avoid data loss
           setTasks([]);
         }
       }
@@ -570,22 +593,7 @@ const Dashboard = ({ setActiveTab }) => {
     window.dispatchEvent(new Event('taskFilterChanged'));
   };
 
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
-
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
-    }
-  };
+  // Using the isTaskOverdue utility function defined at the top of the file
 
   const handleStatusChange = useCallback((taskId) => {
     const task = tasks.find(t => t.id === taskId);
@@ -661,7 +669,6 @@ const Dashboard = ({ setActiveTab }) => {
               customPriority: updatedTasks.length - index,
             }));
 
-            console.log(`[Dashboard] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
           } else {
             console.warn(`[Dashboard] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
           }
@@ -750,7 +757,6 @@ const Dashboard = ({ setActiveTab }) => {
     const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
     const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
 
-    console.log('[Dashboard] Drag from index', draggedIndex, 'to', dropIndex);
 
     const newTasks = [...tasks];
     const [removed] = newTasks.splice(draggedIndex, 1);
@@ -762,11 +768,9 @@ const Dashboard = ({ setActiveTab }) => {
       customPriority: newTasks.length - index, // Higher number = higher priority
     }));
 
-    console.log('[Dashboard] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
 
     setTasks(updatedTasks);
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    console.log('[Dashboard] Saved to localStorage');
 
     // Backup after save
     backupManager.saveAutoBackup();
@@ -777,7 +781,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
-    setEditScope('instance'); // Reset to default scope
+    editScopeRef.current = 'instance'; // Reset to default scope
     setEditForm({
       title: task.title,
       description: task.description || '',
@@ -937,7 +941,6 @@ const Dashboard = ({ setActiveTab }) => {
           backupManager.saveAutoBackup();
           window.dispatchEvent(new Event('storage'));
 
-          console.log('[Dashboard] Deleted recurring template and its instances');
 
           // Close detail view
           setDetailViewTaskId(null);
@@ -1012,7 +1015,6 @@ const Dashboard = ({ setActiveTab }) => {
         setTasks(updatedTasks);
         window.dispatchEvent(new Event('storage'));
 
-        console.log('[Dashboard] Saved changes to task instance');
       } else {
         // Edit the template
         const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
@@ -1079,7 +1081,6 @@ const Dashboard = ({ setActiveTab }) => {
         backupManager.saveAutoBackup();
         window.dispatchEvent(new Event('storage'));
 
-        console.log('[Dashboard] Saved changes to template and all instances');
       }
     } else {
       // Normal task - save as usual
@@ -1156,8 +1157,8 @@ const Dashboard = ({ setActiveTab }) => {
         return true;
       })
       .sort((a, b) => {
-        const aOverdue = isOverdue(a);
-        const bOverdue = isOverdue(b);
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
 
         if (aOverdue && !bOverdue) return -1;
         if (!aOverdue && bOverdue) return 1;
@@ -1439,11 +1440,9 @@ const Dashboard = ({ setActiveTab }) => {
                                             // Sync edit scope from TaskForm
                                             if (scope) editScopeRef.current = scope;
 
-                                            console.log('[Dashboard] Edit handler:', { hasTemplateId: !!detailTask.templateId, scope, hasRecurrence: !!updatedFields.recurrence });
 
                                             // CASE 1: Converting plain task → recurring
                                           if (!detailTask.templateId && updatedFields.recurrence) {
-                                            console.log('[Dashboard] Plain → Recurring');
                                             const newTemplateId = 'template-' + Date.now();
                                             const newTemplate = { ...updatedFields, id: newTemplateId, createdAt: new Date().toISOString() };
 
@@ -1466,7 +1465,6 @@ const Dashboard = ({ setActiveTab }) => {
 
                                           // CASE 2: Recurring → plain (remove recurrence)
                                           if (detailTask.templateId && !updatedFields.recurrence) {
-                                            console.log('[Dashboard] Recurring → Plain');
                                             const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
                                             const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
 
@@ -1490,7 +1488,6 @@ const Dashboard = ({ setActiveTab }) => {
 
                                           // CASE 3: SERIES EDIT - Nuclear rebuild (recurrence type changes)
                                           if (detailTask.templateId && scope === 'series' && updatedFields.recurrence) {
-                                            console.log('[Dashboard] Series edit - nuclear rebuild');
                                             const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
                                             const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
                                             const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
@@ -1542,12 +1539,10 @@ const Dashboard = ({ setActiveTab }) => {
                                             handleCancelEdit();
                                             backupManager.saveAutoBackup();
                                             window.dispatchEvent(new Event('storage'));
-                                            console.log('[Dashboard] Nuclear rebuild complete:', { newTemplate, newInstance });
                                             return;
                                           }
 
                                           // CASE 4: INSTANCE EDIT (or plain task edit)
-                                          console.log('[Dashboard] Instance edit');
                                           const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
                                           const updatedTasks = storedTasks.map(t => {
                                             if (t.id === detailTask.id) {

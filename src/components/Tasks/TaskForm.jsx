@@ -49,15 +49,21 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       let recurrence = initialData.recurrence;
       if (!recurrence && initialData.templateId) {
         try {
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const template = templates.find(t => t.id === initialData.templateId);
-          if (template && template.recurrence) {
-            recurrence = template.recurrence;
-          } else if (!template) {
-            console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+          const templatesData = localStorage.getItem('recurringTasks') || '[]';
+          const templates = JSON.parse(templatesData);
+          // Validate that templates is an array
+          if (!Array.isArray(templates)) {
+            console.error('[TaskForm] Invalid recurringTasks data: expected array');
+          } else {
+            const template = templates.find(t => t.id === initialData.templateId);
+            if (template && template.recurrence) {
+              recurrence = template.recurrence;
+            } else if (!template) {
+              console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+            }
           }
         } catch (error) {
-          console.error('Error fetching template recurrence:', error);
+          console.error('[TaskForm] Error fetching template recurrence:', error);
         }
       }
 
@@ -389,8 +395,6 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       // Dispatch storage event to update UI
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskForm] Created recurring task template:', template);
-
       // For recurring tasks, always generate at least one instance
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
@@ -463,8 +467,6 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
       // Pass this new instance to the main TaskList
       onTaskCreate(generatedTask);
-
-      console.log('[TaskForm] Generated instance for:', instanceDate, generatedTask);
     } else {
       // Create a normal one-time task
       const newTask = {
@@ -886,7 +888,25 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                     min="1"
                     max="365"
                     value={customInterval}
-                    onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      // Allow empty string while typing
+                      if (val === '') {
+                        setCustomInterval('');
+                      } else {
+                        setCustomInterval(val);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Validate only when user leaves the input
+                      const val = e.target.value;
+                      if (val === '' || isNaN(parseInt(val))) {
+                        setCustomInterval(1);
+                      } else {
+                        const num = parseInt(val);
+                        setCustomInterval(Math.max(1, Math.min(365, num)));
+                      }
+                    }}
                     className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
                   />
                   <select

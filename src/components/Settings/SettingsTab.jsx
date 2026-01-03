@@ -933,33 +933,45 @@ const SettingsTab = () => {
                 {/* By Category */}
                 <div>
                   <h5 className="text-white/80 text-sm font-medium mb-3">By Category</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <button
-                      onClick={importExportMode === 'export' ? handleExportTasks : handleImportTasks}
-                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                    >
-                      {importExportMode === 'export' ? '📤' : '📥'} Tasks
-                    </button>
+                  {!window.require ? (
+                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                      <p className="text-yellow-500 text-sm">
+                        Category export/import requires the Electron desktop app.
+                        <br />
+                        Use "Complete Backup" above for web mode.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <button
+                          onClick={importExportMode === 'export' ? handleExportTasks : handleImportTasks}
+                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                        >
+                          {importExportMode === 'export' ? '📤' : '📥'} Tasks
+                        </button>
 
-                    <button
-                      onClick={importExportMode === 'export' ? handleExportMood : handleImportMood}
-                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                    >
-                      {importExportMode === 'export' ? '📤' : '📥'} Mood
-                    </button>
+                        <button
+                          onClick={importExportMode === 'export' ? handleExportMood : handleImportMood}
+                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                        >
+                          {importExportMode === 'export' ? '📤' : '📥'} Mood
+                        </button>
 
-                    <button
-                      onClick={importExportMode === 'export' ? handleExportSleep : handleImportSleep}
-                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                    >
-                      {importExportMode === 'export' ? '📤' : '📥'} Sleep
-                    </button>
-                  </div>
-                  <p className="text-xs text-white/40 mt-3">
-                    {importExportMode === 'export'
-                      ? 'Export individual data categories as JSON files'
-                      : 'Import data from category-specific JSON files'}
-                  </p>
+                        <button
+                          onClick={importExportMode === 'export' ? handleExportSleep : handleImportSleep}
+                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                        >
+                          {importExportMode === 'export' ? '📤' : '📥'} Sleep
+                        </button>
+                      </div>
+                      <p className="text-xs text-white/40 mt-3">
+                        {importExportMode === 'export'
+                          ? 'Export individual data categories as JSON files'
+                          : 'Import data from category-specific JSON files'}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
