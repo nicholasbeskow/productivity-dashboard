@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
-import TasksTab from './components/Tasks/TasksTab';
-import CanvasTab from './components/Canvas/CanvasTab';
-import StatsTab from './components/Stats/StatsTab';
-import SettingsTab from './components/Settings/SettingsTab';
 import backupManager from './utils/backupManager';
 import { getLocalISOString } from './utils/dateHelpers';
 import { generateRecurringTasks } from './utils/recurringTaskService';
+
+// Lazy load heavy components to reduce initial bundle size and improve load time
+// Dashboard is eager-loaded since it's the initial view
+const TasksTab = lazy(() => import('./components/Tasks/TasksTab'));
+const CanvasTab = lazy(() => import('./components/Canvas/CanvasTab'));
+const StatsTab = lazy(() => import('./components/Stats/StatsTab')); // Heavy: includes Chart.js
+const SettingsTab = lazy(() => import('./components/Settings/SettingsTab'));
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -112,7 +115,13 @@ function App() {
             transition={{ duration: 0.15, ease: "easeInOut" }}
             className="h-full"
           >
-            {renderTab()}
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full">
+                <div className="text-white/70">Loading...</div>
+              </div>
+            }>
+              {renderTab()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
