@@ -890,11 +890,21 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                     value={customInterval}
                     onChange={(e) => {
                       const val = e.target.value;
+                      // Allow empty string while typing
                       if (val === '') {
-                        setCustomInterval(1); // Reset to 1 instead of empty string
+                        setCustomInterval('');
+                      } else {
+                        setCustomInterval(val);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Validate only when user leaves the input
+                      const val = e.target.value;
+                      if (val === '' || isNaN(parseInt(val))) {
+                        setCustomInterval(1);
                       } else {
                         const num = parseInt(val);
-                        setCustomInterval(isNaN(num) ? 1 : Math.max(1, Math.min(365, num)));
+                        setCustomInterval(Math.max(1, Math.min(365, num)));
                       }
                     }}
                     className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
