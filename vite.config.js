@@ -37,34 +37,14 @@ export default defineConfig({
     // Optimize bundle size and performance
     rollupOptions: {
       output: {
-        // Manual chunk splitting for better caching
+        // Simplified chunk splitting: only separate Chart.js since it's lazy-loaded
         manualChunks(id) {
-          // React core - must load first
-          if (id.includes('node_modules/react') ||
-              id.includes('node_modules/react-dom') ||
-              id.includes('node_modules/scheduler')) {
-            return 'vendor-react';
-          }
-          // Chart.js (heavy - only loads with Stats tab)
+          // Chart.js only (lazy-loaded with StatsTab, so safe to separate)
           if (id.includes('node_modules/chart.js') ||
               id.includes('node_modules/react-chartjs-2')) {
             return 'vendor-charts';
           }
-          // Animation library
-          if (id.includes('node_modules/framer-motion')) {
-            return 'vendor-animation';
-          }
-          // Date libraries
-          if (id.includes('node_modules/date-fns') ||
-              id.includes('node_modules/react-big-calendar')) {
-            return 'vendor-date';
-          }
-          // Icons
-          if (id.includes('node_modules/lucide-react')) {
-            return 'vendor-icons';
-          }
-          // Other node_modules - includes zustand and other React-dependent libs
-          // Keep together to ensure proper loading order
+          // Everything else stays together to ensure proper loading order
           if (id.includes('node_modules')) {
             return 'vendor';
           }
