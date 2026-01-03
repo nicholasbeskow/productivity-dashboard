@@ -44,10 +44,10 @@ const qualityLabels = {
 };
 
 const qualityColors = {
-  4: '#eab308', // yellow - Excellent (matches mood "Great")
-  3: '#3dd68c', // green - Good (matches mood "Good")
-  2: '#f97316', // orange - Fair (matches mood "Down")
-  1: '#ef4444'  // red - Poor (matches mood "Rocky")
+  4: '#7c3aed', // vibrant deep violet - Excellent
+  3: '#a855f7', // bright purple - Good
+  2: '#d8b4fe', // soft lavender - Fair
+  1: '#f3e8ff'  // pale white/lilac - Poor
 };
 
 // Tier colors for inline styles (fixes dynamic Tailwind class issue)
@@ -565,12 +565,12 @@ const SleepAnalytics = () => {
     // Quality order: Excellent first (most positive)
     const qualities = [4, 3, 2, 1];
 
-    // Gradient color pairs for each quality level (matching mood tracker colors)
+    // Monochromatic purple gradient pairs for glassy 3D effect
     const gradientColors = {
-      4: { start: '#fbbf24', end: '#eab308' }, // yellow - Excellent (matches mood "Great")
-      3: { start: '#4fe39f', end: '#3dd68c' }, // green - Good (matches mood "Good")
-      2: { start: '#fb923c', end: '#f97316' }, // orange - Fair (matches mood "Down")
-      1: { start: '#f87171', end: '#ef4444' }  // red - Poor (matches mood "Rocky")
+      4: { start: '#8b5cf6', end: '#6d28d9' }, // vibrant deep violet - Excellent (lighter to darker for depth)
+      3: { start: '#c084fc', end: '#9333ea' }, // bright purple - Good
+      2: { start: '#e9d5ff', end: '#c084fc' }, // soft lavender - Fair
+      1: { start: '#faf5ff', end: '#f3e8ff' }  // pale white/lilac - Poor
     };
 
     // Calculate pie segments
@@ -632,13 +632,13 @@ const SleepAnalytics = () => {
 
     return (
       <div className="flex items-center gap-6">
-        {/* Pie Chart with glow container */}
+        {/* Pie Chart with enhanced glossy container */}
         <div
           className="relative"
           style={{
             width: size,
             height: size,
-            filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.15))'
+            filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.4)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.2))'
           }}
         >
           <svg width={size} height={size}>
@@ -653,19 +653,37 @@ const SleepAnalytics = () => {
                   x2="100%"
                   y2="100%"
                 >
-                  <stop offset="0%" stopColor={gradientColors[quality].start} />
-                  <stop offset="100%" stopColor={gradientColors[quality].end} />
+                  <stop offset="0%" stopColor={gradientColors[quality].start} stopOpacity="0.95" />
+                  <stop offset="100%" stopColor={gradientColors[quality].end} stopOpacity="1" />
                 </linearGradient>
               ))}
-              {/* Glow filter for hover */}
+              {/* Enhanced glow filter for depth */}
               <filter id="pieGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feGaussianBlur stdDeviation="6" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
+              {/* Glossy overlay gradient */}
+              <radialGradient id="glossOverlay" cx="40%" cy="30%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
             </defs>
+
+            {/* Outer glow ring (purple halo) */}
+            <circle
+              cx={center}
+              cy={center}
+              r={radius + 8}
+              fill="none"
+              stroke="url(#pieGradient-4)"
+              strokeWidth="3"
+              opacity="0.3"
+              style={{ filter: 'blur(4px)' }}
+            />
 
             {/* Background circle for empty space */}
             <circle
@@ -673,6 +691,7 @@ const SleepAnalytics = () => {
               cy={center}
               r={radius}
               fill="#1a1f2e"
+              style={{ filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6))' }}
             />
 
             {/* Pie segments */}
@@ -681,25 +700,38 @@ const SleepAnalytics = () => {
               const hoverRadius = isHovered ? radius + 4 : radius;
 
               return (
-                <path
-                  key={segment.quality}
-                  d={createArcPath(segment.startAngle, segment.endAngle, hoverRadius, innerRadius)}
-                  fill={`url(#pieGradient-${segment.quality})`}
-                  style={{
-                    filter: isHovered ? `drop-shadow(0 0 12px ${segment.color}80)` : `drop-shadow(0 0 6px ${segment.color}40)`,
-                    cursor: 'pointer',
-                    transition: 'filter 0.2s ease-out'
-                  }}
-                  onMouseEnter={() => setHoveredSegment(segment.quality)}
-                  onMouseLeave={() => setHoveredSegment(null)}
-                />
+                <g key={segment.quality}>
+                  <path
+                    d={createArcPath(segment.startAngle, segment.endAngle, hoverRadius, innerRadius)}
+                    fill={`url(#pieGradient-${segment.quality})`}
+                    style={{
+                      filter: isHovered
+                        ? `drop-shadow(0 4px 16px ${segment.color}90) drop-shadow(0 0 20px ${segment.color}60)`
+                        : `drop-shadow(0 2px 8px ${segment.color}50) drop-shadow(0 0 12px ${segment.color}30)`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-out'
+                    }}
+                    onMouseEnter={() => setHoveredSegment(segment.quality)}
+                    onMouseLeave={() => setHoveredSegment(null)}
+                  />
+                </g>
               );
             })}
+
+            {/* Glossy overlay for premium glass effect */}
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="url(#glossOverlay)"
+              pointerEvents="none"
+              style={{ mixBlendMode: 'overlay' }}
+            />
 
           </svg>
         </div>
 
-        {/* Legend with hover interaction */}
+        {/* Legend with enhanced glossy purple styling */}
         <div className="flex flex-col gap-2.5">
           {qualities.map((quality) => {
             const count = distribution[quality] || 0;
@@ -707,34 +739,48 @@ const SleepAnalytics = () => {
             const color = qualityColors[quality];
             const isHovered = hoveredSegment === quality;
 
+            // Determine text color for better visibility with purple theme
+            const getTextBrightness = (quality) => {
+              // Quality 1 (pale lilac) needs darker text, others need lighter text
+              return quality === 1 ? '#8b5cf6' : color;
+            };
+
             return (
               <div
                 key={quality}
-                className={`flex items-center gap-2.5 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer ${isHovered ? 'bg-bg-primary' : ''}`}
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
+                  isHovered ? 'bg-bg-primary shadow-lg' : ''
+                }`}
                 onMouseEnter={() => setHoveredSegment(quality)}
                 onMouseLeave={() => setHoveredSegment(null)}
               >
                 <div
-                  className="w-3 h-3 rounded-full transition-all duration-200"
+                  className="w-4 h-4 rounded-full transition-all duration-200 relative"
                   style={{
                     background: `linear-gradient(135deg, ${gradientColors[quality].start}, ${gradientColors[quality].end})`,
-                    boxShadow: isHovered ? `0 0 10px ${color}80` : `0 0 4px ${color}40`
+                    boxShadow: isHovered
+                      ? `0 0 16px ${color}90, 0 0 8px ${color}70, inset 0 1px 2px rgba(255, 255, 255, 0.3)`
+                      : `0 0 8px ${color}50, 0 0 4px ${color}40, inset 0 1px 2px rgba(255, 255, 255, 0.2)`,
+                    border: `1px solid ${color}40`
                   }}
                 />
-                <span className={`text-xs w-16 transition-colors duration-200 ${isHovered ? 'text-text-primary' : 'text-text-secondary'}`}>
+                <span className={`text-xs w-16 font-medium transition-colors duration-200 ${
+                  isHovered ? 'text-white' : 'text-text-secondary'
+                }`}>
                   {qualityLabels[quality]}
                 </span>
                 <span
-                  className="text-xs font-semibold transition-all duration-200"
+                  className="text-sm font-bold transition-all duration-200"
                   style={{
-                    color: isHovered ? color : `${color}cc`,
-                    textShadow: isHovered ? `0 0 8px ${color}60` : 'none'
+                    color: isHovered ? getTextBrightness(quality) : `${color}dd`,
+                    textShadow: isHovered ? `0 0 12px ${color}80, 0 2px 4px rgba(0, 0, 0, 0.4)` : `0 0 6px ${color}40`,
+                    filter: isHovered ? 'brightness(1.2)' : 'brightness(1)'
                   }}
                 >
                   {percentage}%
                 </span>
                 {isHovered && count > 0 && (
-                  <span className="text-[10px] text-text-tertiary ml-1">
+                  <span className="text-[10px] text-text-tertiary ml-1 font-medium">
                     ({count} {count === 1 ? 'night' : 'nights'})
                   </span>
                 )}
