@@ -17,14 +17,52 @@ const TasksTab = () => {
     if (storedTasks) {
       try {
         const parsedTasks = JSON.parse(storedTasks);
+
+        // Validate that parsedTasks is an array
+        if (!Array.isArray(parsedTasks)) {
+          console.error('[TasksTab] Invalid tasks data: expected array, got', typeof parsedTasks);
+          console.warn('[TasksTab] Corrupted data detected. Please restore from backup or clear storage.');
+          setTasks([]);
+          setIsInitialized(true);
+          return;
+        }
+
+        // Filter out tasks with invalid data
+        const validTasks = parsedTasks.filter(task => {
+          // Basic validation: must have an id and title
+          if (!task.id || !task.title) {
+            console.warn('[TasksTab] Skipping task with missing id or title:', task);
+            return false;
+          }
+
+          // Validate dueDate if present
+          if (task.dueDate) {
+            const testDate = new Date(task.dueDate + 'T12:00:00');
+            if (isNaN(testDate.getTime())) {
+              console.warn('[TasksTab] Skipping task with invalid dueDate:', task.id, task.dueDate);
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        // If we filtered out invalid tasks, save the cleaned array
+        if (validTasks.length !== parsedTasks.length) {
+          console.warn(`[TasksTab] Filtered out ${parsedTasks.length - validTasks.length} invalid task(s)`);
+          localStorage.setItem('tasks', JSON.stringify(validTasks));
+          backupManager.saveAutoBackup();
+        }
+
         // Ensure all tasks have customPriority
-        const tasksWithPriority = parsedTasks.map((task, index) => ({
+        const tasksWithPriority = validTasks.map((task, index) => ({
           ...task,
-          customPriority: task.customPriority ?? (parsedTasks.length - index),
+          customPriority: task.customPriority ?? (validTasks.length - index),
         }));
         setTasks(tasksWithPriority);
       } catch (error) {
-        console.error('Error loading tasks from localStorage:', error);
+        console.error('[TasksTab] Error loading tasks from localStorage:', error);
+        console.warn('[TasksTab] Tasks data is corrupted. Please restore from backup.');
         setTasks([]);
       }
     }
@@ -67,17 +105,24 @@ const TasksTab = () => {
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
+    try {
+      // If task has a time, check date + time; otherwise just date
+      if (task.time) {
+        const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+        if (isNaN(taskDateTime.getTime())) return false;
+        const now = new Date();
+        return taskDateTime < now;
+      } else {
+        // No time - check date only (at noon to avoid timezone shift)
+        const now = new Date();
+        now.setHours(12, 0, 0, 0);
+        const dueDate = new Date(task.dueDate + 'T12:00:00');
+        if (isNaN(dueDate.getTime())) return false;
+        return dueDate < now;
+      }
+    } catch (error) {
+      console.error('[TasksTab] Error checking overdue status:', error, task);
+      return false;
     }
   };
 

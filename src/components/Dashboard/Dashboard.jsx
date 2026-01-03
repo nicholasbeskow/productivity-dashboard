@@ -546,13 +546,44 @@ const Dashboard = ({ setActiveTab }) => {
           const parsedTasks = JSON.parse(storedTasks);
           // Validate that parsedTasks is an array
           if (!Array.isArray(parsedTasks)) {
-            console.error('Invalid tasks data: expected array, got', typeof parsedTasks);
+            console.error('[Dashboard] Invalid tasks data: expected array, got', typeof parsedTasks);
+            console.warn('[Dashboard] Corrupted data detected. Please restore from backup or clear storage.');
             setTasks([]);
             return;
           }
-          setTasks(parsedTasks);
+
+          // Filter out tasks with invalid dates to prevent crashes
+          const validTasks = parsedTasks.filter(task => {
+            // Basic validation: must have an id and title
+            if (!task.id || !task.title) {
+              console.warn('[Dashboard] Skipping task with missing id or title:', task);
+              return false;
+            }
+
+            // Validate dueDate if present
+            if (task.dueDate) {
+              const testDate = new Date(task.dueDate + 'T12:00:00');
+              if (isNaN(testDate.getTime())) {
+                console.warn('[Dashboard] Skipping task with invalid dueDate:', task.id, task.dueDate);
+                return false;
+              }
+            }
+
+            return true;
+          });
+
+          // If we filtered out invalid tasks, save the cleaned array back to localStorage
+          if (validTasks.length !== parsedTasks.length) {
+            console.warn(`[Dashboard] Filtered out ${parsedTasks.length - validTasks.length} invalid task(s)`);
+            localStorage.setItem('tasks', JSON.stringify(validTasks));
+            backupManager.saveAutoBackup();
+          }
+
+          setTasks(validTasks);
         } catch (error) {
-          console.error('Error loading tasks:', error);
+          console.error('[Dashboard] Error loading tasks:', error);
+          console.warn('[Dashboard] Tasks data is corrupted. Please restore from backup.');
+          // Don't set empty array - keep existing state to avoid data loss
           setTasks([]);
         }
       }
