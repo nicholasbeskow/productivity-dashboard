@@ -1035,6 +1035,7 @@ const StatsTab = () => {
                   fillStyle: backgroundColor,
                   strokeStyle: borderColor,
                   lineWidth: 2,
+                  fontColor: '#ffffff',
                   hidden: false,
                   index: i
                 };
