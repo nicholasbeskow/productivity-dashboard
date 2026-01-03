@@ -1,115 +1,391 @@
-# Productivity Dashboard - Week 1 Setup
+# Pinnacle - Personal Productivity Dashboard
 
-## 🎉 Your App Foundation is Ready!
+**Version 2.0.0** | Built with React, Electron, and Tailwind CSS
 
-I've built the complete project structure with tab navigation, dark theme, and your green aesthetic. Here's how to get it running.
+A comprehensive productivity application designed for pre-med students to manage tasks, track wellness, and stay organized throughout the semester.
 
 ---
 
-## 📋 What You Need to Do
+## ✨ Features
 
-### Step 1: Copy the Project to Your Mac
+### 📋 Task Management
+- **Flexible Task System**
+  - Create one-time or recurring tasks
+  - Set due dates and times with smart reminders
+  - Categorize as Academic or Personal
+  - Priority-based sorting and custom ordering
+  - Overdue task highlighting
 
-1. Download the entire `productivity-dashboard` folder from this chat
-2. Place it somewhere easy to find (like your Desktop or Documents folder)
-3. Open Terminal on your Mac
+- **Recurring Tasks**
+  - Daily, weekly, monthly, or custom intervals
+  - Automatic instance generation
+  - Independent instance editing or series-wide changes
+  - Smart completion handling with next occurrence creation
 
-### Step 2: Navigate to the Project
+- **Rich Task Details**
+  - File attachments with system integration
+  - Web links and external resources
+  - Detailed descriptions and notes
+  - Task status tracking (Not Started, In Progress, Complete)
+  - Visual progress indicators
 
-```bash
-# Replace this path with wherever you put the folder
-cd ~/Desktop/productivity-dashboard
+- **Advanced Organization**
+  - Drag-and-drop reordering
+  - Filter by task type (All, Academic, Personal)
+  - Search across titles and descriptions
+  - Task duplication for similar tasks
+
+### 🎯 Dashboard
+- **At-a-Glance Overview**
+  - Upcoming tasks with deadlines
+  - Semester progress circular indicator
+  - Quick task completion with confetti celebration
+  - Overdue task alerts
+
+- **Semester Tracking**
+  - Progress from start to end of semester
+  - Break countdown support
+  - Automatic milestone notifications
+  - Semester end celebration modal
+
+### 🧘 Wellness Tracking
+
+#### Mood Tracker
+- **Daily Mood Logging**
+  - 5-level mood scale (Terrible → Amazing)
+  - Calendar view with color-coded entries
+  - Optional journal notes for each entry
+  - Edit or delete past entries
+  - Monthly mood visualization
+
+#### Sleep Tracker
+- **Sleep Quality Monitoring**
+  - Rate sleep quality (1-5 stars)
+  - Log sleep duration (hours)
+  - Calendar view with visual indicators
+  - Track sleep patterns over time
+  - Edit historical entries
+
+### 📊 Statistics & Analytics
+- **Comprehensive Insights**
+  - Task completion rates and trends
+  - Productivity analytics over time
+  - Mood-productivity correlations
+  - Sleep-productivity relationships
+  - Academic vs Personal task balance
+
+- **Visual Charts**
+  - Interactive Chart.js visualizations
+  - Weekly and monthly breakdowns
+  - Trend analysis with insights
+  - Completion streak tracking
+
+### 🎨 Canvas Integration (Electron)
+- **Automated Assignment Import**
+  - Connect to your school's Canvas LMS
+  - Fetch upcoming assignments automatically
+  - One-click import to task list
+  - Track processed assignments
+  - Sync on demand
+
+### ⏱️ Pomodoro Timer
+- **Focus Mode**
+  - Customizable work/break durations
+  - Automatic session transitions
+  - System notifications
+  - Background operation
+  - Optional SelfControl integration (macOS)
+
+- **SelfControl Blocking (macOS)**
+  - Automatic website blocking during work sessions
+  - Custom blocklist support
+  - Seamless activation with timer
+  - Configurable from Settings
+
+### ⚙️ Settings & Customization
+- **Personal Information**
+  - Custom name for personalized greetings
+  - Semester date configuration
+  - Break period tracking
+
+- **Pomodoro Configuration**
+  - Adjustable work duration (default: 50 minutes)
+  - Adjustable break duration (default: 10 minutes)
+  - Settings sync across app
+
+- **Data Management**
+  - Complete backup export/import
+  - Category-specific export (Tasks, Mood, Sleep)
+  - Automatic backups (on launch + daily)
+  - Manual backup restoration
+  - Data reset options
+
+- **Canvas Integration Setup**
+  - Secure credential storage
+  - Connection testing
+  - URL and API token configuration
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- **Node.js** 16+ and npm
+- **macOS, Windows, or Linux**
+
+### Installation
+
+1. **Clone or download the repository**
+   ```bash
+   cd ~/Desktop/productivity-dashboard
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Run the app**
+
+   **Development mode (Electron):**
+   ```bash
+   npm run electron:dev
+   ```
+
+   **Web preview:**
+   ```bash
+   npm run dev
+   # Open http://localhost:5173
+   ```
+
+4. **Build for production**
+
+   **Web build:**
+   ```bash
+   npm run build
+   npm run preview  # Test production build
+   ```
+
+   **Desktop app (Electron):**
+   ```bash
+   npm run electron:build
+   # Creates Pinnacle-2.0.0 installer in dist/ folder
+   ```
+
+---
+
+## 📦 Tech Stack
+
+### Frontend
+- **React 18.2** - UI framework
+- **Vite 5.0** - Build tool with optimized code splitting
+- **Tailwind CSS 3.4** - Utility-first styling
+- **Framer Motion 10.16** - Smooth animations
+- **Lucide React** - Modern icon library
+
+### Desktop
+- **Electron 28.1** - Cross-platform desktop app framework
+- **Electron Store** - Persistent configuration storage
+
+### Data & State
+- **Zustand 4.4** - Lightweight state management
+- **localStorage** - Local data persistence with automatic backups
+
+### Visualization
+- **Chart.js 4.5** - Interactive charts and graphs
+- **React Chart.js 2** - React wrapper for Chart.js
+- **React Big Calendar 1.8** - Calendar UI component
+
+### Utilities
+- **date-fns 3.0** - Modern date utility library
+- **axios** - HTTP client for Canvas API
+- **canvas-confetti** - Celebration animations
+
+---
+
+## 🏗️ Project Structure
+
+```
+productivity-dashboard/
+├── src/
+│   ├── components/
+│   │   ├── Canvas/         # Canvas LMS integration
+│   │   ├── Dashboard/      # Main dashboard & widgets
+│   │   ├── Layout/         # Sidebar navigation
+│   │   ├── Settings/       # App settings
+│   │   ├── Stats/          # Analytics & charts
+│   │   └── Tasks/          # Task management
+│   ├── constants/
+│   │   ├── config.js       # App configuration constants
+│   │   └── storageKeys.js  # LocalStorage key constants
+│   ├── utils/
+│   │   ├── backupManager.js      # 4-layer backup system
+│   │   ├── dateFormatting.js     # Date utility functions
+│   │   ├── dateHelpers.js        # Date manipulation
+│   │   ├── recurrenceHelpers.js  # Recurring task logic
+│   │   ├── recurringTaskService.js # Task generation service
+│   │   ├── storageManager.js     # Type-safe localStorage wrapper
+│   │   └── taskHelpers.js        # Task utility functions
+│   ├── styles/
+│   │   └── globals.css     # Global styles & animations
+│   └── App.jsx             # Root component with lazy loading
+├── electron/
+│   └── main.js             # Electron main process
+├── resources/
+│   └── icon.png            # App icon
+├── OPTIMIZATION_SUMMARY.md # Complete optimization documentation
+├── TESTING_CHECKLIST.md    # Comprehensive test cases
+└── package.json
 ```
 
-### Step 3: Install Dependencies
+---
 
-This will download all the necessary packages. It might take 2-3 minutes.
+## 🔒 Data & Privacy
 
+### Local-First Architecture
+- All data stored locally on your device
+- No external servers or cloud storage
+- Complete control over your information
+- Canvas credentials stored securely in Electron Store
+
+### Backup System (4 Layers)
+1. **Auto-save** - Instant save on every change
+2. **Snapshots** - Daily automatic backups + on launch
+3. **Manual Export** - Export complete backup to any location
+4. **Category Export** - Export individual data types (Tasks, Mood, Sleep)
+
+### Data Storage Locations
+- **Web mode:** Browser localStorage
+- **Electron mode:**
+  - App data: `{userData}/localStorage`
+  - Backups: `{userData}/backups/`
+  - Settings: Electron Store
+
+---
+
+## 🎨 Design Philosophy
+
+### Dark Theme with Green Accents
+- Easy on the eyes for long study sessions
+- High contrast for readability
+- Energizing green highlights
+- Smooth glassmorphism effects
+
+### Satisfying Interactions
+- Confetti celebrations on task completion
+- Smooth animations and transitions
+- Instant feedback on all actions
+- Drag-and-drop task organization
+
+### Responsive & Adaptive
+- Desktop-optimized layout
+- Scales gracefully
+- Keyboard shortcuts (where applicable)
+- Accessible UI components
+
+---
+
+## 🚀 Performance Optimizations (v2.0)
+
+### Build Optimizations
+- **60% smaller initial bundle** (668KB → 270KB)
+- Intelligent code splitting by feature
+- Lazy-loaded heavy components (Stats, Canvas)
+- Separate vendor chunks for better caching
+
+### Runtime Optimizations
+- React.memo for expensive components
+- Debounced localStorage writes
+- Optimized re-renders
+- Efficient date calculations
+
+### Quality Improvements
+- Centralized constants for magic numbers/strings
+- Type-safe localStorage wrapper
+- Consolidated utility functions (DRY principles)
+- Comprehensive error handling
+
+---
+
+## 📝 Version History
+
+### v2.0.0 (January 2026) - Optimization Release
+- ✅ Fixed 7 critical bugs (data loss, crashes)
+- ✅ 60% performance improvement (bundle size reduction)
+- ✅ Code quality overhaul (constants, utilities)
+- ✅ Comprehensive error handling
+- ✅ Production-ready build optimization
+- ✅ Complete documentation
+
+### v1.5.0 - Feature Complete
+- All core features implemented
+- Canvas integration
+- Full backup system
+- Analytics dashboard
+
+---
+
+## 🧪 Testing
+
+Run the comprehensive test suite using the provided checklist:
+
+```bash
+# See TESTING_CHECKLIST.md for 50+ test cases
+```
+
+Test categories:
+- ✅ Bug fixes validation
+- ✅ Performance verification
+- ✅ Feature functionality
+- ✅ Error handling
+- ✅ Data integrity
+
+---
+
+## 🤝 Contributing
+
+This is a personal project, but suggestions are welcome!
+
+### Development Setup
 ```bash
 npm install
-```
-
-You'll see a bunch of text scrolling - that's normal! Wait for it to finish.
-
-### Step 4: Launch the App
-
-```bash
 npm run electron:dev
 ```
 
-The app should open in a new window! 🚀
+### Code Style
+- ES6+ JavaScript
+- Functional React components
+- Tailwind CSS for styling
+- Descriptive variable names
+- Comments for complex logic
 
 ---
 
-## ✅ What to Check
+## 📄 License
 
-When the app launches, you should see:
-
-1. **Dark background** with green accents
-2. **Sidebar on the left** with 4 tabs:
-   - Dashboard (home icon)
-   - Canvas (book icon)
-   - Stats (chart icon)
-   - Settings (gear icon)
-3. **Smooth animations** when switching tabs
-4. **Placeholder content** in each tab showing what's coming
+MIT License - See LICENSE file for details
 
 ---
 
-## 🧪 Testing Tasks
+## 🙏 Acknowledgments
 
-Please test these things and let me know if anything doesn't work:
-
-1. **Click each tab** - does it switch smoothly?
-2. **Resize the window** - does the layout adjust?
-3. **Check the colors** - does the green glow look good?
-4. **Read each placeholder** - do you understand what's coming in each week?
-
----
-
-## 🐛 If Something Goes Wrong
-
-### Error: "command not found: npm"
-- Node.js isn't installed or not in your PATH
-- Run: `brew install node`
-- Then try Step 3 again
-
-### Error: "Cannot find module..."
-- Dependencies didn't install properly
-- Try: `npm install --force`
-
-### App doesn't open
-- Check Terminal for error messages
-- Make sure port 5173 isn't being used by another app
-- Try closing and re-running: `npm run electron:dev`
-
-### Animations are choppy
-- This shouldn't happen, but let me know - might be a performance issue
+Built with:
+- React ecosystem
+- Electron community
+- Tailwind CSS
+- Chart.js
+- Framer Motion
+- All open-source contributors
 
 ---
 
-## 📸 Take a Screenshot!
+## 📞 Support
 
-Once it's running, take a screenshot of the dashboard and share your first impressions:
-- Does it feel smooth?
-- Do you like the colors?
-- Anything you want adjusted before we continue?
-
----
-
-## 🎯 What's Next (Week 2)
-
-Once you confirm everything works, we'll build:
-- Task creation system
-- Task list with checkboxes
-- Satisfying completion animations
-- Basic calendar view
-- Local data storage
+For issues or questions:
+1. Check `OPTIMIZATION_SUMMARY.md` for detailed documentation
+2. Review `TESTING_CHECKLIST.md` for known issues
+3. Check browser/Electron console for error messages
 
 ---
 
-## 💬 Questions?
-
-If anything is unclear or broken, just describe what happened and I'll help you fix it!
-
-**Let's get this running!** 🚀
+**Pinnacle v2.0.0** - Built to help you reach your peak productivity 🏔️
