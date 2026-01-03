@@ -37,18 +37,17 @@ export default defineConfig({
     // Optimize bundle size and performance
     rollupOptions: {
       output: {
-        // Ensure stable chunk names for better caching
-        entryFileNames: 'assets/[name].[hash].js',
-        chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]',
         // Manual chunk splitting for better caching
         manualChunks(id) {
-          // React core
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+          // React core - must load first
+          if (id.includes('node_modules/react') ||
+              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/scheduler')) {
             return 'vendor-react';
           }
           // Chart.js (heavy - only loads with Stats tab)
-          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2')) {
+          if (id.includes('node_modules/chart.js') ||
+              id.includes('node_modules/react-chartjs-2')) {
             return 'vendor-charts';
           }
           // Animation library
@@ -56,18 +55,16 @@ export default defineConfig({
             return 'vendor-animation';
           }
           // Date libraries
-          if (id.includes('node_modules/date-fns') || id.includes('node_modules/react-big-calendar')) {
+          if (id.includes('node_modules/date-fns') ||
+              id.includes('node_modules/react-big-calendar')) {
             return 'vendor-date';
           }
           // Icons
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-icons';
           }
-          // State management
-          if (id.includes('node_modules/zustand')) {
-            return 'vendor-state';
-          }
-          // Other node_modules go into vendor chunk
+          // Other node_modules - includes zustand and other React-dependent libs
+          // Keep together to ensure proper loading order
           if (id.includes('node_modules')) {
             return 'vendor';
           }
