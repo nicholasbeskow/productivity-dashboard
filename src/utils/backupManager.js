@@ -24,14 +24,24 @@ class BackupManager {
    * Get all localStorage AND electron-store data for backup
    */
   async getAllData() {
+    // Helper to safely parse JSON from localStorage
+    const safeParse = (key, defaultValue = '[]') => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || defaultValue);
+      } catch (error) {
+        console.error(`[BackupManager] Error parsing ${key}:`, error);
+        return JSON.parse(defaultValue);
+      }
+    };
+
     // 1. Get renderer-side data from localStorage
     const localData = {
-      tasks: JSON.parse(localStorage.getItem('tasks') || '[]'),
-      completedTasks: JSON.parse(localStorage.getItem('completedTasks') || '[]'),
-      recurringTasks: JSON.parse(localStorage.getItem('recurringTasks') || '[]'),
-      moodLog: JSON.parse(localStorage.getItem('moodLog') || '[]'),
-      journalLog: JSON.parse(localStorage.getItem('journalLog') || '[]'),
-      sleepLog: JSON.parse(localStorage.getItem('sleepLog') || '[]'),
+      tasks: safeParse('tasks', '[]'),
+      completedTasks: safeParse('completedTasks', '[]'),
+      recurringTasks: safeParse('recurringTasks', '[]'),
+      moodLog: safeParse('moodLog', '[]'),
+      journalLog: safeParse('journalLog', '[]'),
+      sleepLog: safeParse('sleepLog', '[]'),
       userName: localStorage.getItem('userName') || '',
       breakStartDate: localStorage.getItem('breakStartDate') || '',
       semesterStartDate: localStorage.getItem('semesterStartDate') || '',

@@ -81,20 +81,33 @@ const MoodTracker = () => {
   // Load Data
   useEffect(() => {
     const loadData = () => {
-      const storedMoods = JSON.parse(localStorage.getItem('moodLog') || '[]');
-      const storedJournal = JSON.parse(localStorage.getItem('journalLog') || '[]');
-      const storedSleep = JSON.parse(localStorage.getItem('sleepLog') || '[]');
-      const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-      const storedCompletedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-      setMoodLog(storedMoods);
-      setJournalLog(storedJournal);
-      setSleepLog(storedSleep);
-      setTasks(storedTasks);
-      setCompletedTasks(storedCompletedTasks);
+      try {
+        const storedMoods = JSON.parse(localStorage.getItem('moodLog') || '[]');
+        const storedJournal = JSON.parse(localStorage.getItem('journalLog') || '[]');
+        const storedSleep = JSON.parse(localStorage.getItem('sleepLog') || '[]');
+        const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+        const storedCompletedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
 
-      const todayEntry = storedMoods.find(e => e.date === getDateString(new Date()));
-      // Start in month view by default unless you want to force entry
-      setView(todayEntry ? 'month' : 'select');
+        // Validate arrays
+        setMoodLog(Array.isArray(storedMoods) ? storedMoods : []);
+        setJournalLog(Array.isArray(storedJournal) ? storedJournal : []);
+        setSleepLog(Array.isArray(storedSleep) ? storedSleep : []);
+        setTasks(Array.isArray(storedTasks) ? storedTasks : []);
+        setCompletedTasks(Array.isArray(storedCompletedTasks) ? storedCompletedTasks : []);
+
+        const todayEntry = Array.isArray(storedMoods) ? storedMoods.find(e => e.date === getDateString(new Date())) : null;
+        // Start in month view by default unless you want to force entry
+        setView(todayEntry ? 'month' : 'select');
+      } catch (error) {
+        console.error('[MoodTracker] Error loading data:', error);
+        // Set defaults on error
+        setMoodLog([]);
+        setJournalLog([]);
+        setSleepLog([]);
+        setTasks([]);
+        setCompletedTasks([]);
+        setView('select');
+      }
     };
 
     loadData();
