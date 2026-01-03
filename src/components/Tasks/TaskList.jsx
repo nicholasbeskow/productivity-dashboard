@@ -4,6 +4,7 @@ import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
+import { isTaskOverdue } from '../../utils/taskHelpers';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
@@ -46,30 +47,6 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
   const handleAttachmentDragEnd = () => {
     setDraggedAttachmentIndex(null);
     setDragOverAttachmentIndex(null);
-  };
-
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
-
-    try {
-      // If task has a time, check date + time; otherwise just date
-      if (task.time) {
-        const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-        if (isNaN(taskDateTime.getTime())) return false;
-        const now = new Date();
-        return taskDateTime < now;
-      } else {
-        // No time - check date only (at noon to avoid timezone shift)
-        const now = new Date();
-        now.setHours(12, 0, 0, 0);
-        const dueDate = new Date(task.dueDate + 'T12:00:00');
-        if (isNaN(dueDate.getTime())) return false;
-        return dueDate < now;
-      }
-    } catch (error) {
-      console.error('[TaskList] Error checking overdue status:', error, task);
-      return false;
-    }
   };
 
   const getStatusIcon = (status) => {
@@ -188,7 +165,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const taskIsOverdue = isOverdue(task);
+  const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
@@ -739,7 +716,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               customPriority: activeTasks.length - index,
             }));
 
-            console.log(`[TaskList] Recurring task completed. Next occurrence: ${nextDueDate} at position ${insertIndex}`);
           } else {
             console.warn(`[TaskList] Orphaned task detected: templateId "${taskToComplete.templateId}" not found. Task will not generate next occurrence.`);
           }
@@ -807,7 +783,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
     const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
 
-    console.log('[TaskList] Drag from index', draggedIndex, 'to', dropIndex);
 
     const newTasks = [...tasks];
     const [removed] = newTasks.splice(draggedIndex, 1);
@@ -819,11 +794,9 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       customPriority: newTasks.length - index, // Higher number = higher priority
     }));
 
-    console.log('[TaskList] Updated priorities:', updatedTasks.map(t => ({ title: t.title, priority: t.customPriority })));
 
     // Save immediately to localStorage
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    console.log('[TaskList] Saved to localStorage');
 
     // Backup after save
     backupManager.saveAutoBackup();
@@ -871,7 +844,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     if (task.templateId && scope === 'series') {
       // NUCLEAR REBUILD: When editing series, delete old template/instances and create new ones
       // This ensures recurrence type changes work correctly
-      console.log('[TaskList] Series edit - nuclear rebuild');
 
       const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
       const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
@@ -925,7 +897,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskList] Nuclear rebuild complete:', { newTemplate, newInstance });
       handleCancelEdit();
       return;
     } else {
@@ -947,7 +918,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       setTasks(updatedTasks);
       backupManager.saveAutoBackup();
 
-      console.log('[TaskList] Saved changes to task instance');
     }
 
     handleCancelEdit();
@@ -1040,7 +1010,6 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskList] Deleted recurring template and its instances');
     }
   };
 

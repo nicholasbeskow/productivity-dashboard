@@ -395,8 +395,6 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       // Dispatch storage event to update UI
       window.dispatchEvent(new Event('storage'));
 
-      console.log('[TaskForm] Created recurring task template:', template);
-
       // For recurring tasks, always generate at least one instance
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
@@ -469,8 +467,6 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
       // Pass this new instance to the main TaskList
       onTaskCreate(generatedTask);
-
-      console.log('[TaskForm] Generated instance for:', instanceDate, generatedTask);
     } else {
       // Create a normal one-time task
       const newTask = {

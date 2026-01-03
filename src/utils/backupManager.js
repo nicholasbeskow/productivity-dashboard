@@ -186,7 +186,6 @@ class BackupManager {
         const data = await this.getAllData();
         const { ipcRenderer } = window.require('electron');
         await ipcRenderer.invoke('backup:save-snapshot', data);
-        console.log('✅ Startup backup created');
       } catch (error) {
         console.error('Startup backup error:', error);
       }
@@ -206,7 +205,6 @@ class BackupManager {
           const data = await this.getAllData();
           const { ipcRenderer } = window.require('electron');
           await ipcRenderer.invoke('backup:save-snapshot', data);
-          console.log('✅ Daily backup created');
 
           // Schedule next backup for tomorrow midnight
           scheduleNextBackup();
@@ -217,7 +215,6 @@ class BackupManager {
     };
 
     scheduleNextBackup();
-    console.log('[BackupManager] Auto-backup system initialized (launch + daily at midnight)');
   }
 
   /**
@@ -227,7 +224,6 @@ class BackupManager {
     if (this.snapshotTimeout) {
       clearTimeout(this.snapshotTimeout);
       this.snapshotTimeout = null;
-      console.log('[BackupManager] Auto-backup system stopped');
     }
   }
 

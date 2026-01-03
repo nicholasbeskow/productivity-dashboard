@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import backupManager from '../../utils/backupManager';
+import { isTaskOverdue } from '../../utils/taskHelpers';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
@@ -102,30 +103,6 @@ const TasksTab = () => {
     window.dispatchEvent(new Event('taskFilterChanged'));
   };
 
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
-
-    try {
-      // If task has a time, check date + time; otherwise just date
-      if (task.time) {
-        const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-        if (isNaN(taskDateTime.getTime())) return false;
-        const now = new Date();
-        return taskDateTime < now;
-      } else {
-        // No time - check date only (at noon to avoid timezone shift)
-        const now = new Date();
-        now.setHours(12, 0, 0, 0);
-        const dueDate = new Date(task.dueDate + 'T12:00:00');
-        if (isNaN(dueDate.getTime())) return false;
-        return dueDate < now;
-      }
-    } catch (error) {
-      console.error('[TasksTab] Error checking overdue status:', error, task);
-      return false;
-    }
-  };
-
   // Smart sorting: overdue first, then by due date, then by custom priority
   const sortedTasks = useMemo(() => {
     const lowerCaseSearch = searchTerm.toLowerCase();
@@ -148,8 +125,8 @@ const TasksTab = () => {
         return titleMatch || descMatch;
       })
       .sort((a, b) => {
-      const aOverdue = isOverdue(a);
-      const bOverdue = isOverdue(b);
+      const aOverdue = isTaskOverdue(a);
+      const bOverdue = isTaskOverdue(b);
 
       // Overdue tasks first
       if (aOverdue && !bOverdue) return -1;
@@ -211,7 +188,7 @@ const TasksTab = () => {
         const task = tasks[i];
 
         // Skip overdue tasks
-        if (isOverdue(task)) continue;
+        if (isTaskOverdue(task)) continue;
 
         // If task has no due date or later due date, insert before it
         // Parse existing task date at noon for correct comparison

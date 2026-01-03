@@ -1,6 +1,7 @@
 import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
+import { isTaskOverdue } from '../../utils/taskHelpers';
 
 const CanvasTab = () => {
   const [newAssignments, setNewAssignments] = useState([]);
@@ -98,22 +99,6 @@ const CanvasTab = () => {
     backupManager.saveAutoBackup();
   };
 
-  // Helper to check if a task is overdue
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
-
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDateObj = new Date(task.dueDate + 'T12:00:00');
-      return dueDateObj < now;
-    }
-  };
-
   // Handle adding assignment to tasks
   const handleAddTask = (assignment) => {
     try {
@@ -158,7 +143,7 @@ const CanvasTab = () => {
           const task = tasks[i];
 
           // Skip overdue tasks
-          if (isOverdue(task)) continue;
+          if (isTaskOverdue(task)) continue;
 
           // If task has no due date or later due date, insert before it
           if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
@@ -202,8 +187,6 @@ const CanvasTab = () => {
 
       // Mark assignment as processed
       handleIgnore(assignment.id);
-
-      console.log('Task added successfully:', newTask);
     } catch (error) {
       console.error('Error adding task:', error);
       alert('Failed to add task. Please try again.');
