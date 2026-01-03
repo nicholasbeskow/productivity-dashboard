@@ -227,13 +227,33 @@ const StatsTab = () => {
     const totalQuality = filteredSleep.reduce((acc, e) => acc + e.quality, 0);
     const avgQuality = totalQuality / filteredSleep.length;
 
-    // Calculate sleep debt for past 7 days only
-    const last7Days = subDays(today, 6);
-    const last7DaysStr = format(last7Days, 'yyyy-MM-dd');
-    const last7DaysSleep = sleepLog.filter(e => e.date >= last7DaysStr && e.date <= todayStr);
-    const totalHoursLast7 = last7DaysSleep.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0);
-    const targetTotal = last7DaysSleep.length * SLEEP_TARGET;
-    const sleepDebt = Math.max(0, targetTotal - totalHoursLast7);
+    // Calculate sleep debt for past 7 days using cumulative approach
+    const last7DaysData = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(today, i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const entry = sleepLog.find(e => e.date === dateStr);
+      if (entry) {
+        last7DaysData.push({
+          date: dateStr,
+          sleep: entry.totalSleep ?? entry.hours
+        });
+      }
+    }
+
+    let cumulativeDebt = 0;
+    last7DaysData.forEach(day => {
+      if (day.sleep < SLEEP_TARGET) {
+        // Deficit: add to debt
+        cumulativeDebt += (SLEEP_TARGET - day.sleep);
+      } else {
+        // Surplus: reduce debt (but don't go below 0)
+        const surplus = day.sleep - SLEEP_TARGET;
+        cumulativeDebt = Math.max(0, cumulativeDebt - surplus);
+      }
+    });
+
+    const sleepDebt = cumulativeDebt;
 
     // Calculate streak
     let currentStreak = 0;
@@ -1703,9 +1723,9 @@ const StatsTab = () => {
                 Sleep Debt (7 days)
               </p>
               <div className={`text-4xl font-bold mb-1 ${
-                sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-purple-400' :
+                sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-green-glow' :
                 sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
-                sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-purple-400'
+                'text-orange-500'
               }`}>
                 {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
               </div>

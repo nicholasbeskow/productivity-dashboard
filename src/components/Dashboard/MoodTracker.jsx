@@ -264,11 +264,12 @@ const MoodTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none group ${
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             mood ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
           }`}
+          style={{ border: 'none', outline: 'none' }}
           whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
@@ -310,36 +311,49 @@ const MoodTracker = () => {
       ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
       : null;
 
-    // Calculate mood-task completion correlation
-    const moodTaskPairs = moodLog
-      .map(moodEntry => {
-        const completedOnDate = completedTasks.filter(t => {
-          if (!t.completedAt) return false;
-          const completedDate = t.completedAt.split('T')[0];
-          return completedDate === moodEntry.date;
-        }).length;
+    // Calculate mood-task correlation (matching Stats tab format)
+    let correlationText = 'Not enough data';
+    let correlationValue = null;
 
-        const allTasksOnDate = [...tasks, ...completedTasks].filter(t => t.dueDate === moodEntry.date);
+    if (moodLog.length > 0 && completedTasks.length > 0) {
+      const goodMoodDays = new Set();
+      const badMoodDays = new Set();
 
-        const completionRate = allTasksOnDate.length > 0
-          ? (completedOnDate / allTasksOnDate.length) * 100
-          : null;
+      moodLog.forEach(entry => {
+        if (entry.level >= 4) goodMoodDays.add(entry.date);
+        else if (entry.level <= 2) badMoodDays.add(entry.date);
+      });
 
-        return completionRate !== null ? { mood: moodEntry.level, completionRate } : null;
-      })
-      .filter(Boolean);
+      if (goodMoodDays.size > 0 && badMoodDays.size > 0) {
+        let goodDayTaskCount = 0;
+        let badDayTaskCount = 0;
 
-    let correlation = null;
-    if (moodTaskPairs.length >= 3) {
-      const avgMoodVal = moodTaskPairs.reduce((sum, p) => sum + p.mood, 0) / moodTaskPairs.length;
-      const avgCompletionRate = moodTaskPairs.reduce((sum, p) => sum + p.completionRate, 0) / moodTaskPairs.length;
+        completedTasks.forEach(task => {
+          const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+          if (goodMoodDays.has(completedDate)) {
+            goodDayTaskCount++;
+          } else if (badMoodDays.has(completedDate)) {
+            badDayTaskCount++;
+          }
+        });
 
-      const numerator = moodTaskPairs.reduce((sum, p) => sum + (p.mood - avgMoodVal) * (p.completionRate - avgCompletionRate), 0);
-      const denomMood = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.mood - avgMoodVal, 2), 0));
-      const denomCompletion = Math.sqrt(moodTaskPairs.reduce((sum, p) => sum + Math.pow(p.completionRate - avgCompletionRate, 2), 0));
+        const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
+        const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
 
-      if (denomMood !== 0 && denomCompletion !== 0) {
-        correlation = (numerator / (denomMood * denomCompletion)).toFixed(2);
+        if (avgTasksOnBadDays > 0) {
+          const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
+          correlationText = 'more tasks on good days';
+          correlationValue = `${multiplier.toFixed(1)}x`;
+        } else if (avgTasksOnGoodDays > 0) {
+          correlationText = 'tasks on good days (vs 0 on bad)';
+          correlationValue = `${goodDayTaskCount} total`;
+        } else {
+          correlationText = 'No task/mood overlap found';
+          correlationValue = null;
+        }
+      } else {
+        correlationText = 'Log more good/bad days';
+        correlationValue = null;
       }
     }
 
@@ -361,7 +375,7 @@ const MoodTracker = () => {
       return 'text-red-500';
     };
 
-    return { avgMood, correlation, last7Moods, getMoodLabel, getMoodColor };
+    return { avgMood, correlationText, correlationValue, last7Moods, getMoodLabel, getMoodColor };
   }, [moodLog, tasks, completedTasks]);
 
   return (
@@ -410,25 +424,17 @@ const MoodTracker = () => {
               </div>
               <div className="liquid-bubble-filled rounded-lg p-3">
                 <p className="text-xs text-white/50 mb-1">Mood-Task Link</p>
-                {moodStats.correlation !== null ? (
+                {moodStats.correlationValue ? (
                   <>
-                    <p className={`text-lg font-bold ${
-                      parseFloat(moodStats.correlation) >= 0.5 ? 'text-green-glow' :
-                      parseFloat(moodStats.correlation) >= 0.3 ? 'text-yellow-500' :
-                      parseFloat(moodStats.correlation) >= 0 ? 'text-blue-400' :
-                      parseFloat(moodStats.correlation) >= -0.3 ? 'text-orange-500' : 'text-red-500'
-                    }`}>
-                      {parseFloat(moodStats.correlation) >= 0 ? '+' : ''}{moodStats.correlation}
+                    <p className="text-lg font-bold text-green-glow">
+                      {moodStats.correlationValue}
                     </p>
                     <p className="text-[10px] text-white/40">
-                      {parseFloat(moodStats.correlation) >= 0.5 ? 'Strong positive' :
-                       parseFloat(moodStats.correlation) >= 0.3 ? 'Moderate positive' :
-                       parseFloat(moodStats.correlation) >= 0 ? 'Weak positive' :
-                       parseFloat(moodStats.correlation) >= -0.3 ? 'Weak negative' : 'Moderate negative'}
+                      {moodStats.correlationText}
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-white/40">Need 3+ days</p>
+                  <p className="text-sm text-white/40">{moodStats.correlationText}</p>
                 )}
               </div>
             </div>

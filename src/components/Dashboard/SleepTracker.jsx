@@ -249,32 +249,49 @@ const SleepTracker = () => {
     setView('month');
   };
 
-  // Calculate sleep debt using total sleep (7 days including today)
+  // Calculate sleep debt using cumulative approach (7 days including today)
   const calculateSleepDebt = () => {
-    const last7Days = [];
     const today = new Date();
-    for (let i = 0; i <= 6; i++) { // 7 days including today
+    const last7DaysData = [];
+
+    // Get sleep data for last 7 days (including today), in chronological order
+    for (let i = 6; i >= 0; i--) {
       const dateStr = getDateString(subDays(today, i));
       const entry = sleepLog.find(e => e.date === dateStr);
-      // Use totalSleep if available (new format), otherwise fall back to hours (legacy)
-      if (entry) last7Days.push(entry.totalSleep ?? entry.hours);
+      if (entry) {
+        last7DaysData.push({
+          date: dateStr,
+          sleep: entry.totalSleep ?? entry.hours
+        });
+      }
     }
 
-    if (last7Days.length === 0) return null;
+    if (last7DaysData.length === 0) return null;
 
-    const totalSleepHours = last7Days.reduce((a, b) => a + b, 0);
-    const avgSleep = totalSleepHours / last7Days.length;
-    const targetSleep = (SLEEP_TARGET_MIN + SLEEP_TARGET_MAX) / 2;
-    // Weekly debt = target for days tracked - actual hours slept
-    const targetTotal = targetSleep * last7Days.length;
-    const debt = targetTotal - totalSleepHours;
+    const TARGET_SLEEP = 7.5; // Sleep target in hours
+    let cumulativeDebt = 0;
+
+    // Calculate cumulative debt chronologically
+    last7DaysData.forEach(day => {
+      if (day.sleep < TARGET_SLEEP) {
+        // Deficit: add to debt
+        cumulativeDebt += (TARGET_SLEEP - day.sleep);
+      } else {
+        // Surplus: reduce debt (but don't go below 0)
+        const surplus = day.sleep - TARGET_SLEEP;
+        cumulativeDebt = Math.max(0, cumulativeDebt - surplus);
+      }
+    });
+
+    const totalSleepHours = last7DaysData.reduce((sum, day) => sum + day.sleep, 0);
+    const avgSleep = totalSleepHours / last7DaysData.length;
 
     return {
       avgSleep: avgSleep.toFixed(1),
-      debt: debt.toFixed(1), // Can be negative (surplus)
-      hasSurplus: debt < 0,
-      daysTracked: last7Days.length,
-      targetPerNight: targetSleep
+      debt: cumulativeDebt.toFixed(1), // Always >= 0
+      hasSurplus: false, // Debt can never be negative
+      daysTracked: last7DaysData.length,
+      targetPerNight: TARGET_SLEEP
     };
   };
 
@@ -300,11 +317,12 @@ const SleepTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none group ${
+          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${
             isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             sleepEntry ? 'liquid-bubble-filled' :
             isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
           }`}
+          style={{ border: 'none', outline: 'none' }}
           whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
         >
@@ -373,11 +391,11 @@ const SleepTracker = () => {
           <div className="liquid-bubble-filled rounded-lg p-3">
             <p className="text-xs text-white/50 mb-1">Weekly Sleep Debt</p>
             <p className={`text-lg font-bold ${
-              sleepDebt.hasSurplus ? 'text-green-glow' :
+              parseFloat(sleepDebt.debt) === 0 ? 'text-green-glow' :
               parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
-              parseFloat(sleepDebt.debt) > 0 ? 'text-orange-500' : 'text-green-glow'
+              'text-orange-500'
             }`}>
-              {sleepDebt.hasSurplus ? `+${Math.abs(parseFloat(sleepDebt.debt)).toFixed(1)}h` : `${sleepDebt.debt}h`}
+              {sleepDebt.debt}h
             </p>
             <p className="text-[10px] text-white/40">vs {sleepDebt.targetPerNight}h/night target</p>
           </div>
@@ -438,19 +456,57 @@ const SleepTracker = () => {
               <label className="block text-sm text-white/70 mb-3">
                 Night Sleep: <span className="text-purple-400 font-bold">{selectedHours}h</span>
               </label>
-              <input
-                type="range"
-                min="0"
-                max="12"
-                step="0.5"
-                value={selectedHours}
-                onChange={(e) => setSelectedHours(parseFloat(e.target.value))}
-                className="w-full h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-purple-500"
-              />
-              <div className="flex justify-between text-xs text-text-tertiary mt-1">
-                <span>0h</span>
-                <span className="text-green-glow">7-8h (ideal)</span>
-                <span>12h</span>
+              <div className="liquid-bubble-filled rounded-xl p-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="12"
+                  step="0.5"
+                  value={selectedHours}
+                  onChange={(e) => setSelectedHours(parseFloat(e.target.value))}
+                  className="w-full h-3 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, rgba(168, 85, 247, 0.6) 0%, rgba(168, 85, 247, 0.8) ${(selectedHours / 12) * 100}%, rgba(255, 255, 255, 0.1) ${(selectedHours / 12) * 100}%, rgba(255, 255, 255, 0.1) 100%)`,
+                    WebkitAppearance: 'none',
+                  }}
+                />
+                <style>{`
+                  input[type="range"]::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(124, 58, 237, 1));
+                    cursor: pointer;
+                    box-shadow: 0 0 12px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    transition: all 0.2s ease;
+                  }
+                  input[type="range"]::-webkit-slider-thumb:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 0 16px rgba(168, 85, 247, 0.7), 0 0 28px rgba(168, 85, 247, 0.4);
+                  }
+                  input[type="range"]::-moz-range-thumb {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(124, 58, 237, 1));
+                    cursor: pointer;
+                    box-shadow: 0 0 12px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    transition: all 0.2s ease;
+                  }
+                  input[type="range"]::-moz-range-thumb:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 0 16px rgba(168, 85, 247, 0.7), 0 0 28px rgba(168, 85, 247, 0.4);
+                  }
+                `}</style>
+                <div className="flex justify-between text-xs text-white/40 mt-2">
+                  <span>0h</span>
+                  <span className="text-purple-400 font-semibold">7-8h (ideal)</span>
+                  <span>12h</span>
+                </div>
               </div>
             </div>
 

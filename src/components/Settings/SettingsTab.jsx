@@ -141,6 +141,111 @@ const SettingsTab = () => {
     }
   };
 
+  const handleExportMood = async () => {
+    if (!window.require) {
+      showMessage('Export not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const moodLog = JSON.parse(localStorage.getItem('moodLog') || '[]');
+      const journalLog = JSON.parse(localStorage.getItem('journalLog') || '[]');
+
+      const moodData = {
+        moodLog,
+        journalLog,
+        exportedAt: new Date().toISOString(),
+        type: 'mood-export'
+      };
+
+      const result = await ipcRenderer.invoke('dialog:show-save-dialog', {
+        title: 'Export Mood Data',
+        defaultPath: `mood-data-${new Date().toISOString().split('T')[0]}.json`,
+        filters: [{ name: 'JSON Files', extensions: ['json'] }]
+      });
+
+      if (!result.canceled && result.filePath) {
+        const fs = window.require('fs');
+        fs.writeFileSync(result.filePath, JSON.stringify(moodData, null, 2));
+        showMessage('Mood data exported successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Export mood error:', error);
+      showMessage(`Export failed: ${error.message}`, 'error');
+    }
+  };
+
+  const handleExportSleep = async () => {
+    if (!window.require) {
+      showMessage('Export not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const sleepLog = JSON.parse(localStorage.getItem('sleepLog') || '[]');
+
+      const sleepData = {
+        sleepLog,
+        exportedAt: new Date().toISOString(),
+        type: 'sleep-export'
+      };
+
+      const result = await ipcRenderer.invoke('dialog:show-save-dialog', {
+        title: 'Export Sleep Data',
+        defaultPath: `sleep-data-${new Date().toISOString().split('T')[0]}.json`,
+        filters: [{ name: 'JSON Files', extensions: ['json'] }]
+      });
+
+      if (!result.canceled && result.filePath) {
+        const fs = window.require('fs');
+        fs.writeFileSync(result.filePath, JSON.stringify(sleepData, null, 2));
+        showMessage('Sleep data exported successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Export sleep error:', error);
+      showMessage(`Export failed: ${error.message}`, 'error');
+    }
+  };
+
+  const handleExportTasks = async () => {
+    if (!window.require) {
+      showMessage('Export not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+      const recurringTasks = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+
+      const taskData = {
+        tasks,
+        completedTasks,
+        recurringTasks,
+        exportedAt: new Date().toISOString(),
+        type: 'tasks-export'
+      };
+
+      const result = await ipcRenderer.invoke('dialog:show-save-dialog', {
+        title: 'Export Tasks Data',
+        defaultPath: `tasks-data-${new Date().toISOString().split('T')[0]}.json`,
+        filters: [{ name: 'JSON Files', extensions: ['json'] }]
+      });
+
+      if (!result.canceled && result.filePath) {
+        const fs = window.require('fs');
+        fs.writeFileSync(result.filePath, JSON.stringify(taskData, null, 2));
+        showMessage('Tasks data exported successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Export tasks error:', error);
+      showMessage(`Export failed: ${error.message}`, 'error');
+    }
+  };
+
   const handleImport = async () => {
     const result = await backupManager.importBackup();
     if (result.success && !result.canceled) {
@@ -523,17 +628,22 @@ const SettingsTab = () => {
           {/* Statistics */}
           <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <h3 className="text-lg font-semibold text-white mb-4">
-              Statistics
+              Reset Statistics
             </h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-white/70 mb-3">
-                  Permanently delete all task completion history
-                </p>
+            <p className="text-sm text-white/70 mb-4">
+              Permanently delete specific data categories. This cannot be undone.
+            </p>
+            <div className="space-y-3">
+              {/* Reset Task Statistics */}
+              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                <div>
+                  <p className="text-white font-medium">Task Completion History</p>
+                  <p className="text-xs text-white/50 mt-1">Delete all completed tasks data</p>
+                </div>
                 <button
                   onClick={() => {
                     const confirmed = window.confirm(
-                      'Are you sure? This will permanently delete all completion history. Active tasks will not be affected.'
+                      'Are you sure? This will permanently delete all task completion history. Active tasks will not be affected.'
                     );
                     if (confirmed) {
                       localStorage.removeItem('completedTasks');
@@ -542,13 +652,59 @@ const SettingsTab = () => {
                       window.dispatchEvent(new Event('storage'));
                     }
                   }}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200"
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
                 >
-                  Reset All Statistics
+                  Reset Tasks
                 </button>
-                <p className="text-xs text-white/40 mt-2">
-                  This cannot be undone
-                </p>
+              </div>
+
+              {/* Reset Mood Data */}
+              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                <div>
+                  <p className="text-white font-medium">Mood Log</p>
+                  <p className="text-xs text-white/50 mt-1">Delete all mood entries and journal notes</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      'Are you sure? This will permanently delete all mood log entries and journal notes.'
+                    );
+                    if (confirmed) {
+                      localStorage.removeItem('moodLog');
+                      localStorage.removeItem('journalLog');
+                      backupManager.saveAutoBackup();
+                      window.dispatchEvent(new CustomEvent('moodDataUpdated'));
+                      window.dispatchEvent(new Event('storage'));
+                    }
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
+                >
+                  Reset Mood
+                </button>
+              </div>
+
+              {/* Reset Sleep Data */}
+              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                <div>
+                  <p className="text-white font-medium">Sleep Log</p>
+                  <p className="text-xs text-white/50 mt-1">Delete all sleep tracking data</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      'Are you sure? This will permanently delete all sleep log entries.'
+                    );
+                    if (confirmed) {
+                      localStorage.removeItem('sleepLog');
+                      backupManager.saveAutoBackup();
+                      window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+                      window.dispatchEvent(new Event('storage'));
+                    }
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
+                >
+                  Reset Sleep
+                </button>
               </div>
             </div>
           </div>
@@ -587,20 +743,47 @@ const SettingsTab = () => {
               </div>
 
               {/* Export/Import Buttons */}
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleExport}
-                  className="px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold"
-                >
-                  Export Data
-                </button>
+              <div>
+                <h4 className="text-white font-semibold mb-3">Export All Data</h4>
+                <div className="flex flex-wrap gap-3 mb-6">
+                  <button
+                    onClick={handleExport}
+                    className="px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold"
+                  >
+                    Export Complete Backup
+                  </button>
 
-                <button
-                  onClick={handleImport}
-                  className="px-6 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-semibold"
-                >
-                  Import Data
-                </button>
+                  <button
+                    onClick={handleImport}
+                    className="px-6 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-semibold"
+                  >
+                    Import Backup
+                  </button>
+                </div>
+
+                <h4 className="text-white font-semibold mb-3">Export by Category</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <button
+                    onClick={handleExportTasks}
+                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                  >
+                    Export Tasks
+                  </button>
+
+                  <button
+                    onClick={handleExportMood}
+                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                  >
+                    Export Mood
+                  </button>
+
+                  <button
+                    onClick={handleExportSleep}
+                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                  >
+                    Export Sleep
+                  </button>
+                </div>
               </div>
 
               {/* Restore from Backup Dropdown */}

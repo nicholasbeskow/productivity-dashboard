@@ -1319,14 +1319,12 @@ const Dashboard = ({ setActiveTab }) => {
                         </AnimatePresence>
                       </div>
 
-                      <motion.button
-                        layout
+                      <button
                         onClick={() => setActiveTab && setActiveTab('tasks')}
                         className="w-full mt-4 text-green-glow hover:text-green-glow/80 text-sm font-medium flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-glass-surface transition-all"
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       >
                         View All Tasks →
-                      </motion.button>
+                      </button>
                     </motion.div>
                   ) : (
                     /* Detail View */
@@ -1757,7 +1755,11 @@ const Dashboard = ({ setActiveTab }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{
+              background: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)',
+            }}
             onClick={() => {}} // Prevent closing on backdrop click
           >
             {/* Modal Card */}
@@ -1766,69 +1768,84 @@ const Dashboard = ({ setActiveTab }) => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-glass-surface rounded-xl p-8 border border-white/10 max-w-md w-full relative"
+              className="liquid-bubble-filled rounded-2xl p-8 max-w-lg w-full relative"
+              style={{
+                backdropFilter: 'blur(16px) saturate(180%)',
+                boxShadow: '0 0 40px rgba(61, 214, 140, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)',
+              }}
               onClick={(e) => e.stopPropagation()}
             >
 
               {/* Header */}
-              <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-white mb-2">
-                  🎉 Semester Complete!
+              <div className="text-center mb-8">
+                <div className="text-6xl mb-4">🎉</div>
+                <h2 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-green-glow to-yellow-500 bg-clip-text text-transparent">
+                  Semester Complete!
                 </h2>
-                <p className="text-white/70">
-                  Congratulations! Time to recharge. When does your next semester begin?
+                <p className="text-white/80 text-lg leading-relaxed">
+                  Congratulations! Time to recharge and celebrate your accomplishments.
+                </p>
+              </div>
+
+              {/* Info Section */}
+              <div className="mb-6 p-4 rounded-xl bg-green-glow/10 border border-green-glow/30">
+                <p className="text-white/90 text-sm leading-relaxed">
+                  <strong className="text-green-glow">What's next?</strong> Set your break dates to track your well-deserved rest, and plan for the upcoming semester.
                 </p>
               </div>
 
               {/* Form */}
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">
+                  <label className="block text-sm font-semibold text-white mb-2">
                     Break Start Date
                   </label>
                   <input
                     type="date"
                     value={nextBreakStart}
                     onChange={(e) => setNextBreakStart(e.target.value)}
-                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
                   />
-                  <p className="text-xs text-white/40 mt-1">
+                  <p className="text-xs text-white/50 mt-2">
                     Defaults to the day after semester ended
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">
+                  <label className="block text-sm font-semibold text-white mb-2">
                     Next Semester Start Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterStart}
                     onChange={(e) => setNextSemesterStart(e.target.value)}
-                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">
+                  <label className="block text-sm font-semibold text-white mb-2">
                     Next Semester End Date
                   </label>
                   <input
                     type="date"
                     value={nextSemesterEnd}
                     onChange={(e) => setNextSemesterEnd(e.target.value)}
-                    className="w-full bg-glass-surface border border-white/18 rounded-lg px-4 py-2 text-white focus:border-green-glow focus:ring-1 focus:ring-green-glow"
+                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
                   />
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="mt-6">
+              <div className="mt-8">
                 <button
                   onClick={handleBeginBreak}
-                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-3 px-4 rounded-lg transition-all"
+                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-glow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    boxShadow: '0 0 20px rgba(61, 214, 140, 0.3)',
+                  }}
                 >
-                  Begin Break
+                  Begin Break 🌴
                 </button>
               </div>
             </motion.div>
