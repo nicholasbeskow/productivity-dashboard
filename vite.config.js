@@ -8,6 +8,9 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  preview: {
+    port: 4173,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -29,11 +32,15 @@ export default defineConfig({
     },
     // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
-    // Source maps disabled for smaller production builds
-    sourcemap: false,
+    // Source maps enabled for production debugging
+    sourcemap: true,
     // Optimize bundle size and performance
     rollupOptions: {
       output: {
+        // Ensure stable chunk names for better caching
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         // Manual chunk splitting for better caching
         manualChunks(id) {
           // React core
