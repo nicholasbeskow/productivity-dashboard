@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Flame, BookOpen, Home, Smile, Moon, TrendingUp, TrendingDown, Trophy } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { Line } from 'react-chartjs-2';
+import { BarChart3, Activity, Heart, ArrowLeft, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
-  Filler
+  Filler,
+  Legend
 } from 'chart.js';
 import { subDays, format } from 'date-fns';
 
@@ -20,15 +22,18 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
-  Filler
+  Filler,
+  Legend
 );
 
 // Sleep target hours
 const SLEEP_TARGET = 7.5;
 
 const StatsTab = () => {
+  const [activeSection, setActiveSection] = useState('main'); // 'main', 'productivity', 'wellbeing', 'mood', 'sleep'
   const [completedTasks, setCompletedTasks] = useState([]);
   const [moodLog, setMoodLog] = useState([]);
   const [sleepLog, setSleepLog] = useState([]);
@@ -124,20 +129,19 @@ const StatsTab = () => {
 
   // Moods configuration
   const moodsConfig = {
-    5: { label: 'Great', color: '#eab308' }, // yellow-500
-    4: { label: 'Good', color: '#3dd68c' },  // green-glow
-    3: { label: 'Okay', color: '#60a5fa' },  // blue-400
-    2: { label: 'Down', color: '#f97316' },  // orange-500
-    1: { label: 'Rocky', color: '#ef4444' }   // red-500
+    5: { label: 'Great', color: '#eab308' },
+    4: { label: 'Good', color: '#3dd68c' },
+    3: { label: 'Okay', color: '#60a5fa' },
+    2: { label: 'Down', color: '#f97316' },
+    1: { label: 'Rocky', color: '#ef4444' }
   };
 
-  // Calculate mood/productivity correlation
+  // Calculate mood/productivity correlation (All Time)
   const correlationStats = useMemo(() => {
     if (!moodLog.length || !completedTasks.length) {
       return { text: 'Not enough data', value: null };
     }
 
-    // 1. Get dates for "good" (4,5) and "bad" (1,2) moods
     const goodMoodDays = new Set();
     const badMoodDays = new Set();
 
@@ -147,10 +151,9 @@ const StatsTab = () => {
     });
 
     if (goodMoodDays.size === 0 || badMoodDays.size === 0) {
-      return { text: 'Log more good/bad days to see correlation', value: null };
+      return { text: 'Log more good/bad days', value: null };
     }
 
-    // 2. Count tasks completed on those days
     let goodDayTaskCount = 0;
     let badDayTaskCount = 0;
 
@@ -163,11 +166,9 @@ const StatsTab = () => {
       }
     });
 
-    // 3. Calculate averages
     const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
     const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
 
-    // 4. Determine result
     if (avgTasksOnBadDays > 0) {
       const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
       return {
@@ -195,25 +196,20 @@ const StatsTab = () => {
 
     const today = new Date();
     let startDate = new Date();
-    let daysToAnalyze = 7;
 
     switch (timePeriod) {
       case 'Day':
         startDate = subDays(today, 1);
-        daysToAnalyze = 1;
         break;
       case 'Week':
-        startDate = subDays(today, 6); // 7 days including today
-        daysToAnalyze = 7;
+        startDate = subDays(today, 6);
         break;
       case 'Month':
-        startDate = subDays(today, 29); // 30 days including today
-        daysToAnalyze = 30;
+        startDate = subDays(today, 29);
         break;
       case 'Semester':
       case 'All Time':
         startDate = new Date(0);
-        daysToAnalyze = sleepLog.length;
         break;
       default:
         break;
@@ -221,25 +217,27 @@ const StatsTab = () => {
 
     const startDateStr = format(startDate, 'yyyy-MM-dd');
     const todayStr = format(today, 'yyyy-MM-dd');
-    // Include today if logged, 7 days total (today + 6 days ago)
     const filteredSleep = sleepLog.filter(e => e.date >= startDateStr && e.date <= todayStr);
 
     if (filteredSleep.length === 0) return null;
 
-    // Calculate averages (use totalSleep for new entries, fall back to hours for legacy)
     const totalHours = filteredSleep.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0);
     const avgHours = totalHours / filteredSleep.length;
 
     const totalQuality = filteredSleep.reduce((acc, e) => acc + e.quality, 0);
     const avgQuality = totalQuality / filteredSleep.length;
 
-    // Calculate sleep debt
-    const targetTotal = filteredSleep.length * SLEEP_TARGET;
-    const sleepDebt = Math.max(0, targetTotal - totalHours);
+    // Calculate sleep debt for past 7 days only
+    const last7Days = subDays(today, 6);
+    const last7DaysStr = format(last7Days, 'yyyy-MM-dd');
+    const last7DaysSleep = sleepLog.filter(e => e.date >= last7DaysStr && e.date <= todayStr);
+    const totalHoursLast7 = last7DaysSleep.reduce((acc, e) => acc + (e.totalSleep ?? e.hours), 0);
+    const targetTotal = last7DaysSleep.length * SLEEP_TARGET;
+    const sleepDebt = Math.max(0, targetTotal - totalHoursLast7);
 
     // Calculate streak
     let currentStreak = 0;
-    const sortedSleep = [...filteredSleep].sort((a, b) => b.date.localeCompare(a.date));
+    const sortedSleep = [...sleepLog].sort((a, b) => b.date.localeCompare(a.date));
     for (const entry of sortedSleep) {
       if ((entry.totalSleep ?? entry.hours) >= 7) {
         currentStreak++;
@@ -284,7 +282,7 @@ const StatsTab = () => {
     });
 
     if (happyDaysSleep.length === 0 || stressedDaysSleep.length === 0) {
-      return { text: 'Log more entries for correlation', avgHappySleep: null, avgStressedSleep: null };
+      return { text: 'Log more entries', avgHappySleep: null, avgStressedSleep: null };
     }
 
     const avgHappySleep = happyDaysSleep.reduce((a, b) => a + b, 0) / happyDaysSleep.length;
@@ -298,485 +296,55 @@ const StatsTab = () => {
     };
   }, [sleepLog, moodLog]);
 
-  // Calculate stats
-  const calculateCurrentStreak = () => {
-    if (completedTasks.length === 0) return 0;
-
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-
-    let currentDate = new Date(today);
-    let streak = 0;
-
-    while (true) {
-      const hasTaskOnDate = completedTasks.some(task => {
-        const completedDate = new Date(task.completedAt);
-        completedDate.setHours(12, 0, 0, 0);
-        return completedDate.toDateString() === currentDate.toDateString();
-      });
-
-      if (hasTaskOnDate) {
-        streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
-      }
+  // Sleep-Productivity Link
+  const sleepProductivityLink = useMemo(() => {
+    if (sleepLog.length === 0 || completedTasks.length === 0) {
+      return { text: 'Not enough data', value: null };
     }
 
-    return streak;
-  };
+    const sleepByDate = {};
+    sleepLog.forEach(entry => {
+      sleepByDate[entry.date] = entry.totalSleep ?? entry.hours;
+    });
 
-  const calculateThisWeek = () => {
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
+    const goodSleepDays = new Set();
+    const badSleepDays = new Set();
 
-    // Get Sunday of current week
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay());
-    sunday.setHours(0, 0, 0, 0);
+    sleepLog.forEach(entry => {
+      const sleep = entry.totalSleep ?? entry.hours;
+      if (sleep >= 7) goodSleepDays.add(entry.date);
+      else if (sleep < 6) badSleepDays.add(entry.date);
+    });
 
-    // Get Saturday of current week
-    const saturday = new Date(sunday);
-    saturday.setDate(sunday.getDate() + 6);
-    saturday.setHours(23, 59, 59, 999);
+    if (goodSleepDays.size === 0 || badSleepDays.size === 0) {
+      return { text: 'Log more sleep variation', value: null };
+    }
 
-    return completedTasks.filter(task => {
-      const completedDate = new Date(task.completedAt);
-      return completedDate >= sunday && completedDate <= saturday;
-    }).length;
-  };
-
-  const calculateThisMonth = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    return completedTasks.filter(task => {
-      const completedDate = new Date(task.completedAt);
-      return completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear;
-    }).length;
-  };
-
-  const calculateMostProductiveDay = () => {
-    if (completedTasks.length === 0) return 'Not enough data';
-
-    const dayCounts = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+    let goodSleepTaskCount = 0;
+    let badSleepTaskCount = 0;
 
     completedTasks.forEach(task => {
-      const completedDate = new Date(task.completedAt);
-      const dayOfWeek = completedDate.getDay();
-      dayCounts[dayOfWeek]++;
+      const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+      if (goodSleepDays.has(completedDate)) {
+        goodSleepTaskCount++;
+      } else if (badSleepDays.has(completedDate)) {
+        badSleepTaskCount++;
+      }
     });
 
-    const maxCount = Math.max(...dayCounts);
-    if (maxCount === 0) return 'Not enough data';
+    const avgTasksOnGoodSleep = goodSleepTaskCount / goodSleepDays.size;
+    const avgTasksOnBadSleep = badSleepTaskCount / badSleepDays.size;
 
-    const mostProductiveDayIndex = dayCounts.indexOf(maxCount);
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-    return dayNames[mostProductiveDayIndex];
-  };
-
-  const calculateAveragePerDay = () => {
-    if (completedTasks.length === 0) return '0.0';
-
-    const firstTaskDate = new Date(Math.min(...completedTasks.map(t => new Date(t.completedAt))));
-    firstTaskDate.setHours(12, 0, 0, 0);
-
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-
-    const diffTime = today - firstTaskDate;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include first day
-
-    const average = completedTasks.length / diffDays;
-    return average.toFixed(1);
-  };
-
-  // Chart data calculation
-  const getChartData = () => {
-    if (completedTasks.length === 0) {
+    if (avgTasksOnBadSleep > 0) {
+      const multiplier = avgTasksOnGoodSleep / avgTasksOnBadSleep;
       return {
-        labels: [],
-        datasets: [{
-          data: [],
-          borderColor: '#3dd68c',
-          backgroundColor: (context) => {
-            const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
-            gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
-            return gradient;
-          },
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#3dd68c',
-          pointHoverBorderColor: '#3dd68c',
-          pointHoverBorderWidth: 2,
-        }]
+        text: 'more tasks with good sleep',
+        value: `${multiplier.toFixed(1)}x`,
       };
     }
 
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-
-    let dates = [];
-    let labels = [];
-    let hours = [];
-
-    if (timePeriod === 'Day') {
-      // Today with hourly breakdown (0-23 hours)
-      const todayStart = new Date(today);
-      todayStart.setHours(0, 0, 0, 0);
-
-      for (let hour = 0; hour < 24; hour++) {
-        hours.push(hour);
-        // Show labels every 2 hours
-        if (hour % 2 === 0) {
-          const ampm = hour >= 12 ? 'PM' : 'AM';
-          const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-          labels.push(`${hour12}${ampm}`);
-        } else {
-          labels.push('');
-        }
-      }
-
-      // Count tasks by hour for today - separate by academic/personal
-      const academicData = hours.map(hour => {
-        return completedTasks.filter(task => {
-          const completedDate = new Date(task.completedAt);
-          const isToday = completedDate.toDateString() === today.toDateString();
-          const isAcademic = (task.taskType || 'academic') === 'academic';
-          return isToday && completedDate.getHours() === hour && isAcademic;
-        }).length;
-      });
-
-      const personalData = hours.map(hour => {
-        return completedTasks.filter(task => {
-          const completedDate = new Date(task.completedAt);
-          const isToday = completedDate.toDateString() === today.toDateString();
-          const isPersonal = task.taskType === 'personal';
-          return isToday && completedDate.getHours() === hour && isPersonal;
-        }).length;
-      });
-
-      return {
-        labels,
-        datasets: [
-          {
-            label: 'Academic',
-            data: academicData,
-            borderColor: '#3dd68c',
-            backgroundColor: (context) => {
-              const ctx = context.chart.ctx;
-              const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-              gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
-              gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
-              return gradient;
-            },
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#3dd68c',
-            pointHoverBackgroundColor: '#3dd68c',
-            pointBorderColor: '#3dd68c',
-            pointHoverBorderColor: '#3dd68c',
-            pointHoverBorderWidth: 2,
-          },
-          {
-            label: 'Personal',
-            data: personalData,
-            borderColor: '#3b82f6',
-            backgroundColor: (context) => {
-              const ctx = context.chart.ctx;
-              const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-              gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-              gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-              return gradient;
-            },
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#3b82f6',
-            pointHoverBackgroundColor: '#3b82f6',
-            pointBorderColor: '#3b82f6',
-            pointHoverBorderColor: '#3b82f6',
-            pointHoverBorderWidth: 2,
-          }
-        ]
-      };
-    } else if (timePeriod === 'Week') {
-      // Last 7 days
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        dates.push(date);
-        labels.push(dayNames[date.getDay()]);
-      }
-    } else if (timePeriod === 'Month') {
-      // Last 30 days
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        dates.push(date);
-        // Show labels for specific days
-        const dayOfMonth = date.getDate();
-        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
-          labels.push(dayOfMonth.toString());
-        } else {
-          labels.push('');
-        }
-      }
-    } else if (timePeriod === 'Semester') {
-      const semesterStartDate = localStorage.getItem('semesterStartDate');
-      const semesterEndDate = localStorage.getItem('semesterEndDate');
-
-      if (!semesterStartDate || !semesterEndDate) {
-        return {
-          labels: ['No Data'],
-          datasets: [{
-            data: [0],
-            borderColor: '#3dd68c',
-            backgroundColor: 'rgba(61, 214, 140, 0.1)',
-          }]
-        };
-      }
-
-      const startDate = new Date(semesterStartDate + 'T12:00:00');
-      const endDate = new Date(semesterEndDate + 'T12:00:00');
-      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-
-      // Smart interval - show every ~10 days
-      const interval = Math.ceil(totalDays / 10);
-
-      for (let i = 0; i <= totalDays; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        dates.push(date);
-
-        if (i % interval === 0 || i === totalDays) {
-          labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
-        } else {
-          labels.push('');
-        }
-      }
-    } else if (timePeriod === 'All Time') {
-      // Find first and last completion dates
-      const completionDates = completedTasks.map(t => new Date(t.completedAt));
-      const firstTaskDate = new Date(Math.min(...completionDates));
-      const lastTaskDate = new Date(Math.max(...completionDates));
-
-      firstTaskDate.setHours(0, 0, 0, 0);
-      lastTaskDate.setHours(23, 59, 59, 999);
-
-      const totalDays = Math.ceil((lastTaskDate - firstTaskDate) / (1000 * 60 * 60 * 24)) + 1;
-
-      if (totalDays <= 30) {
-        // Daily view for <= 30 days
-        for (let i = 0; i < totalDays; i++) {
-          const date = new Date(firstTaskDate);
-          date.setDate(date.getDate() + i);
-          dates.push(date);
-
-          // Show label every few days based on range
-          const showLabel = i % Math.ceil(totalDays / 10) === 0 || i === totalDays - 1;
-          labels.push(showLabel ? `${date.getMonth() + 1}/${date.getDate()}` : '');
-        }
-      } else if (totalDays <= 90) {
-        // Weekly aggregation for 30-90 days
-        const weeks = Math.ceil(totalDays / 7);
-
-        for (let i = 0; i < weeks; i++) {
-          const weekStart = new Date(firstTaskDate);
-          weekStart.setDate(weekStart.getDate() + (i * 7));
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekEnd.getDate() + 6);
-          weekEnd.setHours(23, 59, 59, 999);
-
-          // Store week range for filtering
-          dates.push({ start: weekStart, end: weekEnd, type: 'week' });
-          labels.push(`${weekStart.getMonth() + 1}/${weekStart.getDate()}`);
-        }
-      } else {
-        // Monthly aggregation for 90+ days
-        const months = Math.ceil(totalDays / 30);
-
-        for (let i = 0; i < months; i++) {
-          const monthStart = new Date(firstTaskDate);
-          monthStart.setDate(monthStart.getDate() + (i * 30));
-          const monthEnd = new Date(monthStart);
-          monthEnd.setDate(monthEnd.getDate() + 29);
-          monthEnd.setHours(23, 59, 59, 999);
-
-          // Store month range for filtering
-          dates.push({ start: monthStart, end: monthEnd, type: 'month' });
-
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          labels.push(`${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`);
-        }
-      }
-    }
-
-    // Count tasks for each date - separate by academic/personal
-    const academicData = dates.map(date => {
-      return completedTasks.filter(task => {
-        const completedDate = new Date(task.completedAt);
-        const isAcademic = (task.taskType || 'academic') === 'academic';
-
-        // Handle range objects (week/month aggregation)
-        if (date.type === 'week' || date.type === 'month') {
-          return completedDate >= date.start && completedDate <= date.end && isAcademic;
-        }
-
-        // Handle regular Date objects (daily view)
-        completedDate.setHours(12, 0, 0, 0);
-        return completedDate.toDateString() === date.toDateString() && isAcademic;
-      }).length;
-    });
-
-    const personalData = dates.map(date => {
-      return completedTasks.filter(task => {
-        const completedDate = new Date(task.completedAt);
-        const isPersonal = task.taskType === 'personal';
-
-        // Handle range objects (week/month aggregation)
-        if (date.type === 'week' || date.type === 'month') {
-          return completedDate >= date.start && completedDate <= date.end && isPersonal;
-        }
-
-        // Handle regular Date objects (daily view)
-        completedDate.setHours(12, 0, 0, 0);
-        return completedDate.toDateString() === date.toDateString() && isPersonal;
-      }).length;
-    });
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Academic',
-          data: academicData,
-          borderColor: '#3dd68c',
-          backgroundColor: (context) => {
-            const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.2)');
-            gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
-            return gradient;
-          },
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#3dd68c',
-          pointHoverBorderColor: '#3dd68c',
-          pointHoverBorderWidth: 2,
-        },
-        {
-          label: 'Personal',
-          data: personalData,
-          borderColor: '#3b82f6',
-          backgroundColor: (context) => {
-            const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-            return gradient;
-          },
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#3b82f6',
-          pointHoverBorderColor: '#3b82f6',
-          pointHoverBorderWidth: 2,
-        }
-      ]
-    };
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-        align: 'end',
-        labels: {
-          color: '#9195a0',
-          usePointStyle: true,
-          pointStyle: 'line',
-          padding: 15,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      tooltip: {
-        backgroundColor: 'rgba(10, 14, 20, 0.95)',
-        titleColor: '#9195a0',
-        padding: 12,
-        cornerRadius: 8,
-        displayColors: true,
-        callbacks: {
-          title: (context) => {
-            const index = context[0].dataIndex;
-            const dates = getChartData().labels;
-            return dates[index] || '';
-          },
-          label: (context) => {
-            const count = context.parsed.y;
-            const label = context.dataset.label;
-            return `${label}: ${count} ${count === 1 ? 'task' : 'tasks'}`;
-          },
-          labelColor: (context) => {
-            return {
-              borderColor: context.dataset.borderColor,
-              backgroundColor: context.dataset.borderColor,
-            };
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          display: true,
-          color: 'rgba(255, 255, 255, 0.1)',
-        },
-        ticks: {
-          color: '#9195a0',
-          font: {
-            size: 11,
-          },
-        },
-      },
-      y: {
-        beginAtZero: true,
-        ticks: {
-          color: '#9195a0',
-          stepSize: 1,
-          precision: 0,
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
-        },
-      },
-    },
-    animation: {
-      duration: 300,
-      easing: 'easeInOut',
-    },
-  };
+    return { text: 'No clear pattern', value: null };
+  }, [sleepLog, completedTasks]);
 
   // Helper function to calculate average mood
   const calculateAverageMood = (moods) => {
@@ -796,346 +364,53 @@ const StatsTab = () => {
     };
   };
 
-  // Mood chart data calculation
-  const getMoodChartData = () => {
-    if (moodLog.length === 0) {
-      return {
-        labels: [],
-        datasets: [{
-          label: 'Average Mood',
-          data: [],
-          spanGaps: true,
-          borderColor: '#eab308',
-          backgroundColor: (context) => {
-            const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
-            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
-            return gradient;
-          },
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#eab308',
-          pointHoverBorderColor: '#eab308',
-          pointHoverBorderWidth: 2,
-        }]
-      };
-    }
+  // Calculate most productive day
+  const calculateMostProductiveDay = () => {
+    if (completedTasks.length === 0) return 'Not enough data';
 
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
 
-    let dates = [];
-    let labels = [];
-    let hours = [];
-
-    if (timePeriod === 'Day') {
-      // Today with hourly breakdown (0-23 hours)
-      const todayStart = new Date(today);
-      todayStart.setHours(0, 0, 0, 0);
-
-      for (let hour = 0; hour < 24; hour++) {
-        hours.push(hour);
-        if (hour % 2 === 0) {
-          const ampm = hour >= 12 ? 'PM' : 'AM';
-          const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-          labels.push(`${hour12}${ampm}`);
-        } else {
-          labels.push('');
-        }
-      }
-
-      const moodData = hours.map(() => null); // For day view, just show today's single mood if any
-      const todayMood = moodLog.find(entry => {
-        const entryDate = new Date(entry.date + 'T12:00:00');
-        return entryDate.toDateString() === today.toDateString();
-      });
-      if (todayMood) {
-        // Show the mood value across all hours for today
-        for (let i = 0; i < moodData.length; i++) {
-          moodData[i] = todayMood.level;
-        }
-      }
-
-      return {
-        labels,
-        datasets: [{
-          label: 'Mood',
-          data: moodData,
-          spanGaps: true,
-          borderColor: '#eab308',
-          backgroundColor: (context) => {
-            const ctx = context.chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
-            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
-            return gradient;
-          },
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#eab308',
-          pointHoverBackgroundColor: '#eab308',
-          pointBorderColor: '#eab308',
-          pointHoverBorderColor: '#eab308',
-          pointHoverBorderWidth: 2,
-        }]
-      };
-    } else if (timePeriod === 'Week') {
-      // Last 7 days
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        dates.push(date);
-        labels.push(dayNames[date.getDay()]);
-      }
-    } else if (timePeriod === 'Month') {
-      // Last 30 days
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        dates.push(date);
-        const dayOfMonth = date.getDate();
-        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
-          labels.push(dayOfMonth.toString());
-        } else {
-          labels.push('');
-        }
-      }
-    } else if (timePeriod === 'Semester') {
-      const semesterStartDate = localStorage.getItem('semesterStartDate');
-      const semesterEndDate = localStorage.getItem('semesterEndDate');
-
-      if (!semesterStartDate || !semesterEndDate) {
-        return {
-          labels: ['No Data'],
-          datasets: [{
-            label: 'Average Mood',
-            data: [null],
-            spanGaps: true,
-            borderColor: '#eab308',
-            backgroundColor: 'rgba(234, 179, 8, 0.1)',
-          }]
-        };
-      }
-
-      const startDate = new Date(semesterStartDate + 'T12:00:00');
-      const endDate = new Date(semesterEndDate + 'T12:00:00');
-      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-
-      const interval = Math.ceil(totalDays / 10);
-
-      for (let i = 0; i <= totalDays; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        dates.push(date);
-
-        if (i % interval === 0 || i === totalDays) {
-          labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
-        } else {
-          labels.push('');
-        }
-      }
-    } else if (timePeriod === 'All Time') {
-      if (moodLog.length === 0) {
-        return {
-          labels: [],
-          datasets: [{
-            label: 'Average Mood',
-            data: [],
-            spanGaps: true,
-            borderColor: '#eab308',
-          }]
-        };
-      }
-
-      const moodDates = moodLog.map(e => new Date(e.date + 'T12:00:00'));
-      const firstMoodDate = new Date(Math.min(...moodDates));
-      const lastMoodDate = new Date(Math.max(...moodDates));
-
-      firstMoodDate.setHours(0, 0, 0, 0);
-      lastMoodDate.setHours(23, 59, 59, 999);
-
-      const totalDays = Math.ceil((lastMoodDate - firstMoodDate) / (1000 * 60 * 60 * 24)) + 1;
-
-      if (totalDays <= 30) {
-        for (let i = 0; i < totalDays; i++) {
-          const date = new Date(firstMoodDate);
-          date.setDate(date.getDate() + i);
-          dates.push(date);
-
-          const showLabel = i % Math.ceil(totalDays / 10) === 0 || i === totalDays - 1;
-          labels.push(showLabel ? `${date.getMonth() + 1}/${date.getDate()}` : '');
-        }
-      } else if (totalDays <= 90) {
-        const weeks = Math.ceil(totalDays / 7);
-
-        for (let i = 0; i < weeks; i++) {
-          const weekStart = new Date(firstMoodDate);
-          weekStart.setDate(weekStart.getDate() + (i * 7));
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekEnd.getDate() + 6);
-          weekEnd.setHours(23, 59, 59, 999);
-
-          dates.push({ start: weekStart, end: weekEnd, type: 'week' });
-          labels.push(`${weekStart.getMonth() + 1}/${weekStart.getDate()}`);
-        }
-      } else {
-        const months = Math.ceil(totalDays / 30);
-
-        for (let i = 0; i < months; i++) {
-          const monthStart = new Date(firstMoodDate);
-          monthStart.setDate(monthStart.getDate() + (i * 30));
-          const monthEnd = new Date(monthStart);
-          monthEnd.setDate(monthEnd.getDate() + 29);
-          monthEnd.setHours(23, 59, 59, 999);
-
-          dates.push({ start: monthStart, end: monthEnd, type: 'month' });
-
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          labels.push(`${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`);
-        }
-      }
-    }
-
-    // Calculate average mood for each date
-    const moodData = dates.map(date => {
-      let moodsForDate = [];
-
-      if (date.type === 'week' || date.type === 'month') {
-        moodsForDate = moodLog.filter(entry => {
-          const entryDate = new Date(entry.date + 'T12:00:00');
-          return entryDate >= date.start && entryDate <= date.end;
-        });
-      } else {
-        moodsForDate = moodLog.filter(entry => {
-          const entryDate = new Date(entry.date + 'T12:00:00');
-          return entryDate.toDateString() === date.toDateString();
-        });
-      }
-
-      const avg = calculateAverageMood(moodsForDate);
-      return avg; // Can be null if no moods for that date
+    completedTasks.forEach(task => {
+      const completedDate = new Date(task.completedAt);
+      const dayOfWeek = completedDate.getDay();
+      dayCounts[dayOfWeek]++;
     });
 
-    return {
-      labels,
-      datasets: [{
-        label: 'Average Mood',
-        data: moodData,
-        borderColor: '#eab308',
-        backgroundColor: (context) => {
-          const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-          gradient.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
-          gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
-          return gradient;
-        },
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#eab308',
-        pointHoverBorderColor: '#eab308',
-        pointHoverBorderWidth: 2,
-        spanGaps: true, // Connect data points across null (missing) values
-      }]
-    };
-  };
+    const maxCount = Math.max(...dayCounts);
+    if (maxCount === 0) return 'Not enough data';
 
-  // Mood chart options
-  const moodChartOptions = {
-    ...chartOptions,
-    scales: {
-      ...chartOptions.scales,
-      y: {
-        ...chartOptions.scales.y,
-        min: 1,
-        max: 5,
-        ticks: {
-          ...chartOptions.scales.y.ticks,
-          stepSize: 1,
-        },
-      },
-    },
-    plugins: {
-      ...chartOptions.plugins,
-      tooltip: {
-        ...chartOptions.plugins.tooltip,
-        callbacks: {
-          title: (context) => {
-            const index = context[0].dataIndex;
-            const dates = getMoodChartData().labels;
-            return dates[index] || '';
-          },
-          label: (context) => {
-            const avg = context.parsed.y;
-            if (avg === null || avg === undefined) return 'No data';
-            const roundedAvg = Math.round(avg);
-            const moodLabel = moodsConfig[roundedAvg]?.label || 'Unknown';
-            return `${moodLabel} (Avg: ${avg.toFixed(1)})`;
-          },
-          labelColor: (context) => {
-            return {
-              borderColor: context.dataset.borderColor,
-              backgroundColor: context.dataset.borderColor,
-            };
-          },
-        },
-      },
-    },
-  };
+    const mostProductiveDayIndex = dayCounts.indexOf(maxCount);
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  const totalCompleted = completedTasks.length;
-  const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
-  const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
-  const currentStreak = calculateCurrentStreak();
-  const thisWeek = calculateThisWeek();
-  const thisMonth = calculateThisMonth();
-  const mostProductiveDay = calculateMostProductiveDay();
-  const averagePerDay = calculateAveragePerDay();
+    return dayNames[mostProductiveDayIndex];
+  };
 
   // Calculate stats for selected time period
   const calculatePeriodStats = () => {
-    // FIXED: Use end of day instead of noon to include all tasks completed today
     const now = new Date();
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of day
+    today.setHours(23, 59, 59, 999);
 
     let startDate = new Date(now);
     let periodName = '';
-    let averagePeriod = 'day';
 
     if (timePeriod === 'Day') {
-      // Today only
       startDate.setHours(0, 0, 0, 0);
       periodName = 'Today';
-      averagePeriod = 'hour';
     } else if (timePeriod === 'Week') {
-      // Last 7 days
       startDate.setDate(now.getDate() - 6);
       startDate.setHours(0, 0, 0, 0);
       periodName = 'Last 7 Days';
-      averagePeriod = 'day';
     } else if (timePeriod === 'Month') {
-      // Last 30 days
       startDate.setDate(now.getDate() - 29);
       startDate.setHours(0, 0, 0, 0);
       periodName = 'Last 30 Days';
-      averagePeriod = 'day';
     } else if (timePeriod === 'Semester') {
       const semesterStartStr = localStorage.getItem('semesterStartDate');
       if (semesterStartStr) {
         startDate = new Date(semesterStartStr + 'T00:00:00');
       }
       periodName = 'This Semester';
-      averagePeriod = 'day';
     } else if (timePeriod === 'All Time') {
       if (completedTasks.length > 0) {
         const firstTaskDate = new Date(Math.min(...completedTasks.map(t => new Date(t.completedAt))));
@@ -1143,10 +418,8 @@ const StatsTab = () => {
         startDate.setHours(0, 0, 0, 0);
       }
       periodName = 'All Time';
-      averagePeriod = 'day';
     }
 
-    // Count tasks in period
     const tasksInPeriod = completedTasks.filter(task => {
       const completedDate = new Date(task.completedAt);
       return completedDate >= startDate && completedDate <= today;
@@ -1154,13 +427,10 @@ const StatsTab = () => {
 
     const periodTotal = tasksInPeriod.length;
 
-    // Calculate average based on period
     let periodAverage = 0;
     if (timePeriod === 'Day') {
-      // For day view, show total tasks completed today
       periodAverage = periodTotal;
     } else {
-      // Use 'now' for accurate day count calculation (not end of day)
       const totalDays = Math.max(1, Math.ceil((now - startDate) / (1000 * 60 * 60 * 24)));
       periodAverage = (periodTotal / totalDays).toFixed(1);
     }
@@ -1180,445 +450,1395 @@ const StatsTab = () => {
       periodMoodLabel = moodsConfig[roundedAvg]?.label || 'Unknown';
     }
 
-    return { periodName, periodTotal, periodAverage, averagePeriod, periodMoodValue, periodMoodLabel };
+    return { periodName, periodTotal, periodAverage, periodMoodValue, periodMoodLabel };
   };
 
   const periodStats = calculatePeriodStats();
   const allTimeAverageMood = calculateAllTimeAverageMood();
+  const totalCompleted = completedTasks.length;
+  const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
+  const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
+  const mostProductiveDay = calculateMostProductiveDay();
 
-  return (
-    <div className="h-full p-8 overflow-y-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-center gap-3">
-              <BarChart3 className="text-green-glow" size={32} />
+  // Chart data calculation for completion trend
+  const getChartData = () => {
+    if (completedTasks.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          data: [],
+          borderColor: '#3dd68c',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.3)');
+            gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 8,
+        }]
+      };
+    }
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let dates = [];
+    let labels = [];
+
+    if (timePeriod === 'Week') {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(dayNames[date.getDay()]);
+      }
+    } else if (timePeriod === 'Month') {
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        const dayOfMonth = date.getDate();
+        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
+          labels.push(dayOfMonth.toString());
+        } else {
+          labels.push('');
+        }
+      }
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(format(date, 'MM/dd'));
+      }
+    }
+
+    const academicData = dates.map(date => {
+      return completedTasks.filter(task => {
+        const completedDate = new Date(task.completedAt);
+        const isAcademic = (task.taskType || 'academic') === 'academic';
+        completedDate.setHours(12, 0, 0, 0);
+        return completedDate.toDateString() === date.toDateString() && isAcademic;
+      }).length;
+    });
+
+    const personalData = dates.map(date => {
+      return completedTasks.filter(task => {
+        const completedDate = new Date(task.completedAt);
+        const isPersonal = task.taskType === 'personal';
+        completedDate.setHours(12, 0, 0, 0);
+        return completedDate.toDateString() === date.toDateString() && isPersonal;
+      }).length;
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Academic',
+          data: academicData,
+          borderColor: '#3dd68c',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(61, 214, 140, 0.3)');
+            gradient.addColorStop(1, 'rgba(61, 214, 140, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(61, 214, 140, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#3dd68c',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+        },
+        {
+          label: 'Personal',
+          data: personalData,
+          borderColor: '#3b82f6',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(59, 130, 246, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#3b82f6',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+        }
+      ]
+    };
+  };
+
+  // Mood chart data calculation
+  const getMoodChartData = () => {
+    if (moodLog.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          label: 'Average Mood',
+          data: [],
+          borderColor: '#eab308',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 8,
+          spanGaps: true,
+        }]
+      };
+    }
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let dates = [];
+    let labels = [];
+
+    if (timePeriod === 'Week') {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(dayNames[date.getDay()]);
+      }
+    } else if (timePeriod === 'Month') {
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        const dayOfMonth = date.getDate();
+        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
+          labels.push(dayOfMonth.toString());
+        } else {
+          labels.push('');
+        }
+      }
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(format(date, 'MM/dd'));
+      }
+    }
+
+    const moodData = dates.map(date => {
+      const moodsForDate = moodLog.filter(entry => {
+        const entryDate = new Date(entry.date + 'T12:00:00');
+        return entryDate.toDateString() === date.toDateString();
+      });
+
+      const avg = calculateAverageMood(moodsForDate);
+      return avg;
+    });
+
+    return {
+      labels,
+      datasets: [{
+        label: 'Average Mood',
+        data: moodData,
+        borderColor: '#eab308',
+        backgroundColor: (context) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+          gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
+          gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        pointBackgroundColor: 'rgba(234, 179, 8, 0.8)',
+        pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: '#eab308',
+        pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+        pointHoverBorderWidth: 3,
+        spanGaps: true,
+      }]
+    };
+  };
+
+  // Sleep quality distribution pie chart (4 categories only) - Monochromatic Purple Theme
+  const getSleepQualityData = () => {
+    if (sleepLog.length === 0) {
+      return {
+        labels: ['Poor', 'Fair', 'Good', 'Excellent'],
+        datasets: [{
+          label: 'Nights',
+          data: [0, 0, 0, 0],
+          backgroundColor: [
+            'rgba(243, 232, 255, 0.7)', // Pale White/Lilac - Poor
+            'rgba(216, 180, 254, 0.75)', // Soft Lavender - Fair
+            'rgba(168, 85, 247, 0.8)',   // Bright Purple - Good
+            'rgba(124, 58, 237, 0.85)',  // Vibrant Deep Violet - Excellent
+          ],
+          borderColor: [
+            'rgba(243, 232, 255, 1)',
+            'rgba(216, 180, 254, 1)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
+          ],
+          borderWidth: 3,
+          hoverBackgroundColor: [
+            'rgba(243, 232, 255, 0.9)',
+            'rgba(216, 180, 254, 0.95)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
+          ],
+          hoverBorderColor: [
+            'rgba(243, 232, 255, 1)',
+            'rgba(216, 180, 254, 1)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
+          ],
+          hoverBorderWidth: 4,
+        }]
+      };
+    }
+
+    // Filter sleep log based on time period
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    let filteredSleepLog = sleepLog;
+
+    if (timePeriod === 'Week') {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 6);
+      const weekAgoStr = format(weekAgo, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      filteredSleepLog = sleepLog.filter(entry => entry.date >= weekAgoStr && entry.date <= todayStr);
+    } else if (timePeriod === 'Month') {
+      const monthAgo = new Date(today);
+      monthAgo.setDate(today.getDate() - 29);
+      const monthAgoStr = format(monthAgo, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      filteredSleepLog = sleepLog.filter(entry => entry.date >= monthAgoStr && entry.date <= todayStr);
+    }
+    // 'All Time' uses all sleepLog
+
+    // Map 1-5 quality to 4 categories: 1=Poor, 2=Fair, 3-4=Good, 5=Excellent
+    const qualityCounts = [0, 0, 0, 0];
+    filteredSleepLog.forEach(entry => {
+      const quality = entry.quality;
+      if (quality === 1) {
+        qualityCounts[0]++; // Poor
+      } else if (quality === 2) {
+        qualityCounts[1]++; // Fair
+      } else if (quality === 3 || quality === 4) {
+        qualityCounts[2]++; // Good
+      } else if (quality === 5) {
+        qualityCounts[3]++; // Excellent
+      }
+    });
+
+    return {
+      labels: ['Poor', 'Fair', 'Good', 'Excellent'],
+      datasets: [{
+        label: 'Nights',
+        data: qualityCounts,
+        backgroundColor: [
+          'rgba(243, 232, 255, 0.7)', // Pale White/Lilac - Poor
+          'rgba(216, 180, 254, 0.75)', // Soft Lavender - Fair
+          'rgba(168, 85, 247, 0.8)',   // Bright Purple - Good
+          'rgba(124, 58, 237, 0.85)',  // Vibrant Deep Violet - Excellent
+        ],
+        borderColor: [
+          'rgba(243, 232, 255, 1)',
+          'rgba(216, 180, 254, 1)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
+        ],
+        borderWidth: 3,
+        hoverBackgroundColor: [
+          'rgba(243, 232, 255, 0.9)',
+          'rgba(216, 180, 254, 0.95)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
+        ],
+        hoverBorderColor: [
+          'rgba(243, 232, 255, 1)',
+          'rgba(216, 180, 254, 1)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
+        ],
+        hoverBorderWidth: 4,
+      }]
+    };
+  };
+
+  // Sleep & Mood trends chart
+  const getSleepMoodTrendsData = () => {
+    if (sleepLog.length === 0 && moodLog.length === 0) {
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    let dates = [];
+    let labels = [];
+
+    if (timePeriod === 'Week') {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(dayNames[date.getDay()]);
+      }
+    } else if (timePeriod === 'Month') {
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        const dayOfMonth = date.getDate();
+        if ([1, 5, 10, 15, 20, 25, 30].includes(dayOfMonth)) {
+          labels.push(dayOfMonth.toString());
+        } else {
+          labels.push('');
+        }
+      }
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+        labels.push(format(date, 'MM/dd'));
+      }
+    }
+
+    // Sleep data
+    const sleepData = dates.map(date => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const sleepEntry = sleepLog.find(entry => entry.date === dateStr);
+      return sleepEntry ? (sleepEntry.totalSleep ?? sleepEntry.hours) : null;
+    });
+
+    // Mood data
+    const moodData = dates.map(date => {
+      const moodsForDate = moodLog.filter(entry => {
+        const entryDate = new Date(entry.date + 'T12:00:00');
+        return entryDate.toDateString() === date.toDateString();
+      });
+      const avg = calculateAverageMood(moodsForDate);
+      return avg;
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Sleep (hours)',
+          data: sleepData,
+          borderColor: '#a78bfa',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(167, 139, 250, 0.3)');
+            gradient.addColorStop(1, 'rgba(167, 139, 250, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(167, 139, 250, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#a78bfa',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+          spanGaps: true,
+          yAxisID: 'y-sleep',
+        },
+        {
+          label: 'Mood (1-5)',
+          data: moodData,
+          borderColor: '#eab308',
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(234, 179, 8, 0.3)');
+            gradient.addColorStop(1, 'rgba(234, 179, 8, 0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 8,
+          pointBackgroundColor: 'rgba(234, 179, 8, 0.8)',
+          pointBorderColor: 'rgba(255, 255, 255, 0.3)',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: '#eab308',
+          pointHoverBorderColor: 'rgba(255, 255, 255, 0.5)',
+          pointHoverBorderWidth: 3,
+          spanGaps: true,
+          yAxisID: 'y-mood',
+        }
+      ]
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        align: 'end',
+        labels: {
+          color: '#e6e8ea',
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 15,
+          font: {
+            size: 12,
+            weight: '500',
+          },
+          boxWidth: 8,
+          boxHeight: 8,
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(10, 14, 20, 0.95)',
+        titleColor: '#e6e8ea',
+        bodyColor: '#9195a0',
+        padding: 12,
+        cornerRadius: 12,
+        displayColors: true,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: true,
+          color: 'rgba(255, 255, 255, 0.05)',
+          lineWidth: 1,
+        },
+        ticks: {
+          color: '#9195a0',
+          font: {
+            size: 11,
+          },
+        },
+        border: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grace: '15%',
+        ticks: {
+          color: '#9195a0',
+          stepSize: 1,
+          precision: 0,
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.05)',
+          lineWidth: 1,
+        },
+        border: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+      },
+    },
+    animation: {
+      duration: 500,
+      easing: 'easeInOutQuart',
+    },
+  };
+
+  const moodChartOptions = {
+    ...chartOptions,
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        min: 0.5,
+        max: 5.5,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          stepSize: 1,
+          callback: function(value) {
+            // Only show labels for 1-5
+            return value >= 1 && value <= 5 ? value : '';
+          }
+        },
+      },
+    },
+  };
+
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom',
+        onClick: null, // Disable legend item toggling
+        labels: {
+          color: '#ffffff',
+          padding: 18,
+          font: {
+            size: 13,
+            weight: '500',
+            family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+          },
+          boxWidth: 18,
+          boxHeight: 18,
+          borderRadius: 4,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          generateLabels: function(chart) {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              return data.labels.map((label, i) => {
+                const dataset = data.datasets[0];
+                const backgroundColor = dataset.backgroundColor[i];
+                const borderColor = dataset.borderColor[i];
+                return {
+                  text: label,
+                  fillStyle: backgroundColor,
+                  strokeStyle: borderColor,
+                  lineWidth: 2,
+                  fontColor: '#ffffff',
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+            return [];
+          }
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(10, 14, 20, 0.98)',
+        titleColor: '#c084fc',
+        bodyColor: '#e6e8ea',
+        padding: 14,
+        cornerRadius: 12,
+        borderColor: 'rgba(168, 85, 247, 0.3)',
+        borderWidth: 2,
+        titleFont: {
+          size: 14,
+          weight: 'bold',
+        },
+        bodyFont: {
+          size: 13,
+        },
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} nights (${percentage}%)`;
+          }
+        }
+      },
+      datalabels: {
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+          return percentage > 5 ? `${percentage}%` : ''; // Only show if > 5%
+        },
+        color: (context) => {
+          // Use white for darker purples, dark purple for light colors
+          const index = context.dataIndex;
+          return index <= 1 ? '#6d28d9' : '#ffffff';
+        },
+        font: {
+          weight: 'bold',
+          size: 15,
+          family: "'Inter', sans-serif",
+        },
+        textShadowBlur: 4,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+      },
+    },
+    animation: {
+      duration: 600,
+      easing: 'easeInOutQuart',
+      animateRotate: true,
+      animateScale: true,
+    },
+  };
+
+  const sleepMoodTrendsOptions = {
+    ...chartOptions,
+    scales: {
+      x: chartOptions.scales.x,
+      'y-sleep': {
+        type: 'linear',
+        position: 'left',
+        beginAtZero: true,
+        max: 13,
+        ticks: {
+          color: '#a78bfa',
+          stepSize: 2,
+        },
+        grid: {
+          color: 'rgba(167, 139, 250, 0.1)',
+          lineWidth: 1,
+        },
+        border: {
+          color: 'rgba(167, 139, 250, 0.3)',
+        },
+      },
+      'y-mood': {
+        type: 'linear',
+        position: 'right',
+        min: 0.5,
+        max: 5.5,
+        ticks: {
+          color: '#eab308',
+          stepSize: 1,
+          callback: function(value) {
+            // Only show labels for 1-5
+            return value >= 1 && value <= 5 ? value : '';
+          }
+        },
+        grid: {
+          display: false,
+        },
+        border: {
+          color: 'rgba(234, 179, 8, 0.3)',
+        },
+      },
+    },
+  };
+
+  // MAIN SELECTION SCREEN
+  if (activeSection === 'main') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-12">
+            <h2 className="text-4xl font-bold text-text-primary mb-3 flex items-center gap-3">
+              <BarChart3 className="text-green-glow" size={40} />
               Your Statistics
             </h2>
-            <p className="text-text-secondary">
-              Track your productivity and progress
+            <p className="text-text-secondary text-lg">
+              Choose a category to explore your insights
             </p>
           </div>
 
-          {/* Time Period Selector */}
-          <div className="flex gap-2 flex-wrap">
-            {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
-              <button
-                key={period}
-                onClick={() => setTimePeriod(period)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  timePeriod === period
-                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                }`}
-              >
-                {period}
-              </button>
-            ))}
+          {/* Category Selection Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Productivity Button */}
+            <motion.button
+              onClick={() => setActiveSection('productivity')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-green-glow/10 flex items-center justify-center group-hover:bg-green-glow/20 transition-colors duration-300">
+                  <Activity className="text-green-glow" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Productivity</h3>
+                  <p className="text-text-secondary">
+                    Track your tasks and completion trends
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-green-glow/10 border border-green-glow/30">
+                  <span className="text-green-glow font-semibold">{totalCompleted} Tasks Completed</span>
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Wellbeing Button */}
+            <motion.button
+              onClick={() => setActiveSection('wellbeing')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-purple-400/10 flex items-center justify-center group-hover:bg-purple-400/20 transition-colors duration-300">
+                  <Heart className="text-purple-400" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Wellbeing</h3>
+                  <p className="text-text-secondary">
+                    Monitor your mood and sleep patterns
+                  </p>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <div className="px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/30">
+                    <span className="text-yellow-500 font-semibold text-sm">{moodLog.length} Mood Logs</span>
+                  </div>
+                  <div className="px-4 py-2 rounded-full bg-purple-400/10 border border-purple-400/30">
+                    <span className="text-purple-400 font-semibold text-sm">{sleepLog.length} Sleep Logs</span>
+                  </div>
+                </div>
+              </div>
+            </motion.button>
           </div>
         </div>
-
-        {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Card 1 - Total Tasks (with breakdown) */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
-            <div className="text-5xl font-bold text-green-glow mb-1">
-              {totalCompleted}
-            </div>
-            <p className="text-text-secondary text-xs">
-              {academicCount} Academic • {personalCount} Personal
-            </p>
-          </motion.div>
-
-          {/* Card 2 - Academic Tasks */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <BookOpen className="text-green-glow" size={18} />
-              Academic Tasks
-            </p>
-            <div className="text-4xl font-bold text-green-glow mb-1">
-              {academicCount}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {academicCount === 1 ? 'task' : 'tasks'} completed
-            </p>
-          </motion.div>
-
-          {/* Card 3 - Personal Tasks */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Home className="text-blue-500" size={18} />
-              Personal Tasks
-            </p>
-            <div className="text-4xl font-bold text-blue-500 mb-1">
-              {personalCount}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {personalCount === 1 ? 'task' : 'tasks'} completed
-            </p>
-          </motion.div>
-
-          {/* Card 4 - Current Streak */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Flame className="text-orange-500" size={18} />
-              Current Streak
-            </p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {currentStreak === 0 ? 'Complete a task today to start!' : 'Keep it going!'}
-            </p>
-          </motion.div>
-
-          {/* Card 5 - Period Total (Dynamic) */}
-          <motion.div
-            key={`period-total-${timePeriod}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
-          >
-            <p className="text-text-secondary text-sm mb-2">{periodStats.periodName}</p>
-            <div className="text-4xl font-bold text-green-glow mb-1">
-              {periodStats.periodTotal}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {periodStats.periodTotal === 1 ? 'task' : 'tasks'} completed
-            </p>
-          </motion.div>
-
-          {/* Card 6 - Period Average (Dynamic) */}
-          <motion.div
-            key={`period-avg-${timePeriod}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-green-glow/50"
-          >
-            <p className="text-text-secondary text-sm mb-2">
-              {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
-            </p>
-            <div className="text-4xl font-bold text-green-glow mb-1">
-              {periodStats.periodAverage}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {timePeriod === 'Day' ? 'tasks today' : `tasks per ${periodStats.averagePeriod}`}
-            </p>
-          </motion.div>
-
-          {/* Card 7 - Most Productive Day */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2">Most Productive Day</p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {mostProductiveDay === 'Not enough data' ? (
-                <span className="text-2xl text-text-tertiary">Not enough data</span>
-              ) : (
-                mostProductiveDay
-              )}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              Based on completion history
-            </p>
-          </motion.div>
-
-          {/* Card 8 - Average Tasks Per Day */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2">Daily Average</p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {averagePerDay}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              tasks per day
-            </p>
-          </motion.div>
-
-          {/* Card 9 - All Time Average Mood */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Smile className="text-yellow-500" size={18} />
-              All Time Average Mood
-            </p>
-            <div className="text-4xl font-bold text-yellow-500 mb-1">
-              {allTimeAverageMood.value}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {allTimeAverageMood.label}
-            </p>
-          </motion.div>
-
-          {/* Card 10 - Period Average Mood */}
-          <motion.div
-            key={`period-mood-${timePeriod}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-yellow-500/50"
-          >
-            <p className="text-text-secondary text-sm mb-2">
-              Average Mood ({periodStats.periodName})
-            </p>
-            <div className="text-4xl font-bold text-yellow-500 mb-1">
-              {periodStats.periodMoodValue}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {periodStats.periodMoodLabel}
-            </p>
-          </motion.div>
-
-          {/* Card 11 - Mood/Productivity Correlation */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Smile className="text-yellow-500" size={18} />
-              Mood Correlation
-            </p>
-            <div className="text-4xl font-bold text-text-primary mb-1">
-              {correlationStats.value ? (
-                <span className="text-yellow-500">{correlationStats.value}</span>
-              ) : (
-                <span className="text-2xl text-text-tertiary">No Data</span>
-              )}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {correlationStats.text}
-            </p>
-          </motion.div>
-
-          {/* Card 12 - Average Sleep */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Moon className="text-purple-400" size={18} />
-              Average Sleep
-            </p>
-            <div className="text-4xl font-bold text-purple-400 mb-1">
-              {sleepStats ? `${sleepStats.avgHours}h` : 'N/A'}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              {sleepStats ? `${sleepStats.daysTracked} nights tracked` : 'Start logging sleep'}
-            </p>
-          </motion.div>
-
-          {/* Card 13 - Sleep Debt */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <TrendingDown className="text-orange-500" size={18} />
-              Sleep Debt
-            </p>
-            <div className={`text-4xl font-bold mb-1 ${
-              sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
-              sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-green-glow'
-            }`}>
-              {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              vs {SLEEP_TARGET}h target
-            </p>
-          </motion.div>
-
-          {/* Card 14 - Sleep Streak */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Trophy className="text-yellow-500" size={18} />
-              Sleep Goal Streak
-            </p>
-            <div className="text-4xl font-bold text-yellow-500 mb-1">
-              {sleepStats ? sleepStats.currentStreak : 0}
-            </div>
-            <p className="text-text-tertiary text-xs">
-              nights at 7+ hours
-            </p>
-          </motion.div>
-
-          {/* Card 15 - Sleep-Mood Correlation */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-bg-secondary rounded-xl p-6 border border-purple-500/50"
-          >
-            <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
-              <Moon className="text-purple-400" size={18} />
-              Sleep-Mood Link
-            </p>
-            {sleepMoodCorrelation.avgHappySleep ? (
-              <>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-green-glow font-bold">{sleepMoodCorrelation.avgHappySleep}h</span>
-                  <span className="text-text-tertiary text-xs">happy</span>
-                  <span className="text-text-tertiary mx-1">vs</span>
-                  <span className="text-red-500 font-bold">{sleepMoodCorrelation.avgStressedSleep}h</span>
-                  <span className="text-text-tertiary text-xs">stressed</span>
-                </div>
-                <p className="text-text-tertiary text-xs flex items-center gap-1">
-                  {parseFloat(sleepMoodCorrelation.difference) > 0 ? (
-                    <><TrendingUp size={12} className="text-green-glow" /> {sleepMoodCorrelation.difference}h more on good days</>
-                  ) : (
-                    'No clear pattern'
-                  )}
-                </p>
-              </>
-            ) : (
-              <p className="text-text-tertiary text-sm">{sleepMoodCorrelation.text}</p>
-            )}
-          </motion.div>
-        </div>
-
-        {/* Line Chart Section */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
-          className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary"
-        >
-          {/* Chart Title */}
-          <h3 className="text-xl font-semibold text-text-primary mb-6">
-            Completion Trend - {timePeriod}
-          </h3>
-
-          {/* Chart Container */}
-          <div className="h-[400px]">
-            {completedTasks.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-text-secondary text-lg mb-2">
-                    Complete tasks to see your progress!
-                  </p>
-                  <p className="text-text-tertiary text-sm">
-                    Your completion trend will appear here
-                  </p>
-                </div>
-              </div>
-            ) : timePeriod === 'Semester' && (!localStorage.getItem('semesterStartDate') || !localStorage.getItem('semesterEndDate')) ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-text-secondary text-lg mb-2">
-                    Set semester dates in Settings
-                  </p>
-                  <p className="text-text-tertiary text-sm">
-                    Configure your semester start and end dates to view this chart
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <Line data={getChartData()} options={chartOptions} />
-            )}
-          </div>
-        </motion.div>
-
-        {/* Mood Chart Section */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.3, ease: 'easeOut' }}
-          className="bg-bg-secondary rounded-xl p-6 border border-bg-tertiary mt-8"
-        >
-          {/* Chart Title */}
-          <h3 className="text-xl font-semibold text-text-primary mb-6 flex items-center gap-3">
-            <Smile className="text-yellow-500" size={24} />
-            Mood Trend - {timePeriod}
-          </h3>
-
-          {/* Chart Container */}
-          <div className="h-[400px]">
-            {timePeriod === 'Day' ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-text-secondary text-lg mb-2">
-                    Mood data is tracked daily.
-                  </p>
-                  <p className="text-text-tertiary text-sm">
-                    Please select 'Week', 'Month', or another view to see trends.
-                  </p>
-                </div>
-              </div>
-            ) : moodLog.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-text-secondary text-lg mb-2">
-                    Log moods to see your trend!
-                  </p>
-                  <p className="text-text-tertiary text-sm">
-                    Your mood trend will appear here
-                  </p>
-                </div>
-              </div>
-            ) : timePeriod === 'Semester' && (!localStorage.getItem('semesterStartDate') || !localStorage.getItem('semesterEndDate')) ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-text-secondary text-lg mb-2">
-                    Set semester dates in Settings
-                  </p>
-                  <p className="text-text-tertiary text-sm">
-                    Configure your semester start and end dates to view this chart
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <Line data={getMoodChartData()} options={moodChartOptions} />
-            )}
-          </div>
-        </motion.div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // WELLBEING SELECTION SCREEN
+  if (activeSection === 'wellbeing') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-12 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+            >
+              <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+            </button>
+            <div>
+              <h2 className="text-4xl font-bold text-text-primary flex items-center gap-3">
+                <Heart className="text-purple-400" size={40} />
+                Wellbeing
+              </h2>
+              <p className="text-text-secondary text-lg">
+                Choose a category to explore your wellbeing insights
+              </p>
+            </div>
+          </div>
+
+          {/* Mood & Sleep Selection Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Mood Button */}
+            <motion.button
+              onClick={() => setActiveSection('mood')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors duration-300">
+                  <Smile className="text-yellow-500" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Mood</h3>
+                  <p className="text-text-secondary">
+                    Track your emotional patterns and correlations
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/30">
+                  <span className="text-yellow-500 font-semibold">{moodLog.length} Mood Entries</span>
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Sleep Button */}
+            <motion.button
+              onClick={() => setActiveSection('sleep')}
+              className="glass-panel p-12 hover:bg-glass-overlay transition-all duration-300 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-purple-400/10 flex items-center justify-center group-hover:bg-purple-400/20 transition-colors duration-300">
+                  <Moon className="text-purple-400" size={48} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Sleep</h3>
+                  <p className="text-text-secondary">
+                    Monitor your sleep quality and habits
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-purple-400/10 border border-purple-400/30">
+                  <span className="text-purple-400 font-semibold">{sleepLog.length} Sleep Logs</span>
+                </div>
+              </div>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // PRODUCTIVITY SECTION
+  if (activeSection === 'productivity') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveSection('main')}
+                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+              >
+                <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+              </button>
+              <div>
+                <h2 className="text-3xl font-bold text-text-primary flex items-center gap-3">
+                  <Activity className="text-green-glow" size={32} />
+                  Productivity
+                </h2>
+                <p className="text-text-secondary">
+                  Track your task completion and progress
+                </p>
+              </div>
+            </div>
+
+            {/* Time Period Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    timePeriod === period
+                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 justify-items-center">
+            {/* Total Tasks */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">Total Tasks</p>
+              <div className="text-5xl font-bold text-white mb-1">
+                {totalCompleted}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                all time completions
+              </p>
+            </motion.div>
+
+            {/* Academic Tasks */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <BookOpen className="text-green-glow" size={18} />
+                Academic Tasks
+              </p>
+              <div className="text-4xl font-bold text-green-glow mb-1">
+                {academicCount}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {academicCount === 1 ? 'task' : 'tasks'} completed
+              </p>
+            </motion.div>
+
+            {/* Personal Tasks */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Home className="text-blue-500" size={18} />
+                Personal Tasks
+              </p>
+              <div className="text-4xl font-bold text-blue-500 mb-1">
+                {personalCount}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {personalCount === 1 ? 'task' : 'tasks'} completed
+              </p>
+            </motion.div>
+
+            {/* Tasks for Selected Timeframe */}
+            <motion.div
+              key={`period-total-${timePeriod}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2"># Tasks ({periodStats.periodName})</p>
+              <div className="text-4xl font-bold text-white mb-1">
+                {periodStats.periodTotal}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {periodStats.periodTotal === 1 ? 'task' : 'tasks'} completed
+              </p>
+            </motion.div>
+
+            {/* Daily Average for Selected Timeframe */}
+            <motion.div
+              key={`period-avg-${timePeriod}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">
+                {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
+              </p>
+              <div className="text-4xl font-bold text-white mb-1">
+                {periodStats.periodAverage}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {timePeriod === 'Day' ? 'tasks today' : `tasks per day`}
+              </p>
+            </motion.div>
+
+            {/* Most Productive Day */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Trophy className="text-yellow-500" size={18} />
+                Most Productive Day
+              </p>
+              <div className="text-3xl font-bold text-text-primary mb-1">
+                {mostProductiveDay === 'Not enough data' ? (
+                  <span className="text-xl text-text-tertiary">Not enough data</span>
+                ) : (
+                  mostProductiveDay
+                )}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                Based on completion history
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Completion Trend Chart */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass-panel p-6"
+          >
+            <h3 className="text-xl font-semibold text-text-primary mb-4">
+              Completion Trend - {timePeriod}
+            </h3>
+
+            <div className="h-[400px]">
+              {completedTasks.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-text-secondary text-lg mb-2">
+                      Complete tasks to see your progress!
+                    </p>
+                    <p className="text-text-tertiary text-sm">
+                      Your completion trend will appear here
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <Line data={getChartData()} options={chartOptions} />
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // MOOD SECTION
+  if (activeSection === 'mood') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveSection('wellbeing')}
+                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+              >
+                <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+              </button>
+              <div>
+                <h2 className="text-3xl font-bold text-text-primary flex items-center gap-3">
+                  <Smile className="text-yellow-500" size={32} />
+                  Mood
+                </h2>
+                <p className="text-text-secondary">
+                  Track your emotional patterns and correlations
+                </p>
+              </div>
+            </div>
+
+            {/* Time Period Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    timePeriod === period
+                      ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mood Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 justify-items-center">
+            {/* All Time Average Mood */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">All Time Average Mood</p>
+              <div className="text-4xl font-bold text-yellow-500 mb-1">
+                {allTimeAverageMood.value}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {allTimeAverageMood.label}
+              </p>
+            </motion.div>
+
+            {/* Average Mood (Selected Timeframe) */}
+            <motion.div
+              key={`period-mood-${timePeriod}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-yellow-500/50 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">
+                Average Mood ({periodStats.periodName})
+              </p>
+              <div className="text-4xl font-bold text-yellow-500 mb-1">
+                {periodStats.periodMoodValue}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {periodStats.periodMoodLabel}
+              </p>
+            </motion.div>
+
+            {/* Mood Correlation (All Time) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">Mood Correlation</p>
+              <div className="text-4xl font-bold text-text-primary mb-1">
+                {correlationStats.value ? (
+                  <span className="text-yellow-500">{correlationStats.value}</span>
+                ) : (
+                  <span className="text-2xl text-text-tertiary">No Data</span>
+                )}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {correlationStats.text}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Mood Trend Chart */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass-panel p-6"
+          >
+            <h3 className="text-xl font-semibold text-text-primary mb-4">
+              Mood Trend - {timePeriod}
+            </h3>
+
+            <div className="h-[400px]">
+              {moodLog.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-text-secondary text-lg mb-2">
+                      Log moods to see your trend!
+                    </p>
+                    <p className="text-text-tertiary text-sm">
+                      Your mood trend will appear here
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <Line data={getMoodChartData()} options={moodChartOptions} />
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // SLEEP SECTION
+  if (activeSection === 'sleep') {
+    return (
+      <div className="h-full p-8 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveSection('wellbeing')}
+                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+              >
+                <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
+              </button>
+              <div>
+                <h2 className="text-3xl font-bold text-text-primary flex items-center gap-3">
+                  <Moon className="text-purple-400" size={32} />
+                  Sleep
+                </h2>
+                <p className="text-text-secondary">
+                  Monitor your sleep quality and habits
+                </p>
+              </div>
+            </div>
+
+            {/* Time Period Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {['Day', 'Week', 'Month', 'Semester', 'All Time'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    timePeriod === period
+                      ? 'bg-purple-400 bg-opacity-20 text-purple-400 border border-purple-400'
+                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sleep Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 justify-items-center">
+            {/* Average Sleep (Selected Timeframe) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 border border-purple-400/50 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">Average Sleep ({periodStats.periodName})</p>
+              <div className="text-4xl font-bold text-purple-400 mb-1">
+                {sleepStats ? `${sleepStats.avgHours}h` : 'N/A'}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {sleepStats ? `${sleepStats.daysTracked} nights tracked` : 'Start logging sleep'}
+              </p>
+            </motion.div>
+
+            {/* Sleep Goal Streak */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Trophy className="text-purple-400" size={18} />
+                Sleep Goal Streak
+              </p>
+              <div className="text-4xl font-bold text-purple-400 mb-1">
+                {sleepStats ? sleepStats.currentStreak : 0}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                nights at 7+ hours
+              </p>
+            </motion.div>
+
+            {/* Sleep Debt (past 7 days) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <TrendingDown className="text-orange-500" size={18} />
+                Sleep Debt (7 days)
+              </p>
+              <div className={`text-4xl font-bold mb-1 ${
+                sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-purple-400' :
+                sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
+                sleepStats && parseFloat(sleepStats.sleepDebt) > 0 ? 'text-orange-500' : 'text-purple-400'
+              }`}>
+                {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                vs {SLEEP_TARGET}h target
+              </p>
+            </motion.div>
+
+            {/* Sleep-Mood Link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2">Sleep-Mood Link</p>
+              {sleepMoodCorrelation.avgHappySleep ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-green-glow font-bold text-2xl">{sleepMoodCorrelation.avgHappySleep}h</span>
+                    <span className="text-text-tertiary text-xs">happy</span>
+                    <span className="text-text-tertiary mx-1">vs</span>
+                    <span className="text-red-500 font-bold text-2xl">{sleepMoodCorrelation.avgStressedSleep}h</span>
+                    <span className="text-text-tertiary text-xs">stressed</span>
+                  </div>
+                  <p className="text-text-tertiary text-xs flex items-center gap-1">
+                    {parseFloat(sleepMoodCorrelation.difference) > 0 ? (
+                      <><TrendingUp size={12} className="text-green-glow" /> {sleepMoodCorrelation.difference}h more on good days</>
+                    ) : (
+                      'No clear pattern'
+                    )}
+                  </p>
+                </>
+              ) : (
+                <p className="text-text-tertiary text-sm">{sleepMoodCorrelation.text}</p>
+              )}
+            </motion.div>
+
+            {/* Sleep-Productivity Link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6 w-full max-w-sm"
+            >
+              <p className="text-text-secondary text-sm mb-2 flex items-center gap-2">
+                <Target className="text-green-glow" size={18} />
+                Sleep-Productivity Link
+              </p>
+              <div className="text-4xl font-bold text-text-primary mb-1">
+                {sleepProductivityLink.value ? (
+                  <span className="text-green-glow">{sleepProductivityLink.value}</span>
+                ) : (
+                  <span className="text-2xl text-text-tertiary">No Data</span>
+                )}
+              </div>
+              <p className="text-text-tertiary text-xs">
+                {sleepProductivityLink.text}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Sleep Quality Distribution & Sleep/Mood Trends Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Sleep Quality Distribution (Pie Chart) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <h3 className="text-xl font-semibold text-text-primary mb-4">
+                Sleep Quality Distribution
+              </h3>
+
+              <div className="h-[350px]">
+                {sleepLog.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-text-secondary text-lg mb-2">
+                        Log sleep to see distribution!
+                      </p>
+                      <p className="text-text-tertiary text-sm">
+                        Your sleep quality distribution will appear here
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="h-full flex items-center justify-center"
+                    style={{
+                      filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.35)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.15))',
+                    }}
+                  >
+                    <div className="w-full h-full relative">
+                      <Pie data={getSleepQualityData()} options={pieChartOptions} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Sleep & Mood Trends */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-panel p-6"
+            >
+              <h3 className="text-xl font-semibold text-text-primary mb-4">
+                Sleep & Mood Trends
+              </h3>
+
+              <div className="h-[350px]">
+                {sleepLog.length === 0 && moodLog.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-text-secondary text-lg mb-2">
+                        Log sleep and mood to see trends!
+                      </p>
+                      <p className="text-text-tertiary text-sm">
+                        Combined visualization will appear here
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <Line data={getSleepMoodTrendsData()} options={sleepMoodTrendsOptions} />
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default StatsTab;
