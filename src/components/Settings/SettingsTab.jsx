@@ -12,6 +12,7 @@ const SettingsTab = () => {
   const [backups, setBackups] = useState([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [backupMessage, setBackupMessage] = useState(null);
+  const [importExportMode, setImportExportMode] = useState('export'); // 'import' or 'export'
 
   // Canvas Integration state
   const [canvasUrl, setCanvasUrl] = useState('');
@@ -258,6 +259,142 @@ const SettingsTab = () => {
       }
     } else if (!result.canceled) {
       showMessage(`Import failed: ${result.error}`, 'error');
+    }
+  };
+
+  const handleImportMood = async () => {
+    if (!window.require) {
+      showMessage('Import not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog', {
+        title: 'Import Mood Data',
+        filters: [{ name: 'JSON Files', extensions: ['json'] }],
+        properties: ['openFile']
+      });
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        const fs = window.require('fs');
+        const fileContent = fs.readFileSync(result.filePaths[0], 'utf8');
+        const importedData = JSON.parse(fileContent);
+
+        if (importedData.type === 'mood-export' && importedData.moodLog) {
+          const confirmed = window.confirm(
+            'This will replace your current mood data. Continue?'
+          );
+
+          if (confirmed) {
+            localStorage.setItem('moodLog', JSON.stringify(importedData.moodLog));
+            if (importedData.journalLog) {
+              localStorage.setItem('journalLog', JSON.stringify(importedData.journalLog));
+            }
+            backupManager.saveAutoBackup();
+            window.dispatchEvent(new CustomEvent('moodDataUpdated'));
+            window.dispatchEvent(new Event('storage'));
+            showMessage('Mood data imported successfully!', 'success');
+          }
+        } else {
+          showMessage('Invalid mood data file', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Import mood error:', error);
+      showMessage(`Import failed: ${error.message}`, 'error');
+    }
+  };
+
+  const handleImportSleep = async () => {
+    if (!window.require) {
+      showMessage('Import not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog', {
+        title: 'Import Sleep Data',
+        filters: [{ name: 'JSON Files', extensions: ['json'] }],
+        properties: ['openFile']
+      });
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        const fs = window.require('fs');
+        const fileContent = fs.readFileSync(result.filePaths[0], 'utf8');
+        const importedData = JSON.parse(fileContent);
+
+        if (importedData.type === 'sleep-export' && importedData.sleepLog) {
+          const confirmed = window.confirm(
+            'This will replace your current sleep data. Continue?'
+          );
+
+          if (confirmed) {
+            localStorage.setItem('sleepLog', JSON.stringify(importedData.sleepLog));
+            backupManager.saveAutoBackup();
+            window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+            window.dispatchEvent(new Event('storage'));
+            showMessage('Sleep data imported successfully!', 'success');
+          }
+        } else {
+          showMessage('Invalid sleep data file', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Import sleep error:', error);
+      showMessage(`Import failed: ${error.message}`, 'error');
+    }
+  };
+
+  const handleImportTasks = async () => {
+    if (!window.require) {
+      showMessage('Import not available in web mode', 'error');
+      return;
+    }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+
+      const result = await ipcRenderer.invoke('dialog:show-open-dialog', {
+        title: 'Import Tasks Data',
+        filters: [{ name: 'JSON Files', extensions: ['json'] }],
+        properties: ['openFile']
+      });
+
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        const fs = window.require('fs');
+        const fileContent = fs.readFileSync(result.filePaths[0], 'utf8');
+        const importedData = JSON.parse(fileContent);
+
+        if (importedData.type === 'tasks-export' && importedData.tasks !== undefined) {
+          const confirmed = window.confirm(
+            'This will replace your current tasks data. Continue?'
+          );
+
+          if (confirmed) {
+            localStorage.setItem('tasks', JSON.stringify(importedData.tasks));
+            if (importedData.completedTasks) {
+              localStorage.setItem('completedTasks', JSON.stringify(importedData.completedTasks));
+            }
+            if (importedData.recurringTasks) {
+              localStorage.setItem('recurringTasks', JSON.stringify(importedData.recurringTasks));
+            }
+            backupManager.saveAutoBackup();
+            window.dispatchEvent(new Event('statsReset'));
+            window.dispatchEvent(new Event('storage'));
+            showMessage('Tasks data imported successfully! Reloading...', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+          }
+        } else {
+          showMessage('Invalid tasks data file', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Import tasks error:', error);
+      showMessage(`Import failed: ${error.message}`, 'error');
     }
   };
 
@@ -742,47 +879,87 @@ const SettingsTab = () => {
                 </p>
               </div>
 
-              {/* Export/Import Buttons */}
+              {/* Export/Import Section with Toggle */}
               <div>
-                <h4 className="text-white font-semibold mb-3">Export All Data</h4>
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <button
-                    onClick={handleExport}
-                    className="px-6 py-3 bg-green-glow bg-opacity-20 text-green-glow rounded-lg hover:bg-opacity-30 transition-all font-semibold"
-                  >
-                    Export Complete Backup
-                  </button>
-
-                  <button
-                    onClick={handleImport}
-                    className="px-6 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-semibold"
-                  >
-                    Import Backup
-                  </button>
+                {/* Mode Toggle */}
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-white font-semibold">Data Transfer</h4>
+                  <div className="flex items-center gap-2 liquid-bubble-filled rounded-lg p-1">
+                    <button
+                      onClick={() => setImportExportMode('export')}
+                      className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                        importExportMode === 'export'
+                          ? 'bg-green-glow text-bg-primary'
+                          : 'text-white/70 hover:text-white'
+                      }`}
+                    >
+                      Export
+                    </button>
+                    <button
+                      onClick={() => setImportExportMode('import')}
+                      className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                        importExportMode === 'import'
+                          ? 'bg-blue-500 text-white'
+                          : 'text-white/70 hover:text-white'
+                      }`}
+                    >
+                      Import
+                    </button>
+                  </div>
                 </div>
 
-                <h4 className="text-white font-semibold mb-3">Export by Category</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Complete Backup/Restore */}
+                <div className="mb-6">
+                  <h5 className="text-white/80 text-sm font-medium mb-3">
+                    {importExportMode === 'export' ? 'Complete Backup' : 'Complete Restore'}
+                  </h5>
                   <button
-                    onClick={handleExportTasks}
-                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                    onClick={importExportMode === 'export' ? handleExport : handleImport}
+                    className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${
+                      importExportMode === 'export'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                        : 'bg-blue-500 bg-opacity-20 text-blue-500 hover:bg-opacity-30'
+                    }`}
                   >
-                    Export Tasks
+                    {importExportMode === 'export' ? 'Export All Data' : 'Import All Data'}
                   </button>
+                  <p className="text-xs text-white/40 mt-2">
+                    {importExportMode === 'export'
+                      ? 'Save a complete backup of all your data'
+                      : 'Restore all data from a backup file'}
+                  </p>
+                </div>
 
-                  <button
-                    onClick={handleExportMood}
-                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                  >
-                    Export Mood
-                  </button>
+                {/* By Category */}
+                <div>
+                  <h5 className="text-white/80 text-sm font-medium mb-3">By Category</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button
+                      onClick={importExportMode === 'export' ? handleExportTasks : handleImportTasks}
+                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                    >
+                      {importExportMode === 'export' ? '📤' : '📥'} Tasks
+                    </button>
 
-                  <button
-                    onClick={handleExportSleep}
-                    className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                  >
-                    Export Sleep
-                  </button>
+                    <button
+                      onClick={importExportMode === 'export' ? handleExportMood : handleImportMood}
+                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                    >
+                      {importExportMode === 'export' ? '📤' : '📥'} Mood
+                    </button>
+
+                    <button
+                      onClick={importExportMode === 'export' ? handleExportSleep : handleImportSleep}
+                      className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                    >
+                      {importExportMode === 'export' ? '📤' : '📥'} Sleep
+                    </button>
+                  </div>
+                  <p className="text-xs text-white/40 mt-3">
+                    {importExportMode === 'export'
+                      ? 'Export individual data categories as JSON files'
+                      : 'Import data from category-specific JSON files'}
+                  </p>
                 </div>
               </div>
 
