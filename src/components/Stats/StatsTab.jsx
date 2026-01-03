@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Activity, Heart, ArrowLeft, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target } from 'lucide-react';
+import { BarChart3, Activity, Heart, ArrowLeft, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Pie } from 'react-chartjs-2';
 import {
@@ -38,12 +38,6 @@ const StatsTab = () => {
   const [moodLog, setMoodLog] = useState([]);
   const [sleepLog, setSleepLog] = useState([]);
   const [timePeriod, setTimePeriod] = useState('Week');
-  const [expandedSections, setExpandedSections] = useState({
-    completionTrend: true,
-    moodTrend: true,
-    sleepQuality: true,
-    sleepMoodTrends: true
-  });
 
   // Load completed tasks from localStorage
   useEffect(() => {
@@ -140,14 +134,6 @@ const StatsTab = () => {
     3: { label: 'Okay', color: '#60a5fa' },
     2: { label: 'Down', color: '#f97316' },
     1: { label: 'Rocky', color: '#ef4444' }
-  };
-
-  // Toggle collapsible section
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
   };
 
   // Calculate mood/productivity correlation (All Time)
@@ -742,9 +728,29 @@ const StatsTab = () => {
       };
     }
 
+    // Filter sleep log based on time period
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    let filteredSleepLog = sleepLog;
+
+    if (timePeriod === 'Week') {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 6);
+      const weekAgoStr = format(weekAgo, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      filteredSleepLog = sleepLog.filter(entry => entry.date >= weekAgoStr && entry.date <= todayStr);
+    } else if (timePeriod === 'Month') {
+      const monthAgo = new Date(today);
+      monthAgo.setDate(today.getDate() - 29);
+      const monthAgoStr = format(monthAgo, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      filteredSleepLog = sleepLog.filter(entry => entry.date >= monthAgoStr && entry.date <= todayStr);
+    }
+    // 'All Time' uses all sleepLog
+
     // Map 1-5 quality to 4 categories: 1=Poor, 2=Fair, 3-4=Good, 5=Excellent
     const qualityCounts = [0, 0, 0, 0];
-    sleepLog.forEach(entry => {
+    filteredSleepLog.forEach(entry => {
       const quality = entry.quality;
       if (quality === 1) {
         qualityCounts[0]++; // Poor
@@ -1446,53 +1452,32 @@ const StatsTab = () => {
             </motion.div>
           </div>
 
-          {/* Collapsible Completion Trend Chart */}
+          {/* Completion Trend Chart */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="glass-panel p-6"
           >
-            <button
-              onClick={() => toggleSection('completionTrend')}
-              className="w-full flex items-center justify-between mb-4"
-            >
-              <h3 className="text-xl font-semibold text-text-primary">
-                Completion Trend - {timePeriod}
-              </h3>
-              {expandedSections.completionTrend ? (
-                <ChevronUp className="text-text-secondary" size={24} />
-              ) : (
-                <ChevronDown className="text-text-secondary" size={24} />
-              )}
-            </button>
+            <h3 className="text-xl font-semibold text-text-primary mb-4">
+              Completion Trend - {timePeriod}
+            </h3>
 
-            <AnimatePresence>
-              {expandedSections.completionTrend && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="h-[400px]">
-                    {completedTasks.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <p className="text-text-secondary text-lg mb-2">
-                            Complete tasks to see your progress!
-                          </p>
-                          <p className="text-text-tertiary text-sm">
-                            Your completion trend will appear here
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <Line data={getChartData()} options={chartOptions} />
-                    )}
+            <div className="h-[400px]">
+              {completedTasks.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-text-secondary text-lg mb-2">
+                      Complete tasks to see your progress!
+                    </p>
+                    <p className="text-text-tertiary text-sm">
+                      Your completion trend will appear here
+                    </p>
                   </div>
-                </motion.div>
+                </div>
+              ) : (
+                <Line data={getChartData()} options={chartOptions} />
               )}
-            </AnimatePresence>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -1597,53 +1582,32 @@ const StatsTab = () => {
             </motion.div>
           </div>
 
-          {/* Collapsible Mood Trend Chart */}
+          {/* Mood Trend Chart */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="glass-panel p-6"
           >
-            <button
-              onClick={() => toggleSection('moodTrend')}
-              className="w-full flex items-center justify-between mb-4"
-            >
-              <h3 className="text-xl font-semibold text-text-primary">
-                Mood Trend - {timePeriod}
-              </h3>
-              {expandedSections.moodTrend ? (
-                <ChevronUp className="text-text-secondary" size={24} />
-              ) : (
-                <ChevronDown className="text-text-secondary" size={24} />
-              )}
-            </button>
+            <h3 className="text-xl font-semibold text-text-primary mb-4">
+              Mood Trend - {timePeriod}
+            </h3>
 
-            <AnimatePresence>
-              {expandedSections.moodTrend && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="h-[400px]">
-                    {moodLog.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <p className="text-text-secondary text-lg mb-2">
-                            Log moods to see your trend!
-                          </p>
-                          <p className="text-text-tertiary text-sm">
-                            Your mood trend will appear here
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <Line data={getMoodChartData()} options={moodChartOptions} />
-                    )}
+            <div className="h-[400px]">
+              {moodLog.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-text-secondary text-lg mb-2">
+                      Log moods to see your trend!
+                    </p>
+                    <p className="text-text-tertiary text-sm">
+                      Your mood trend will appear here
+                    </p>
                   </div>
-                </motion.div>
+                </div>
+              ) : (
+                <Line data={getMoodChartData()} options={moodChartOptions} />
               )}
-            </AnimatePresence>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -1804,111 +1768,69 @@ const StatsTab = () => {
 
           {/* Sleep Quality Distribution & Sleep/Mood Trends Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Collapsible Sleep Quality Distribution (Pie Chart) */}
+            {/* Sleep Quality Distribution (Pie Chart) */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="glass-panel p-6"
             >
-              <button
-                onClick={() => toggleSection('sleepQuality')}
-                className="w-full flex items-center justify-between mb-4"
-              >
-                <h3 className="text-xl font-semibold text-text-primary">
-                  Sleep Quality Distribution
-                </h3>
-                {expandedSections.sleepQuality ? (
-                  <ChevronUp className="text-text-secondary" size={24} />
-                ) : (
-                  <ChevronDown className="text-text-secondary" size={24} />
-                )}
-              </button>
+              <h3 className="text-xl font-semibold text-text-primary mb-4">
+                Sleep Quality Distribution
+              </h3>
 
-              <AnimatePresence>
-                {expandedSections.sleepQuality && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="h-[350px]">
-                      {sleepLog.length === 0 ? (
-                        <div className="h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-text-secondary text-lg mb-2">
-                              Log sleep to see distribution!
-                            </p>
-                            <p className="text-text-tertiary text-sm">
-                              Your sleep quality distribution will appear here
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="h-full flex items-center justify-center"
-                          style={{
-                            filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.35)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.15))',
-                          }}
-                        >
-                          <div className="w-full h-full relative">
-                            <Pie data={getSleepQualityData()} options={pieChartOptions} />
-                          </div>
-                        </div>
-                      )}
+              <div className="h-[350px]">
+                {sleepLog.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-text-secondary text-lg mb-2">
+                        Log sleep to see distribution!
+                      </p>
+                      <p className="text-text-tertiary text-sm">
+                        Your sleep quality distribution will appear here
+                      </p>
                     </div>
-                  </motion.div>
+                  </div>
+                ) : (
+                  <div
+                    className="h-full flex items-center justify-center"
+                    style={{
+                      filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.35)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.15))',
+                    }}
+                  >
+                    <div className="w-full h-full relative">
+                      <Pie data={getSleepQualityData()} options={pieChartOptions} />
+                    </div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </div>
             </motion.div>
 
-            {/* Collapsible Sleep & Mood Trends */}
+            {/* Sleep & Mood Trends */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="glass-panel p-6"
             >
-              <button
-                onClick={() => toggleSection('sleepMoodTrends')}
-                className="w-full flex items-center justify-between mb-4"
-              >
-                <h3 className="text-xl font-semibold text-text-primary">
-                  Sleep & Mood Trends
-                </h3>
-                {expandedSections.sleepMoodTrends ? (
-                  <ChevronUp className="text-text-secondary" size={24} />
-                ) : (
-                  <ChevronDown className="text-text-secondary" size={24} />
-                )}
-              </button>
+              <h3 className="text-xl font-semibold text-text-primary mb-4">
+                Sleep & Mood Trends
+              </h3>
 
-              <AnimatePresence>
-                {expandedSections.sleepMoodTrends && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="h-[350px]">
-                      {sleepLog.length === 0 && moodLog.length === 0 ? (
-                        <div className="h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-text-secondary text-lg mb-2">
-                              Log sleep and mood to see trends!
-                            </p>
-                            <p className="text-text-tertiary text-sm">
-                              Combined visualization will appear here
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <Line data={getSleepMoodTrendsData()} options={sleepMoodTrendsOptions} />
-                      )}
+              <div className="h-[350px]">
+                {sleepLog.length === 0 && moodLog.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-text-secondary text-lg mb-2">
+                        Log sleep and mood to see trends!
+                      </p>
+                      <p className="text-text-tertiary text-sm">
+                        Combined visualization will appear here
+                      </p>
                     </div>
-                  </motion.div>
+                  </div>
+                ) : (
+                  <Line data={getSleepMoodTrendsData()} options={sleepMoodTrendsOptions} />
                 )}
-              </AnimatePresence>
+              </div>
             </motion.div>
           </div>
         </div>
