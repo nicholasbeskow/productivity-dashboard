@@ -7,6 +7,10 @@
  * Level 4: Emergency recovery UI
  */
 
+import { STORAGE_KEYS } from '../constants/storageKeys';
+import { getItem, getString, setItem, setString, removeItem } from './storageManager';
+import { DURATIONS, FILE_SIZES, BACKUP_LIMITS } from '../constants/config';
+
 class BackupManager {
   constructor() {
     this.snapshotTimeout = null;
@@ -24,31 +28,21 @@ class BackupManager {
    * Get all localStorage AND electron-store data for backup
    */
   async getAllData() {
-    // Helper to safely parse JSON from localStorage
-    const safeParse = (key, defaultValue = '[]') => {
-      try {
-        return JSON.parse(localStorage.getItem(key) || defaultValue);
-      } catch (error) {
-        console.error(`[BackupManager] Error parsing ${key}:`, error);
-        return JSON.parse(defaultValue);
-      }
-    };
-
-    // 1. Get renderer-side data from localStorage
+    // 1. Get renderer-side data from localStorage using storage manager
     const localData = {
-      tasks: safeParse('tasks', '[]'),
-      completedTasks: safeParse('completedTasks', '[]'),
-      recurringTasks: safeParse('recurringTasks', '[]'),
-      moodLog: safeParse('moodLog', '[]'),
-      journalLog: safeParse('journalLog', '[]'),
-      sleepLog: safeParse('sleepLog', '[]'),
-      userName: localStorage.getItem('userName') || '',
-      breakStartDate: localStorage.getItem('breakStartDate') || '',
-      semesterStartDate: localStorage.getItem('semesterStartDate') || '',
-      semesterEndDate: localStorage.getItem('semesterEndDate') || '',
-      taskFilter: localStorage.getItem('taskFilter') || 'all',
-      pomodoroWorkDuration: localStorage.getItem('pomodoroWorkDuration') || '50',
-      pomodoroBreakDuration: localStorage.getItem('pomodoroBreakDuration') || '10',
+      tasks: getItem(STORAGE_KEYS.TASKS, []),
+      completedTasks: getItem(STORAGE_KEYS.COMPLETED_TASKS, []),
+      recurringTasks: getItem(STORAGE_KEYS.RECURRING_TASKS, []),
+      moodLog: getItem(STORAGE_KEYS.MOOD_LOG, []),
+      journalLog: getItem(STORAGE_KEYS.JOURNAL_LOG, []),
+      sleepLog: getItem(STORAGE_KEYS.SLEEP_LOG, []),
+      userName: getString(STORAGE_KEYS.USER_NAME, ''),
+      breakStartDate: getString(STORAGE_KEYS.BREAK_START_DATE, ''),
+      semesterStartDate: getString(STORAGE_KEYS.SEMESTER_START_DATE, ''),
+      semesterEndDate: getString(STORAGE_KEYS.SEMESTER_END_DATE, ''),
+      taskFilter: getString(STORAGE_KEYS.TASK_FILTER, 'all'),
+      pomodoroWorkDuration: getString(STORAGE_KEYS.POMODORO_WORK_DURATION, '50'),
+      pomodoroBreakDuration: getString(STORAGE_KEYS.POMODORO_BREAK_DURATION, '10'),
     };
 
     // 2. Get main-side data from electron-store
@@ -81,20 +75,20 @@ class BackupManager {
     if (!data) return false;
 
     try {
-      // 1. Restore renderer-side data to localStorage
-      if (data.tasks) localStorage.setItem('tasks', JSON.stringify(data.tasks));
-      if (data.completedTasks) localStorage.setItem('completedTasks', JSON.stringify(data.completedTasks));
-      if (data.recurringTasks) localStorage.setItem('recurringTasks', JSON.stringify(data.recurringTasks));
-      if (data.moodLog) localStorage.setItem('moodLog', JSON.stringify(data.moodLog));
-      if (data.journalLog) localStorage.setItem('journalLog', JSON.stringify(data.journalLog));
-      if (data.sleepLog) localStorage.setItem('sleepLog', JSON.stringify(data.sleepLog));
-      if (data.userName) localStorage.setItem('userName', data.userName);
-      if (data.breakStartDate) localStorage.setItem('breakStartDate', data.breakStartDate);
-      if (data.semesterStartDate) localStorage.setItem('semesterStartDate', data.semesterStartDate);
-      if (data.semesterEndDate) localStorage.setItem('semesterEndDate', data.semesterEndDate);
-      if (data.taskFilter) localStorage.setItem('taskFilter', data.taskFilter);
-      if (data.pomodoroWorkDuration) localStorage.setItem('pomodoroWorkDuration', data.pomodoroWorkDuration);
-      if (data.pomodoroBreakDuration) localStorage.setItem('pomodoroBreakDuration', data.pomodoroBreakDuration);
+      // 1. Restore renderer-side data to localStorage using storage manager
+      if (data.tasks) setItem(STORAGE_KEYS.TASKS, data.tasks);
+      if (data.completedTasks) setItem(STORAGE_KEYS.COMPLETED_TASKS, data.completedTasks);
+      if (data.recurringTasks) setItem(STORAGE_KEYS.RECURRING_TASKS, data.recurringTasks);
+      if (data.moodLog) setItem(STORAGE_KEYS.MOOD_LOG, data.moodLog);
+      if (data.journalLog) setItem(STORAGE_KEYS.JOURNAL_LOG, data.journalLog);
+      if (data.sleepLog) setItem(STORAGE_KEYS.SLEEP_LOG, data.sleepLog);
+      if (data.userName) setString(STORAGE_KEYS.USER_NAME, data.userName);
+      if (data.breakStartDate) setString(STORAGE_KEYS.BREAK_START_DATE, data.breakStartDate);
+      if (data.semesterStartDate) setString(STORAGE_KEYS.SEMESTER_START_DATE, data.semesterStartDate);
+      if (data.semesterEndDate) setString(STORAGE_KEYS.SEMESTER_END_DATE, data.semesterEndDate);
+      if (data.taskFilter) setString(STORAGE_KEYS.TASK_FILTER, data.taskFilter);
+      if (data.pomodoroWorkDuration) setString(STORAGE_KEYS.POMODORO_WORK_DURATION, data.pomodoroWorkDuration);
+      if (data.pomodoroBreakDuration) setString(STORAGE_KEYS.POMODORO_BREAK_DURATION, data.pomodoroBreakDuration);
 
       // 2. Restore main-side data to electron-store
       if (this.isElectron()) {
@@ -361,7 +355,7 @@ class BackupManager {
    */
   formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
-    const k = 1024;
+    const k = FILE_SIZES.BYTES_PER_KB;
     const sizes = ['Bytes', 'KB', 'MB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
