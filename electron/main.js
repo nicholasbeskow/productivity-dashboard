@@ -558,6 +558,24 @@ ipcMain.handle('dialog:show-open-dialog', async (event, options = {}) => {
   }
 });
 
+// Show save dialog for exporting files
+ipcMain.handle('dialog:show-save-dialog', async (event, options = {}) => {
+  try {
+    const dialogOptions = {
+      title: options.title || 'Save File',
+      defaultPath: options.defaultPath || undefined,
+      filters: options.filters || undefined
+    };
+
+    const result = await dialog.showSaveDialog(mainWindow, dialogOptions);
+
+    return result;
+  } catch (error) {
+    console.error('Error showing save dialog:', error);
+    return { canceled: true, filePath: null };
+  }
+});
+
 // Open file with system's default application
 ipcMain.handle('shell:open-path', async (event, filePath) => {
   try {
