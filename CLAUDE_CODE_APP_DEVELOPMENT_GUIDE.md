@@ -313,6 +313,660 @@ npm install --save-dev concurrently wait-on electron-builder
 
 ---
 
+## 💎 The Liquid Glass UI Design System
+
+One of Pinnacle's most distinctive features is its **Liquid Glass UI** - a custom design system that creates depth, elegance, and visual hierarchy through glassmorphism and subtle lighting effects.
+
+### What is Liquid Glass?
+
+Liquid Glass combines:
+- **Backdrop blur** with saturation boost for depth
+- **Translucent layering** with gradient backgrounds
+- **Subtle inner highlights** simulating light refraction
+- **Soft shadows** creating floating effect
+- **Minimal borders** with transparency
+- **Glow effects** for interactive states
+
+The result: A modern, premium interface that feels fluid, three-dimensional, and polished.
+
+### Core Glass Components
+
+#### 1. Glass Panel (Primary Container)
+
+The foundation of the UI - used for cards, modals, and content sections.
+
+```css
+/* src/styles/globals.css */
+.glass-panel {
+  backdrop-filter: blur(24px) saturate(180%);
+  background: linear-gradient(
+    180deg,
+    rgba(24, 24, 27, 0.6) 0%,
+    rgba(9, 9, 11, 0.4) 100%
+  );
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  border-radius: 24px;
+}
+```
+
+**Key Techniques:**
+- `backdrop-filter: blur(24px)` - Creates the frosted glass effect
+- `saturate(180%)` - Makes colors behind the glass more vibrant
+- **Gradient background** - Lighter at top (light source), darker at bottom (depth)
+- **Inset highlight** - Simulates light catching the top edge
+- **External shadow** - Lifts the panel off the background
+- **Large border radius (24px)** - Soft, modern feel
+
+**Usage:**
+```jsx
+<div className="glass-panel p-6">
+  <h2>Your Content Here</h2>
+</div>
+
+{/* With custom backdrop strength */}
+<div
+  className="glass-panel p-6"
+  style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+>
+  <h2>Lighter glass effect</h2>
+</div>
+```
+
+#### 2. Liquid Bubble States (Interactive Elements)
+
+For buttons, calendar tiles, and interactive cards with multiple states.
+
+```css
+/* Empty/Default State */
+.liquid-bubble-empty {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+}
+
+/* Hover State */
+.liquid-bubble-hover {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Filled/Active State */
+.liquid-bubble-filled {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Today/Highlighted State (with glow) */
+.liquid-bubble-today {
+  background: rgba(61, 214, 140, 0.04);
+  border: 1px solid rgba(61, 214, 140, 0.2);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    0 0 8px rgba(61, 214, 140, 0.12);
+}
+```
+
+**Progressive Enhancement Pattern:**
+Each state adds more intensity:
+- **Empty** → Barely visible (subtle presence)
+- **Hover** → Slightly brighter (interactive feedback)
+- **Filled** → More defined (active state)
+- **Highlighted** → Colored + glowing (special state)
+
+**Usage:**
+```jsx
+{/* Calendar day tile */}
+<button
+  className={`
+    p-3 rounded-lg transition-all
+    ${isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'}
+  `}
+>
+  {day}
+</button>
+
+{/* Action button with backdrop */}
+<button
+  className="px-4 py-2 liquid-bubble-filled rounded-lg hover:shadow-glow transition-all"
+  style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+>
+  Save Changes
+</button>
+```
+
+#### 3. Custom Tailwind Glass Colors
+
+Extend Tailwind with glass-specific colors for consistency.
+
+```javascript
+// tailwind.config.js
+theme: {
+  extend: {
+    colors: {
+      glass: {
+        clear: 'rgba(255, 255, 255, 0)',
+        surface: 'rgba(255, 255, 255, 0.08)',
+        overlay: 'rgba(255, 255, 255, 0.12)',
+        highlight: 'rgba(255, 255, 255, 0.25)',
+        shadow: 'rgba(0, 0, 0, 0.4)',
+      },
+    },
+  },
+}
+```
+
+**Usage:**
+```jsx
+<div className="bg-glass-surface hover:bg-glass-overlay transition-colors">
+  Subtle interactive area
+</div>
+```
+
+### The Liquid Background
+
+The background creates depth and visual interest without being distracting.
+
+```css
+/* src/styles/globals.css */
+body {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(20, 184, 166, 0.12) 0%, transparent 50%),
+    #0a0e14;
+  background-attachment: fixed;
+}
+```
+
+**Why This Works:**
+- **Multiple radial gradients** create soft, organic color pools
+- **Low opacity (0.12-0.15)** keeps it subtle
+- **Strategic positioning** (20%, 80%, 40%) creates balance
+- **Dark base color (#0a0e14)** ensures text readability
+- **Fixed attachment** prevents movement when scrolling
+
+**Customization:**
+```css
+/* Warmer theme (orange/red) */
+background:
+  radial-gradient(circle at 20% 30%, rgba(251, 146, 60, 0.15) 0%, transparent 50%),
+  radial-gradient(circle at 80% 70%, rgba(239, 68, 68, 0.12) 0%, transparent 50%),
+  radial-gradient(circle at 40% 80%, rgba(234, 88, 12, 0.10) 0%, transparent 50%),
+  #0f0a08;
+
+/* Cooler theme (blue/cyan) */
+background:
+  radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+  radial-gradient(circle at 80% 70%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+  radial-gradient(circle at 40% 80%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
+  #0a0e14;
+```
+
+### Glow Effects (Visual Feedback)
+
+Subtle glows provide feedback without being overwhelming.
+
+#### Hover Glows (Cards & Buttons)
+
+```css
+/* Task card glows based on status */
+.task-glow-not-started {
+  box-shadow: none;
+  transition: box-shadow 200ms ease-in-out;
+}
+
+.task-glow-not-started:hover {
+  box-shadow: 0 0 10px rgba(100, 200, 255, 0.18);
+}
+
+.task-glow-in-progress:hover {
+  box-shadow: 0 0 10px rgba(255, 200, 50, 0.2);
+}
+
+.task-glow-complete:hover {
+  box-shadow: 0 0 8px rgba(61, 214, 140, 0.15);
+}
+
+.task-glow-overdue:hover {
+  box-shadow: 0 0 12px rgba(255, 50, 50, 0.25);
+}
+```
+
+**Pattern:**
+- No glow by default (clean)
+- Glow only on hover (interactive feedback)
+- Color matches semantic state
+- Low opacity (0.15-0.25) keeps it subtle
+
+**Usage:**
+```jsx
+const getCardGlow = (task, isOverdue) => {
+  if (isOverdue) return 'task-glow-overdue';
+  switch (task.status) {
+    case 'complete': return 'task-glow-complete';
+    case 'in-progress': return 'task-glow-in-progress';
+    default: return 'task-glow-not-started';
+  }
+};
+
+<div className={`glass-panel p-4 ${getCardGlow(task, isOverdue)}`}>
+  {task.title}
+</div>
+```
+
+#### Tailwind Glow Utilities
+
+```javascript
+// tailwind.config.js
+boxShadow: {
+  'glow': '0 0 20px rgba(61, 214, 140, 0.3)',
+  'glow-strong': '0 0 30px rgba(61, 214, 140, 0.5)',
+}
+```
+
+**Usage:**
+```jsx
+<button className="px-4 py-2 bg-green-glow/20 hover:shadow-glow transition-all">
+  Primary Action
+</button>
+```
+
+#### Pulsing Glow Animation
+
+For elements that need attention.
+
+```css
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(61, 214, 140, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(61, 214, 140, 0.5);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+```
+
+**Usage:**
+```jsx
+<div className="glass-panel glow-pulse">
+  Notification Badge
+</div>
+```
+
+### Custom Scrollbar (Polish Detail)
+
+Minimal, translucent scrollbars that match the glass aesthetic.
+
+```css
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+```
+
+**Why 4px?**
+- Unobtrusive but functional
+- Feels modern and minimal
+- Matches the glass aesthetic
+
+### Layering Strategy
+
+Create depth through strategic layering.
+
+```jsx
+{/* Background layer - Body with gradients */}
+<body>
+
+  {/* Glass layer 1 - Sidebar */}
+  <aside className="glass-panel">
+    {/* Navigation */}
+  </aside>
+
+  {/* Glass layer 2 - Content panels */}
+  <main className="glass-panel">
+
+    {/* Glass layer 3 - Cards within panels */}
+    <div className="glass-panel p-4">
+      <h3>Nested content</h3>
+    </div>
+
+    {/* Glass layer 4 - Modals/overlays */}
+    <div className="glass-panel p-6 shadow-2xl">
+      <p>Top layer</p>
+    </div>
+
+  </main>
+
+</body>
+```
+
+**Best Practices:**
+- Maximum 3-4 glass layers (more = muddy)
+- Increase blur strength for higher layers
+- Add stronger shadows to layers closer to viewer
+- Use borders to separate adjacent glass elements
+
+### Typography on Glass
+
+Text needs careful contrast on translucent backgrounds.
+
+```css
+/* Primary text - High contrast */
+.text-primary {
+  color: #e6e8ea;
+}
+
+/* Secondary text - Medium contrast */
+.text-secondary {
+  color: #9195a0;
+}
+
+/* Tertiary text - Low contrast */
+.text-tertiary {
+  color: #5a5f6b;
+}
+
+/* Selection highlight */
+::selection {
+  background-color: #3dd68c;
+  color: #0a0e14;
+}
+```
+
+**Text Shadow for Readability:**
+```jsx
+<h1
+  className="text-4xl font-bold text-white"
+  style={{ textShadow: '0 2px 12px rgba(0, 0, 0, 0.5)' }}
+>
+  Title on Glass
+</h1>
+```
+
+### Complete Liquid Glass Setup
+
+Here's everything you need to copy for your next project:
+
+#### 1. globals.css
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base background */
+body {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(20, 184, 166, 0.12) 0%, transparent 50%),
+    #0a0e14;
+  background-attachment: fixed;
+  color: #e6e8ea;
+}
+
+/* Glass panel */
+.glass-panel {
+  backdrop-filter: blur(24px) saturate(180%);
+  background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.4) 100%);
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  border-radius: 24px;
+}
+
+/* Liquid bubble states */
+.liquid-bubble-empty {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+}
+
+.liquid-bubble-hover {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.liquid-bubble-filled {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.liquid-bubble-today {
+  background: rgba(61, 214, 140, 0.04);
+  border: 1px solid rgba(61, 214, 140, 0.2);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    0 0 8px rgba(61, 214, 140, 0.12);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Glow pulse animation */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(61, 214, 140, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(61, 214, 140, 0.5);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+```
+
+#### 2. tailwind.config.js
+```javascript
+theme: {
+  extend: {
+    colors: {
+      glass: {
+        clear: 'rgba(255, 255, 255, 0)',
+        surface: 'rgba(255, 255, 255, 0.08)',
+        overlay: 'rgba(255, 255, 255, 0.12)',
+        highlight: 'rgba(255, 255, 255, 0.25)',
+        shadow: 'rgba(0, 0, 0, 0.4)',
+      },
+    },
+    boxShadow: {
+      'glow': '0 0 20px rgba(61, 214, 140, 0.3)',
+      'glow-strong': '0 0 30px rgba(61, 214, 140, 0.5)',
+    },
+  },
+}
+```
+
+### Real-World Examples
+
+#### Dashboard Card
+```jsx
+<div className="glass-panel p-6 hover:shadow-glow transition-all">
+  <h2 className="text-xl font-semibold text-white mb-4">Upcoming Tasks</h2>
+  <div className="space-y-3">
+    {tasks.map(task => (
+      <div
+        key={task.id}
+        className="liquid-bubble-filled p-3 rounded-lg hover:bg-glass-overlay transition-all"
+      >
+        <p className="text-white">{task.title}</p>
+        <p className="text-sm text-white/60">{task.dueDate}</p>
+      </div>
+    ))}
+  </div>
+</div>
+```
+
+#### Action Button with Glow
+```jsx
+<button
+  className="px-6 py-3 liquid-bubble-filled rounded-lg hover:shadow-[0_0_12px_rgba(61,214,140,0.3)] transition-all font-semibold text-white"
+  style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+>
+  <span className="flex items-center gap-2">
+    <Save size={18} />
+    Save Changes
+  </span>
+</button>
+```
+
+#### Modal Overlay
+```jsx
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center"
+>
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="glass-panel p-8 max-w-lg w-full shadow-2xl"
+    style={{ backdropFilter: 'blur(32px) saturate(200%)' }}
+  >
+    <h2 className="text-2xl font-bold text-white mb-4">Confirm Action</h2>
+    <p className="text-white/80 mb-6">Are you sure you want to proceed?</p>
+
+    <div className="flex gap-3">
+      <button className="flex-1 px-4 py-2 liquid-bubble-filled rounded-lg hover:bg-glass-overlay transition-all text-white">
+        Cancel
+      </button>
+      <button className="flex-1 px-4 py-2 bg-green-glow/20 border border-green-glow/30 rounded-lg hover:shadow-glow transition-all text-white font-semibold">
+        Confirm
+      </button>
+    </div>
+  </motion.div>
+</motion.div>
+```
+
+### Performance Considerations
+
+**Backdrop Blur is Expensive**
+- Use sparingly (only on visible panels)
+- Don't animate blur values
+- Reduce blur radius on lower-end devices
+
+```jsx
+// Detect performance tier
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const blurAmount = reduceMotion ? 'blur(12px)' : 'blur(24px)';
+
+<div className="glass-panel" style={{ backdropFilter: `${blurAmount} saturate(180%)` }}>
+```
+
+**Browser Support**
+- Safari: Full support
+- Chrome/Edge: Full support
+- Firefox: Full support (enabled by default since v103)
+- Fallback: Solid background color
+
+```css
+.glass-panel {
+  /* Fallback for browsers without backdrop-filter */
+  background: rgba(24, 24, 27, 0.9);
+
+  /* Progressive enhancement */
+  @supports (backdrop-filter: blur(24px)) {
+    backdrop-filter: blur(24px) saturate(180%);
+    background: linear-gradient(180deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.4) 100%);
+  }
+}
+```
+
+### Design Principles
+
+1. **Subtlety Over Spectacle**
+   - Low opacity values (0.02-0.15)
+   - Gentle transitions (200ms)
+   - Hover-only glows
+
+2. **Consistency**
+   - Use the same blur radius across similar elements
+   - Maintain color opacity ratios
+   - Standardize border-radius (24px for panels, 8-12px for buttons)
+
+3. **Hierarchy Through Layering**
+   - Background has gradients
+   - Containers have glass panels
+   - Cards have liquid bubbles
+   - Modals have strongest blur + shadows
+
+4. **Color Restraint**
+   - Primary accent: Green (#3dd68c)
+   - Semantic colors: Yellow (in-progress), Red (error/overdue)
+   - Neutral glass: White with low opacity
+   - Background: Dark blue-gray (#0a0e14)
+
+### Claude Code Prompt for Liquid Glass
+
+```
+"Implement the Liquid Glass UI design system from Pinnacle:
+
+CORE COMPONENTS:
+- Glass panel utility with backdrop blur, gradient background, inner highlight
+- Liquid bubble states (empty, hover, filled, today)
+- Custom glass colors in Tailwind
+- Radial gradient background
+- Minimal custom scrollbar
+- Glow effects for hover states
+
+STYLING FILES:
+- Create src/styles/globals.css with glass utilities
+- Update tailwind.config.js with glass colors
+- Add glow animations
+
+DESIGN PRINCIPLES:
+- Subtle opacity (0.02-0.15)
+- 24px border radius for panels
+- Hover-only glows
+- 3-4 layer maximum depth
+
+Reference: Copy the exact CSS from Pinnacle's globals.css and tailwind.config.js"
+```
+
+---
+
 ## 🎨 UI/UX Best Practices (Why Pinnacle Feels Smooth)
 
 ### 1. Consistent Spacing System
