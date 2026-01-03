@@ -704,7 +704,7 @@ const StatsTab = () => {
     };
   };
 
-  // Sleep quality distribution pie chart (4 categories only)
+  // Sleep quality distribution pie chart (4 categories only) - Monochromatic Purple Theme
   const getSleepQualityData = () => {
     if (sleepLog.length === 0) {
       return {
@@ -713,18 +713,31 @@ const StatsTab = () => {
           label: 'Nights',
           data: [0, 0, 0, 0],
           backgroundColor: [
-            'rgba(239, 68, 68, 0.4)',
-            'rgba(249, 115, 22, 0.4)',
-            'rgba(234, 179, 8, 0.4)',
-            'rgba(61, 214, 140, 0.4)',
+            'rgba(243, 232, 255, 0.7)', // Pale White/Lilac - Poor
+            'rgba(216, 180, 254, 0.75)', // Soft Lavender - Fair
+            'rgba(168, 85, 247, 0.8)',   // Bright Purple - Good
+            'rgba(124, 58, 237, 0.85)',  // Vibrant Deep Violet - Excellent
           ],
           borderColor: [
-            'rgba(239, 68, 68, 1)',
-            'rgba(249, 115, 22, 1)',
-            'rgba(234, 179, 8, 1)',
-            'rgba(61, 214, 140, 1)',
+            'rgba(243, 232, 255, 1)',
+            'rgba(216, 180, 254, 1)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
           ],
-          borderWidth: 2,
+          borderWidth: 3,
+          hoverBackgroundColor: [
+            'rgba(243, 232, 255, 0.9)',
+            'rgba(216, 180, 254, 0.95)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
+          ],
+          hoverBorderColor: [
+            'rgba(243, 232, 255, 1)',
+            'rgba(216, 180, 254, 1)',
+            'rgba(168, 85, 247, 1)',
+            'rgba(124, 58, 237, 1)',
+          ],
+          hoverBorderWidth: 4,
         }]
       };
     }
@@ -750,18 +763,31 @@ const StatsTab = () => {
         label: 'Nights',
         data: qualityCounts,
         backgroundColor: [
-          'rgba(239, 68, 68, 0.4)',
-          'rgba(249, 115, 22, 0.4)',
-          'rgba(234, 179, 8, 0.4)',
-          'rgba(61, 214, 140, 0.4)',
+          'rgba(243, 232, 255, 0.7)', // Pale White/Lilac - Poor
+          'rgba(216, 180, 254, 0.75)', // Soft Lavender - Fair
+          'rgba(168, 85, 247, 0.8)',   // Bright Purple - Good
+          'rgba(124, 58, 237, 0.85)',  // Vibrant Deep Violet - Excellent
         ],
         borderColor: [
-          'rgba(239, 68, 68, 1)',
-          'rgba(249, 115, 22, 1)',
-          'rgba(234, 179, 8, 1)',
-          'rgba(61, 214, 140, 1)',
+          'rgba(243, 232, 255, 1)',
+          'rgba(216, 180, 254, 1)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
         ],
-        borderWidth: 2,
+        borderWidth: 3,
+        hoverBackgroundColor: [
+          'rgba(243, 232, 255, 0.9)',
+          'rgba(216, 180, 254, 0.95)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
+        ],
+        hoverBorderColor: [
+          'rgba(243, 232, 255, 1)',
+          'rgba(216, 180, 254, 1)',
+          'rgba(168, 85, 247, 1)',
+          'rgba(124, 58, 237, 1)',
+        ],
+        hoverBorderWidth: 4,
       }]
     };
   };
@@ -985,23 +1011,53 @@ const StatsTab = () => {
         position: 'bottom',
         labels: {
           color: '#e6e8ea',
-          padding: 15,
+          padding: 18,
           font: {
-            size: 12,
-            weight: '500',
+            size: 13,
+            weight: '600',
+            family: "'Inter', sans-serif",
           },
-          boxWidth: 15,
-          boxHeight: 15,
+          boxWidth: 18,
+          boxHeight: 18,
+          borderRadius: 4,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          generateLabels: function(chart) {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              return data.labels.map((label, i) => {
+                const dataset = data.datasets[0];
+                const backgroundColor = dataset.backgroundColor[i];
+                const borderColor = dataset.borderColor[i];
+                return {
+                  text: label,
+                  fillStyle: backgroundColor,
+                  strokeStyle: borderColor,
+                  lineWidth: 2,
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+            return [];
+          }
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(10, 14, 20, 0.95)',
-        titleColor: '#e6e8ea',
-        bodyColor: '#9195a0',
-        padding: 12,
+        backgroundColor: 'rgba(10, 14, 20, 0.98)',
+        titleColor: '#c084fc',
+        bodyColor: '#e6e8ea',
+        padding: 14,
         cornerRadius: 12,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
+        borderColor: 'rgba(168, 85, 247, 0.3)',
+        borderWidth: 2,
+        titleFont: {
+          size: 14,
+          weight: 'bold',
+        },
+        bodyFont: {
+          size: 13,
+        },
         callbacks: {
           label: function(context) {
             const label = context.label || '';
@@ -1018,16 +1074,25 @@ const StatsTab = () => {
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
           return percentage > 5 ? `${percentage}%` : ''; // Only show if > 5%
         },
-        color: '#fff',
+        color: (context) => {
+          // Use white for darker purples, dark purple for light colors
+          const index = context.dataIndex;
+          return index <= 1 ? '#6d28d9' : '#ffffff';
+        },
         font: {
           weight: 'bold',
-          size: 14,
+          size: 15,
+          family: "'Inter', sans-serif",
         },
+        textShadowBlur: 4,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
       },
     },
     animation: {
-      duration: 500,
+      duration: 600,
       easing: 'easeInOutQuart',
+      animateRotate: true,
+      animateScale: true,
     },
   };
 
@@ -1778,7 +1843,16 @@ const StatsTab = () => {
                           </div>
                         </div>
                       ) : (
-                        <Pie data={getSleepQualityData()} options={pieChartOptions} />
+                        <div
+                          className="h-full flex items-center justify-center"
+                          style={{
+                            filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.35)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.15))',
+                          }}
+                        >
+                          <div className="w-full h-full relative">
+                            <Pie data={getSleepQualityData()} options={pieChartOptions} />
+                          </div>
+                        </div>
                       )}
                     </div>
                   </motion.div>
