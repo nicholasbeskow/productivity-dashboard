@@ -16,15 +16,22 @@ import { ArrowRight, Moon } from 'lucide-react';
 const isTaskOverdue = (task) => {
   if (!task.dueDate || task.status === 'complete') return false;
 
-  if (task.time) {
-    const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-    const now = new Date();
-    return taskDateTime < now;
-  } else {
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(task.dueDate + 'T12:00:00');
-    return dueDate < now;
+  try {
+    if (task.time) {
+      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+      if (isNaN(taskDateTime.getTime())) return false; // Invalid date
+      const now = new Date();
+      return taskDateTime < now;
+    } else {
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(task.dueDate + 'T12:00:00');
+      if (isNaN(dueDate.getTime())) return false; // Invalid date
+      return dueDate < now;
+    }
+  } catch (error) {
+    console.error('Error checking if task is overdue:', error, task);
+    return false;
   }
 };
 
@@ -537,6 +544,12 @@ const Dashboard = ({ setActiveTab }) => {
       if (storedTasks) {
         try {
           const parsedTasks = JSON.parse(storedTasks);
+          // Validate that parsedTasks is an array
+          if (!Array.isArray(parsedTasks)) {
+            console.error('Invalid tasks data: expected array, got', typeof parsedTasks);
+            setTasks([]);
+            return;
+          }
           setTasks(parsedTasks);
         } catch (error) {
           console.error('Error loading tasks:', error);
@@ -570,22 +583,7 @@ const Dashboard = ({ setActiveTab }) => {
     window.dispatchEvent(new Event('taskFilterChanged'));
   };
 
-  const isOverdue = (task) => {
-    if (!task.dueDate || task.status === 'complete') return false;
-
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
-    }
-  };
+  // Using the isTaskOverdue utility function defined at the top of the file
 
   const handleStatusChange = useCallback((taskId) => {
     const task = tasks.find(t => t.id === taskId);
@@ -777,7 +775,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
-    setEditScope('instance'); // Reset to default scope
+    editScopeRef.current = 'instance'; // Reset to default scope
     setEditForm({
       title: task.title,
       description: task.description || '',
@@ -1156,8 +1154,8 @@ const Dashboard = ({ setActiveTab }) => {
         return true;
       })
       .sort((a, b) => {
-        const aOverdue = isOverdue(a);
-        const bOverdue = isOverdue(b);
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
 
         if (aOverdue && !bOverdue) return -1;
         if (!aOverdue && bOverdue) return 1;

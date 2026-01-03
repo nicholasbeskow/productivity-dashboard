@@ -49,15 +49,21 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       let recurrence = initialData.recurrence;
       if (!recurrence && initialData.templateId) {
         try {
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const template = templates.find(t => t.id === initialData.templateId);
-          if (template && template.recurrence) {
-            recurrence = template.recurrence;
-          } else if (!template) {
-            console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+          const templatesData = localStorage.getItem('recurringTasks') || '[]';
+          const templates = JSON.parse(templatesData);
+          // Validate that templates is an array
+          if (!Array.isArray(templates)) {
+            console.error('[TaskForm] Invalid recurringTasks data: expected array');
+          } else {
+            const template = templates.find(t => t.id === initialData.templateId);
+            if (template && template.recurrence) {
+              recurrence = template.recurrence;
+            } else if (!template) {
+              console.warn(`[TaskForm] Orphaned task detected: templateId "${initialData.templateId}" not found. Treating as non-recurring.`);
+            }
           }
         } catch (error) {
-          console.error('Error fetching template recurrence:', error);
+          console.error('[TaskForm] Error fetching template recurrence:', error);
         }
       }
 
@@ -886,7 +892,15 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                     min="1"
                     max="365"
                     value={customInterval}
-                    onChange={(e) => setCustomInterval(e.target.value === '' ? '' : Math.max(1, Math.min(365, parseInt(e.target.value))))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setCustomInterval(1); // Reset to 1 instead of empty string
+                      } else {
+                        const num = parseInt(val);
+                        setCustomInterval(isNaN(num) ? 1 : Math.max(1, Math.min(365, num)));
+                      }
+                    }}
                     className="w-20 liquid-bubble-filled rounded-lg px-3 py-2 text-white text-center focus:border-green-glow/50 focus:outline-none transition-colors"
                   />
                   <select

@@ -51,17 +51,24 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
   const isOverdue = (task) => {
     if (!task.dueDate || task.status === 'complete') return false;
 
-    // If task has a time, check date + time; otherwise just date
-    if (task.time) {
-      const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
-      const now = new Date();
-      return taskDateTime < now;
-    } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      return dueDate < now;
+    try {
+      // If task has a time, check date + time; otherwise just date
+      if (task.time) {
+        const taskDateTime = new Date(`${task.dueDate}T${task.time}`);
+        if (isNaN(taskDateTime.getTime())) return false;
+        const now = new Date();
+        return taskDateTime < now;
+      } else {
+        // No time - check date only (at noon to avoid timezone shift)
+        const now = new Date();
+        now.setHours(12, 0, 0, 0);
+        const dueDate = new Date(task.dueDate + 'T12:00:00');
+        if (isNaN(dueDate.getTime())) return false;
+        return dueDate < now;
+      }
+    } catch (error) {
+      console.error('[TaskList] Error checking overdue status:', error, task);
+      return false;
     }
   };
 
@@ -695,13 +702,19 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
               templateId: template.id,
             };
 
-            // Helper to check if a task is overdue
+            // Helper to check if a task is overdue (reusing the function defined at line 51)
             const isTaskOverdue = (task) => {
               if (!task.dueDate || task.status === 'complete') return false;
-              const now = new Date();
-              now.setHours(12, 0, 0, 0);
-              const dueDate = new Date(task.dueDate + 'T12:00:00');
-              return dueDate < now;
+              try {
+                const now = new Date();
+                now.setHours(12, 0, 0, 0);
+                const dueDate = new Date(task.dueDate + 'T12:00:00');
+                if (isNaN(dueDate.getTime())) return false;
+                return dueDate < now;
+              } catch (error) {
+                console.error('[TaskList] Error checking overdue status:', error);
+                return false;
+              }
             };
 
             // Find the right position for the new task based on due date
@@ -1090,6 +1103,12 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
   const handleMenuToggle = useCallback((task, buttonRect) => {
     const clickedTaskId = task.id;
+
+    // Validate buttonRect
+    if (!buttonRect || typeof buttonRect.top === 'undefined' || typeof buttonRect.bottom === 'undefined') {
+      console.error('[TaskList] Invalid buttonRect provided to handleMenuToggle');
+      return;
+    }
 
     // Calculate menu position with smart positioning (above or below)
     const menuHeight = 160; // Approximate menu height in pixels
