@@ -156,13 +156,13 @@ function App() {
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="flex-1 overflow-hidden relative">
-          {/* 32px drag bar - positioned absolutely with low z-index */}
+          {/* Small draggable strip in top-left corner */}
           <div
-            className="absolute top-0 left-0 right-0 h-8 z-0"
+            className="absolute top-2 left-2 w-32 h-6 rounded"
             style={{ WebkitAppRegion: 'drag' }}
           />
 
-          <div className="h-full overflow-hidden relative z-10">
+          <div className="h-full overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
