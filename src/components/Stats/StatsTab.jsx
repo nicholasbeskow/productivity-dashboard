@@ -183,8 +183,8 @@ const StatsTab = () => {
 
     if (avgTasksOnGoodDays > 0) {
       return {
-        text: 'tasks on good days (vs 0 on bad)',
-        value: `${goodDayTaskCount} total`,
+        text: 'avg tasks on good days (vs 0 on bad)',
+        value: `${avgTasksOnGoodDays.toFixed(1)}`,
       };
     }
 

@@ -631,6 +631,14 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
     if (newStatus === 'complete') {
       // --- COMPLETION LOGIC ---
+
+      // Immediately mark as complete in localStorage to prevent double-completion
+      const updatedAllTasks = allTasks.map(t =>
+        t.id === taskId ? { ...t, status: 'complete', completedAt } : t
+      );
+      localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
+      setTasks(updatedAllTasks); // Update UI immediately
+
       setJustCompletedId(taskId); // Trigger animation
 
       setTimeout(() => {
