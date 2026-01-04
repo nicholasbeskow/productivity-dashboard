@@ -183,8 +183,8 @@ const StatsTab = () => {
 
     if (avgTasksOnGoodDays > 0) {
       return {
-        text: 'tasks on good days (vs 0 on bad)',
-        value: `${goodDayTaskCount} total`,
+        text: 'avg tasks on good days (vs 0 on bad)',
+        value: `${avgTasksOnGoodDays.toFixed(1)}`,
       };
     }
 
@@ -1259,7 +1259,7 @@ const StatsTab = () => {
           <div className="mb-12 flex items-center gap-4">
             <button
               onClick={() => setActiveSection('main')}
-              className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+              className="no-drag p-2 rounded-lg hover:bg-glass-surface transition-colors"
             >
               <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
             </button>
@@ -1337,7 +1337,7 @@ const StatsTab = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setActiveSection('main')}
-                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+                className="no-drag p-2 rounded-lg hover:bg-glass-surface transition-colors"
               >
                 <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
               </button>
@@ -1358,7 +1358,7 @@ const StatsTab = () => {
                 <button
                   key={period}
                   onClick={() => setTimePeriod(period)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     timePeriod === period
                       ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
@@ -1522,7 +1522,7 @@ const StatsTab = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setActiveSection('wellbeing')}
-                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+                className="no-drag p-2 rounded-lg hover:bg-glass-surface transition-colors"
               >
                 <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
               </button>
@@ -1543,7 +1543,7 @@ const StatsTab = () => {
                 <button
                   key={period}
                   onClick={() => setTimePeriod(period)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     timePeriod === period
                       ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
@@ -1652,7 +1652,7 @@ const StatsTab = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setActiveSection('wellbeing')}
-                className="p-2 rounded-lg hover:bg-glass-surface transition-colors"
+                className="no-drag p-2 rounded-lg hover:bg-glass-surface transition-colors"
               >
                 <ArrowLeft className="text-text-secondary hover:text-text-primary" size={24} />
               </button>
@@ -1673,7 +1673,7 @@ const StatsTab = () => {
                 <button
                   key={period}
                   onClick={() => setTimePeriod(period)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     timePeriod === period
                       ? 'bg-purple-400 bg-opacity-20 text-purple-400 border border-purple-400'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'

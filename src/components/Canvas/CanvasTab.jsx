@@ -225,7 +225,7 @@ const CanvasTab = () => {
             <button
               onClick={fetchAssignments}
               disabled={isLoading}
-              className="flex items-center gap-2 px-6 py-3 liquid-bubble-filled text-green-glow rounded-lg hover:shadow-[0_0_12px_rgba(61,214,140,0.2)] transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="no-drag flex items-center gap-2 px-6 py-3 liquid-bubble-filled text-green-glow rounded-lg hover:shadow-[0_0_12px_rgba(61,214,140,0.2)] transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
               <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />

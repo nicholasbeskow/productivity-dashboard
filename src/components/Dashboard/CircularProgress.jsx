@@ -18,7 +18,7 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
 
   return (
     <div
-      className="relative flex items-center justify-center cursor-pointer"
+      className="no-drag relative flex items-center justify-center cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

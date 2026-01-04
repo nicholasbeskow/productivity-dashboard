@@ -358,8 +358,8 @@ const MoodTracker = () => {
           correlationText = 'more tasks on good days';
           correlationValue = `${multiplier.toFixed(1)}x`;
         } else if (avgTasksOnGoodDays > 0) {
-          correlationText = 'tasks on good days (vs 0 on bad)';
-          correlationValue = `${goodDayTaskCount} total`;
+          correlationText = 'avg tasks on good days (vs 0 on bad)';
+          correlationValue = `${avgTasksOnGoodDays.toFixed(1)}`;
         } else {
           correlationText = 'No task/mood overlap found';
           correlationValue = null;
