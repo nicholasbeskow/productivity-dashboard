@@ -1222,11 +1222,13 @@ const Dashboard = ({ setActiveTab }) => {
             </div>
 
             {daysRemaining !== null && (
-              <CircularProgress
-                daysRemaining={daysRemaining}
-                progressPercentage={progressPercentage}
-                breakDaysLeft={breakDaysLeft}
-              />
+              <div className="relative z-50 no-drag">
+                <CircularProgress
+                  daysRemaining={daysRemaining}
+                  progressPercentage={progressPercentage}
+                  breakDaysLeft={breakDaysLeft}
+                />
+              </div>
             )}
           </div>
 

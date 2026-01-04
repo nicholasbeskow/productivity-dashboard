@@ -153,9 +153,12 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="flex h-screen bg-bg-primary overflow-hidden">
+        {/* Fixed drag bar at top */}
+        <div className="fixed top-0 left-0 right-0 h-8 z-40 drag-region" />
+
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 overflow-hidden" style={{ WebkitAppRegion: 'drag' }}>
+        <main className="flex-1 overflow-hidden">
           <div className="h-full overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
