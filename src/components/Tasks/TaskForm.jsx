@@ -7,7 +7,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(''); // Internal ISO format: YYYY-MM-DD
+  const [displayDate, setDisplayDate] = useState(''); // Display format: MM-DD-YYYY
   const [time, setTime] = useState('');
   const [taskType, setTaskType] = useState('academic');
   const [status, setStatus] = useState('not-started');
@@ -36,6 +37,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setDescription(initialData.description || '');
       setUrl(initialData.url || '');
       setDueDate(initialData.dueDate || '');
+      setDisplayDate(isoToDisplay(initialData.dueDate || ''));
       setTime(initialData.time || '');
       setTaskType(initialData.taskType || 'academic');
       setStatus(initialData.status || 'not-started');
@@ -107,6 +109,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setDescription('');
       setUrl('');
       setDueDate('');
+      setDisplayDate('');
       setTime('');
       setTaskType('academic');
       setAttachments([]);
@@ -199,9 +202,37 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
+  // Convert ISO date (YYYY-MM-DD) to display format (MM-DD-YYYY)
+  const isoToDisplay = (isoDate) => {
+    if (!isoDate || !isoDate.trim()) return '';
+
+    const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${month}-${day}-${year}`;
+    }
+
+    return isoDate;
+  };
+
+  // Convert display format (MM-DD-YYYY) to ISO (YYYY-MM-DD)
+  const displayToIso = (displayDate) => {
+    if (!displayDate || !displayDate.trim()) return '';
+
+    const match = displayDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (match) {
+      const [, month, day, year] = match;
+      return `${year}-${month}-${day}`;
+    }
+
+    return displayDate;
+  };
+
   // Helper function to parse smart date input
   const parseSmartDate = (input) => {
-    if (!input || !input.trim()) return '';
+    if (!input || !input.trim()) {
+      return { iso: '', display: '' };
+    }
 
     const trimmed = input.trim();
 
@@ -214,27 +245,62 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       const day = match[2].padStart(2, '0');
       const currentYear = new Date().getFullYear();
 
-      // Return YYYY-MM-DD format
-      return `${currentYear}-${month}-${day}`;
+      // Return both ISO and display formats
+      return {
+        iso: `${currentYear}-${month}-${day}`,
+        display: `${month}-${day}-${currentYear}`
+      };
     }
 
-    // If it's already in YYYY-MM-DD format or other format, return as is
-    return trimmed;
+    // Check if it's already in MM-DD-YYYY format
+    const displayMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (displayMatch) {
+      const month = displayMatch[1].padStart(2, '0');
+      const day = displayMatch[2].padStart(2, '0');
+      const year = displayMatch[3];
+
+      return {
+        iso: `${year}-${month}-${day}`,
+        display: `${month}-${day}-${year}`
+      };
+    }
+
+    // Check if it's in YYYY-MM-DD format (convert to display)
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      return {
+        iso: trimmed,
+        display: isoToDisplay(trimmed)
+      };
+    }
+
+    // Return as-is if format is unrecognized
+    return { iso: trimmed, display: trimmed };
+  };
+
+  // Change handler for free typing
+  const handleDateChange = (e) => {
+    setDisplayDate(e.target.value);
   };
 
   // Blur handler for the date input
   const handleDateBlur = (e) => {
-    const parsedDate = parseSmartDate(e.target.value);
-    setDueDate(parsedDate);
+    const { iso, display } = parseSmartDate(e.target.value);
+    setDueDate(iso);
+    setDisplayDate(display);
   };
 
   // Due date helper functions
   const setDueToday = () => {
-    setDueDate(getToday());
+    const today = getToday();
+    setDueDate(today);
+    setDisplayDate(isoToDisplay(today));
   };
 
   const setDueTomorrow = () => {
-    setDueDate(getTomorrow());
+    const tomorrow = getTomorrow();
+    setDueDate(tomorrow);
+    setDisplayDate(isoToDisplay(tomorrow));
   };
 
   const handleSubmit = (e) => {
@@ -521,6 +587,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setDescription('');
     setUrl('');
     setDueDate('');
+    setDisplayDate('');
     setTime('');
     setTaskType('academic');
     setAttachments([]);
@@ -632,10 +699,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               </label>
               <input
                 type="text"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                value={displayDate}
+                onChange={handleDateChange}
                 onBlur={handleDateBlur}
-                placeholder="YYYY-MM-DD or MM/DD"
+                placeholder="MM/DD or MM-DD-YYYY"
                 className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
               />
             </div>
