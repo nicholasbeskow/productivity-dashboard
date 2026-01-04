@@ -156,9 +156,9 @@ function App() {
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="flex-1 overflow-hidden relative">
-          {/* Simple drag bar at top for window dragging */}
+          {/* Extended drag bar for easier window dragging */}
           <div
-            className="absolute top-0 left-0 right-0 h-8 z-50"
+            className="absolute top-0 left-0 right-0 h-24 z-50"
             style={{ WebkitAppRegion: 'drag' }}
           />
 

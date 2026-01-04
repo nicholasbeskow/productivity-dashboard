@@ -18,7 +18,8 @@ const CircularProgress = ({ daysRemaining, progressPercentage, breakDaysLeft }) 
 
   return (
     <div
-      className="no-drag relative flex items-center justify-center cursor-pointer"
+      className="relative flex items-center justify-center cursor-pointer"
+      style={{ WebkitAppRegion: 'no-drag' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
