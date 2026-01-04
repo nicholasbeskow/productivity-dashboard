@@ -71,7 +71,7 @@ body {
     inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
     0 8px 32px 0 rgba(0, 0, 0, 0.5);
   border-radius: 24px;
-  -webkit-app-region: no-drag;
+  -webkit-app-region: no-drag !important;
 }
 
 /* Liquid Bubble Utilities - Calendar Tiles */
@@ -117,11 +117,11 @@ body {
 
 /* Electron window drag regions */
 .drag-region {
-  -webkit-app-region: drag;
+  -webkit-app-region: drag !important;
 }
 
 .no-drag {
-  -webkit-app-region: no-drag;
+  -webkit-app-region: no-drag !important;
 }
 
 /* Dashboard Task Card Glow Effects - Hover Only */
