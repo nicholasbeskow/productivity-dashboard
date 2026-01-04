@@ -155,14 +155,11 @@ function App() {
       <div className="flex h-screen bg-bg-primary overflow-hidden">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 overflow-hidden relative">
-          {/* Drag bar for window dragging */}
-          <div
-            className="absolute top-0 left-0 right-0 h-12"
-            style={{ WebkitAppRegion: 'drag' }}
-          />
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {/* 32px drag bar at top */}
+          <div className="h-8 flex-shrink-0" style={{ WebkitAppRegion: 'drag' }} />
 
-          <div className="h-full overflow-hidden" style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className="flex-1 overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
