@@ -157,7 +157,7 @@ function App() {
 
         <main className="flex-1 overflow-hidden flex flex-col">
           {/* Drag bar for window dragging in Electron */}
-          <div className="drag-region h-8 flex-shrink-0 border-b border-white/5" style={{ WebkitAppRegion: 'drag' }} />
+          <div className="drag-region h-16 flex-shrink-0" style={{ WebkitAppRegion: 'drag' }} />
 
           <div className="flex-1 overflow-hidden">
             <AnimatePresence mode="wait">
