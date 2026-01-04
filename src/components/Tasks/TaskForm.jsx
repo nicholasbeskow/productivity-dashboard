@@ -199,6 +199,35 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
+  // Helper function to parse smart date input
+  const parseSmartDate = (input) => {
+    if (!input || !input.trim()) return '';
+
+    const trimmed = input.trim();
+
+    // Regex patterns for shorthand dates: M/D, MM/DD, M-D, MM-DD
+    const shorthandPattern = /^(\d{1,2})[\/\-](\d{1,2})$/;
+    const match = trimmed.match(shorthandPattern);
+
+    if (match) {
+      const month = match[1].padStart(2, '0');
+      const day = match[2].padStart(2, '0');
+      const currentYear = new Date().getFullYear();
+
+      // Return YYYY-MM-DD format
+      return `${currentYear}-${month}-${day}`;
+    }
+
+    // If it's already in YYYY-MM-DD format or other format, return as is
+    return trimmed;
+  };
+
+  // Blur handler for the date input
+  const handleDateBlur = (e) => {
+    const parsedDate = parseSmartDate(e.target.value);
+    setDueDate(parsedDate);
+  };
+
   // Due date helper functions
   const setDueToday = () => {
     setDueDate(getToday());
@@ -602,10 +631,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 </div>
               </label>
               <input
-                type="date"
+                type="text"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                onBlur={handleDateBlur}
+                placeholder="YYYY-MM-DD or MM/DD"
+                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
               />
             </div>
             <div>
