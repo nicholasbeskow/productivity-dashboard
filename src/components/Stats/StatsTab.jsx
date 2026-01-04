@@ -150,10 +150,7 @@ const StatsTab = () => {
       else if (entry.level <= 2) badMoodDays.add(entry.date);
     });
 
-    if (goodMoodDays.size === 0 || badMoodDays.size === 0) {
-      return { text: 'Log more good/bad days', value: null };
-    }
-
+    // Count tasks for both categories
     let goodDayTaskCount = 0;
     let badDayTaskCount = 0;
 
@@ -166,29 +163,48 @@ const StatsTab = () => {
       }
     });
 
-    const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
-    const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
+    // SCENARIO 1: Data for BOTH (Standard Comparison)
+    if (goodMoodDays.size > 0 && badMoodDays.size > 0) {
+      const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
+      const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
 
-    if (avgTasksOnBadDays > 0) {
-      const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
-      // Guard against infinity or NaN
-      if (!isFinite(multiplier)) {
-        return { text: 'Not enough data', value: null };
+      if (avgTasksOnBadDays > 0) {
+        const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
+        if (!isFinite(multiplier)) return { text: 'Not enough data', value: null };
+        return {
+          text: 'more tasks on good days',
+          value: `${multiplier.toFixed(1)}x`,
+        };
       }
-      return {
-        text: 'more tasks on good days',
-        value: `${multiplier.toFixed(1)}x`,
-      };
+
+      if (avgTasksOnGoodDays > 0) {
+        return {
+          text: 'avg tasks on good days (vs 0 on bad)',
+          value: `${avgTasksOnGoodDays.toFixed(1)}`,
+        };
+      }
+      return { text: 'No task/mood overlap found', value: null };
     }
 
-    if (avgTasksOnGoodDays > 0) {
-      return {
-        text: 'avg tasks on good days (vs 0 on bad)',
-        value: `${avgTasksOnGoodDays.toFixed(1)}`,
-      };
+    // SCENARIO 2: Good Days ONLY (Fallback)
+    if (goodMoodDays.size > 0 && badMoodDays.size === 0) {
+       const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
+       return {
+         text: 'avg tasks on good days (log bad days to compare)',
+         value: `${avgTasksOnGoodDays.toFixed(1)}`
+       };
     }
 
-    return { text: 'No task/mood overlap found', value: null };
+    // SCENARIO 3: Bad Days ONLY (Fallback)
+    if (badMoodDays.size > 0 && goodMoodDays.size === 0) {
+       const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
+       return {
+         text: 'avg tasks on bad days (log good days to compare)',
+         value: `${avgTasksOnBadDays.toFixed(1)}`
+       };
+    }
+
+    return { text: 'Log more good/bad days', value: null };
 
   }, [completedTasks, moodLog]);
 
