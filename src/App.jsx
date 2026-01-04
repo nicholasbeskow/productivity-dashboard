@@ -157,9 +157,9 @@ function App() {
 
         <main className="flex-1 overflow-hidden relative">
           {/* Drag bar for window dragging in Electron - overlays content without shifting layout */}
-          <div className="drag-region h-16 absolute top-0 left-0 right-0 z-50" style={{ WebkitAppRegion: 'drag' }} />
+          <div className="drag-region h-6 absolute top-0 left-0 right-0 z-50" style={{ WebkitAppRegion: 'drag' }} />
 
-          <div className="h-full overflow-hidden">
+          <div className="h-full overflow-hidden no-drag">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
