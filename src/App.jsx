@@ -152,11 +152,10 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-bg-primary overflow-hidden">
+      <div className="flex h-screen bg-bg-primary overflow-hidden relative">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 overflow-hidden relative drag-region" style={{ WebkitAppRegion: 'drag' }}>
-
+        <main className="flex-1 overflow-hidden">
           <div className="h-full overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
@@ -178,6 +177,9 @@ function App() {
             </AnimatePresence>
           </div>
         </main>
+
+        {/* DRAG BAR: Increased height to h-16 (64px) */}
+        <div className="fixed top-0 left-0 right-0 h-16 z-50 drag-region" />
       </div>
     </ErrorBoundary>
   );

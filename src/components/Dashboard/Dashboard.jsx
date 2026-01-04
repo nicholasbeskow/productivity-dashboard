@@ -1203,7 +1203,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   return (
     <>
-      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto">
+      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto" style={{ WebkitAppRegion: 'no-drag' }}>
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
           <div className="mb-8 flex items-start justify-between">
@@ -1222,11 +1222,13 @@ const Dashboard = ({ setActiveTab }) => {
             </div>
 
             {daysRemaining !== null && (
-              <CircularProgress
-                daysRemaining={daysRemaining}
-                progressPercentage={progressPercentage}
-                breakDaysLeft={breakDaysLeft}
-              />
+              <div className="relative z-[51] no-drag">
+                <CircularProgress
+                  daysRemaining={daysRemaining}
+                  progressPercentage={progressPercentage}
+                  breakDaysLeft={breakDaysLeft}
+                />
+              </div>
             )}
           </div>
 
