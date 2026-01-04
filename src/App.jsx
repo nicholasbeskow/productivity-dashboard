@@ -155,25 +155,30 @@ function App() {
       <div className="flex h-screen bg-bg-primary overflow-hidden">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeInOut" }}
-              className="h-full"
-            >
-              <Suspense fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-white/70">Loading...</div>
-                </div>
-              }>
-                {renderTab()}
-              </Suspense>
-            </motion.div>
-          </AnimatePresence>
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {/* Drag bar for window dragging in Electron */}
+          <div className="drag-region h-8 flex-shrink-0 border-b border-white/5" style={{ WebkitAppRegion: 'drag' }} />
+
+          <div className="flex-1 overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: "easeInOut" }}
+                className="h-full"
+              >
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-white/70">Loading...</div>
+                  </div>
+                }>
+                  {renderTab()}
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
     </ErrorBoundary>
