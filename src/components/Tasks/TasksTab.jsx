@@ -219,7 +219,7 @@ const TasksTab = () => {
   };
 
   return (
-    <div className="h-full p-8 overflow-y-auto no-drag">
+    <div className="h-full p-8 overflow-y-auto">
       {/* Global Backdrop - closes menu when clicking away */}
       {openMenuTaskId && (
         <div

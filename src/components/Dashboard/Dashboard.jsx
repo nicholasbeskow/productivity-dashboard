@@ -1203,7 +1203,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   return (
     <>
-      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto no-drag">
+      <div ref={scrollContainerRef} className="h-full p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {/* Header with Circular Progress */}
           <div className="mb-8 flex items-start justify-between">
