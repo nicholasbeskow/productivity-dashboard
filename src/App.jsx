@@ -152,10 +152,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-bg-primary overflow-hidden">
-        {/* Fixed drag bar at top */}
-        <div className="fixed top-0 left-0 right-0 h-8 z-40 drag-region" />
-
+      <div className="flex h-screen bg-bg-primary overflow-hidden relative">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="flex-1 overflow-hidden">
@@ -180,6 +177,9 @@ function App() {
             </AnimatePresence>
           </div>
         </main>
+
+        {/* DRAG BAR MOVED TO BOTTOM AND Z-INDEX INCREASED */}
+        <div className="fixed top-0 left-0 right-0 h-8 z-50 drag-region" />
       </div>
     </ErrorBoundary>
   );
