@@ -1179,7 +1179,7 @@ const StatsTab = () => {
   // MAIN SELECTION SCREEN
   if (activeSection === 'main') {
     return (
-      <div className="h-full p-8 overflow-y-auto">
+      <div className="h-full p-8 overflow-y-auto no-drag">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-12">
@@ -1253,7 +1253,7 @@ const StatsTab = () => {
   // WELLBEING SELECTION SCREEN
   if (activeSection === 'wellbeing') {
     return (
-      <div className="h-full p-8 overflow-y-auto">
+      <div className="h-full p-8 overflow-y-auto no-drag">
         <div className="max-w-7xl mx-auto">
           {/* Header with Back Button */}
           <div className="mb-12 flex items-center gap-4">
@@ -1330,7 +1330,7 @@ const StatsTab = () => {
   // PRODUCTIVITY SECTION
   if (activeSection === 'productivity') {
     return (
-      <div className="h-full p-8 overflow-y-auto">
+      <div className="h-full p-8 overflow-y-auto no-drag">
         <div className="max-w-7xl mx-auto">
           {/* Header with Back Button */}
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
@@ -1515,7 +1515,7 @@ const StatsTab = () => {
   // MOOD SECTION
   if (activeSection === 'mood') {
     return (
-      <div className="h-full p-8 overflow-y-auto">
+      <div className="h-full p-8 overflow-y-auto no-drag">
         <div className="max-w-7xl mx-auto">
           {/* Header with Back Button */}
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
@@ -1645,7 +1645,7 @@ const StatsTab = () => {
   // SLEEP SECTION
   if (activeSection === 'sleep') {
     return (
-      <div className="h-full p-8 overflow-y-auto">
+      <div className="h-full p-8 overflow-y-auto no-drag">
         <div className="max-w-7xl mx-auto">
           {/* Header with Back Button */}
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
