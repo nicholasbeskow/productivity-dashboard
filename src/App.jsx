@@ -178,8 +178,8 @@ function App() {
           </div>
         </main>
 
-        {/* DRAG BAR: Height h-8 (32px) */}
-        <div className="fixed top-0 left-0 right-0 h-8 z-50 drag-region" />
+        {/* DRAG BAR: Height h-12 (48px) */}
+        <div className="fixed top-0 left-0 right-0 h-12 z-50 drag-region" />
       </div>
     </ErrorBoundary>
   );
