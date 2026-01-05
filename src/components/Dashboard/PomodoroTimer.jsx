@@ -188,8 +188,8 @@ const PomodoroTimer = () => {
   const currentGlowColor = mode === 'work'
     ? 'rgba(249, 115, 22, 0.4)'  // orange-500 glow
     : mode === 'break'
-    ? 'rgba(250, 204, 21, 0.4)'  // yellow-400 glow
-    : 'rgba(0, 0, 0, 0)';         // no glow when idle
+      ? 'rgba(250, 204, 21, 0.4)'  // yellow-400 glow
+      : 'rgba(0, 0, 0, 0)';         // no glow when idle
 
   // Common props for TimerDisplay
   const timerDisplayProps = {
@@ -288,7 +288,7 @@ const PomodoroTimer = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 z-50 bg-bg-primary flex flex-col items-center justify-center"
+              className="fixed inset-0 z-[100] bg-bg-primary flex flex-col items-center justify-center"
             >
               {/* Minimize button */}
               <motion.button
