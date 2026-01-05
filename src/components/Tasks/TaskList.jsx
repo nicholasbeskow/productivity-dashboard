@@ -1,4 +1,4 @@
-import { useState, memo, useRef, useEffect, useCallback } from 'react';
+import { useState, memo, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,7 +8,7 @@ import { isTaskOverdue } from '../../utils/taskHelpers';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
-const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask }) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -235,6 +235,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
 
   return (
     <motion.div
+      ref={ref}
       layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
@@ -496,7 +497,7 @@ const TaskCard = memo(({ task, justCompletedId, draggedTask, dragOverTask, onDra
       )}
     </motion.div>
   );
-});
+}));
 
 TaskCard.displayName = 'TaskCard';
 
