@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, FileText, UploadCloud, X, Repeat, Link as LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
-import { getToday, getTomorrow } from '../../utils/dateHelpers';
+import { getToday, getTomorrow, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
 
 const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
@@ -202,81 +202,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
-  // Convert ISO date (YYYY-MM-DD) to display format (MM-DD-YYYY)
-  const isoToDisplay = (isoDate) => {
-    if (!isoDate || !isoDate.trim()) return '';
 
-    const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match) {
-      const [, year, month, day] = match;
-      return `${month}-${day}-${year}`;
-    }
-
-    return isoDate;
-  };
-
-  // Convert display format (MM-DD-YYYY) to ISO (YYYY-MM-DD)
-  const displayToIso = (displayDate) => {
-    if (!displayDate || !displayDate.trim()) return '';
-
-    const match = displayDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-    if (match) {
-      const [, month, day, year] = match;
-      return `${year}-${month}-${day}`;
-    }
-
-    return displayDate;
-  };
-
-  // Helper function to parse smart date input
-  const parseSmartDate = (input) => {
-    if (!input || !input.trim()) {
-      return { iso: '', display: '' };
-    }
-
-    const trimmed = input.trim();
-
-    // Regex patterns for shorthand dates: M/D, MM/DD, M-D, MM-DD
-    const shorthandPattern = /^(\d{1,2})[\/\-](\d{1,2})$/;
-    const match = trimmed.match(shorthandPattern);
-
-    if (match) {
-      const month = match[1].padStart(2, '0');
-      const day = match[2].padStart(2, '0');
-      const currentYear = new Date().getFullYear();
-
-      // Return both ISO and display formats
-      return {
-        iso: `${currentYear}-${month}-${day}`,
-        display: `${month}-${day}-${currentYear}`
-      };
-    }
-
-    // Check if it's already in MM-DD-YYYY format
-    const displayMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (displayMatch) {
-      const month = displayMatch[1].padStart(2, '0');
-      const day = displayMatch[2].padStart(2, '0');
-      const year = displayMatch[3];
-
-      return {
-        iso: `${year}-${month}-${day}`,
-        display: `${month}-${day}-${year}`
-      };
-    }
-
-    // Check if it's in YYYY-MM-DD format (convert to display)
-    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (isoMatch) {
-      return {
-        iso: trimmed,
-        display: isoToDisplay(trimmed)
-      };
-    }
-
-    // Return as-is if format is unrecognized
-    return { iso: trimmed, display: trimmed };
-  };
 
   // Change handler for free typing
   const handleDateChange = (e) => {
@@ -706,11 +632,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => setEditScope('instance')}
-              className={`px-4 py-3 rounded-lg transition-all ${
-                editScope === 'instance'
+              className={`px-4 py-3 rounded-lg transition-all ${editScope === 'instance'
                   ? 'text-green-glow liquid-bubble-filled'
                   : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-              }`}
+                }`}
               style={editScope === 'instance' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
               <div className="font-medium">This Instance Only</div>
@@ -719,11 +644,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => setEditScope('series')}
-              className={`px-4 py-3 rounded-lg transition-all ${
-                editScope === 'series'
+              className={`px-4 py-3 rounded-lg transition-all ${editScope === 'series'
                   ? 'text-green-glow liquid-bubble-filled'
                   : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-              }`}
+                }`}
               style={editScope === 'series' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
               <div className="font-medium">All Future Tasks</div>
@@ -833,22 +757,20 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => setTaskType('academic')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                taskType === 'academic'
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskType === 'academic'
                   ? 'text-green-glow liquid-bubble-filled'
                   : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-              }`}
+                }`}
             >
               📚 Academic
             </button>
             <button
               type="button"
               onClick={() => setTaskType('personal')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                taskType === 'personal'
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskType === 'personal'
                   ? 'text-green-glow liquid-bubble-filled'
                   : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-              }`}
+                }`}
             >
               🏠 Personal
             </button>
@@ -865,22 +787,20 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               <button
                 type="button"
                 onClick={() => setStatus('not-started')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  status === 'not-started'
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'not-started'
                     ? 'text-green-glow liquid-bubble-filled'
                     : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-                }`}
+                  }`}
               >
                 Not Started
               </button>
               <button
                 type="button"
                 onClick={() => setStatus('in-progress')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  status === 'in-progress'
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'in-progress'
                     ? 'text-green-glow liquid-bubble-filled'
                     : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-                }`}
+                  }`}
               >
                 In Progress
               </button>
@@ -897,11 +817,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => toggleSection('files')}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                showFiles
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showFiles
                   ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
                   : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-              }`}
+                }`}
               style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
               <FileText size={14} />
@@ -915,11 +834,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             <button
               type="button"
               onClick={() => toggleSection('links')}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                showLinks
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showLinks
                   ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
                   : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-              }`}
+                }`}
               style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
               <LinkIcon size={14} />
@@ -930,11 +848,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               <button
                 type="button"
                 onClick={() => toggleSection('recurrence')}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                  showRecurrence
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showRecurrence
                     ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
                     : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-                }`}
+                  }`}
                 style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
               >
                 <Repeat size={14} />
@@ -952,11 +869,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
-                isDragging
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${isDragging
                   ? 'border-green-glow bg-green-glow/10'
                   : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
-              }`}
+                }`}
             >
               <UploadCloud
                 size={32}
@@ -1056,11 +972,10 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                       key={index}
                       type="button"
                       onClick={() => handleWeeklyDayToggle(index)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        weeklyDays.includes(index)
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${weeklyDays.includes(index)
                           ? 'text-green-glow liquid-bubble-filled'
                           : 'liquid-bubble-empty text-white/60 hover:text-white/80'
-                      }`}
+                        }`}
                     >
                       {label}
                     </button>

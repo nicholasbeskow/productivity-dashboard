@@ -138,3 +138,93 @@ export const isDateBefore = (date1, date2) => {
 export const isDateAfter = (date1, date2) => {
   return date1 > date2;
 };
+
+/**
+ * Convert ISO date (YYYY-MM-DD) to display format (MM-DD-YYYY)
+ * @param {string} isoDate - Date in YYYY-MM-DD format
+ * @returns {string} - Date in MM-DD-YYYY format
+ */
+export const isoToDisplay = (isoDate) => {
+  if (!isoDate || !isoDate.trim()) return '';
+
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${month}-${day}-${year}`;
+  }
+
+  return isoDate;
+};
+
+/**
+ * Convert display format (MM-DD-YYYY) to ISO (YYYY-MM-DD)
+ * @param {string} displayDate - Date in MM-DD-YYYY format
+ * @returns {string} - Date in YYYY-MM-DD format
+ */
+export const displayToIso = (displayDate) => {
+  if (!displayDate || !displayDate.trim()) return '';
+
+  const match = displayDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (match) {
+    const [, month, day, year] = match;
+    return `${year}-${month}-${day}`;
+  }
+
+  return displayDate;
+};
+
+/**
+ * Helper function to parse smart date input
+ * Handles formats: M/D, MM/DD, M-D, MM-DD, MM-DD-YYYY, YYYY-MM-DD
+ *
+ * @param {string} input - The user input string
+ * @returns {Object} - { iso: string, display: string }
+ */
+export const parseSmartDate = (input) => {
+  if (!input || !input.trim()) {
+    return { iso: '', display: '' };
+  }
+
+  const trimmed = input.trim();
+
+  // Regex patterns for shorthand dates: M/D, MM/DD, M-D, MM-DD
+  const shorthandPattern = /^(\d{1,2})[\/\-](\d{1,2})$/;
+  const match = trimmed.match(shorthandPattern);
+
+  if (match) {
+    const month = match[1].padStart(2, '0');
+    const day = match[2].padStart(2, '0');
+    const currentYear = new Date().getFullYear();
+
+    // Return both ISO and display formats
+    return {
+      iso: `${currentYear}-${month}-${day}`,
+      display: `${month}-${day}-${currentYear}`
+    };
+  }
+
+  // Check if it's already in MM-DD-YYYY format
+  const displayMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (displayMatch) {
+    const month = displayMatch[1].padStart(2, '0');
+    const day = displayMatch[2].padStart(2, '0');
+    const year = displayMatch[3];
+
+    return {
+      iso: `${year}-${month}-${day}`,
+      display: `${month}-${day}-${year}`
+    };
+  }
+
+  // Check if it's in YYYY-MM-DD format (convert to display)
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return {
+      iso: trimmed,
+      display: isoToDisplay(trimmed)
+    };
+  }
+
+  // Return as-is if format is unrecognized
+  return { iso: trimmed, display: trimmed };
+};

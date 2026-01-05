@@ -58,7 +58,7 @@ function createWindow() {
 
   // Load the app
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5555');
     mainWindow.webContents.openDevTools();
   } else {
     // In production, load from the dist folder bundled with the app

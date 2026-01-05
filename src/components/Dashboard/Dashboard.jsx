@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useRef, useMemo, useCallback, Suspense } from 'react';
 import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -8,10 +8,13 @@ import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
 import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
-import { dateToLocalISO } from '../../utils/dateHelpers';
+import { dateToLocalISO, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
 import { Moon } from 'lucide-react';
+
+const SemesterCompleteModal = React.lazy(() => import('./SemesterCompleteModal'));
+
 
 // ===== UTILITY FUNCTIONS (extracted for performance) =====
 const getStatusIcon = (status) => {
@@ -186,11 +189,10 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       onDragOver={(e) => onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => onDrop(e, task)}
-      className={`relative rounded-lg p-3 border transition-all ${glowClass} ${
-        taskIsOverdue ? 'border-red-500/50' :
+      className={`relative rounded-lg p-3 border transition-all ${glowClass} ${taskIsOverdue ? 'border-red-500/50' :
         dragOverTask?.id === task.id ? 'border-green-glow' :
-        'border-transparent'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer' : 'cursor-move'}`}
+          'border-transparent'
+        } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${(task.description || task.url) && !draggedTask ? 'cursor-pointer' : 'cursor-move'}`}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
@@ -259,11 +261,10 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
           {/* Task Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <p className={`font-medium truncate ${
-                task.status === 'complete'
-                  ? 'text-white/70 line-through'
-                  : 'text-white'
-              }`}>
+              <p className={`font-medium truncate ${task.status === 'complete'
+                ? 'text-white/70 line-through'
+                : 'text-white'
+                }`}>
                 {task.title}
               </p>
               {taskIsOverdue && (
@@ -274,9 +275,8 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
               )}
             </div>
             {task.dueDate && (
-              <p className={`text-xs flex items-center gap-1 ${
-                taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
-              }`}>
+              <p className={`text-xs flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
+                }`}>
                 {taskIsOverdue ? <AlertCircle size={10} /> : <Clock size={10} />}
                 {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
                 {task.templateId && (
@@ -360,9 +360,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   // Semester End Modal state
   const [showSemesterEndModal, setShowSemesterEndModal] = useState(false);
-  const [nextBreakStart, setNextBreakStart] = useState('');
-  const [nextSemesterStart, setNextSemesterStart] = useState('');
-  const [nextSemesterEnd, setNextSemesterEnd] = useState('');
+  const [nextBreakStartDefault, setNextBreakStartDefault] = useState('');
 
   // Check for semester end on mount
   useEffect(() => {
@@ -379,7 +377,7 @@ const Dashboard = ({ setActiveTab }) => {
         // Calculate default values for next semester
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        setNextBreakStart(dateToLocalISO(nextDay));
+        setNextBreakStartDefault(dateToLocalISO(nextDay));
 
         setShowSemesterEndModal(true);
       }
@@ -387,44 +385,6 @@ const Dashboard = ({ setActiveTab }) => {
 
     checkSemesterEnd();
   }, []);
-
-  // Confetti animation for semester end modal
-  useEffect(() => {
-    if (!showSemesterEndModal) return;
-
-    let confettiInterval;
-    let timeoutId;
-
-    const triggerConfetti = () => {
-      confetti({
-        particleCount: 7,
-        origin: {
-          x: Math.random(),
-          y: -0.1
-        },
-        spread: 360,
-        startVelocity: 15,
-        gravity: 1,
-        ticks: 200,
-        zIndex: 150,
-        colors: ['#3dd68c', '#facc15', '#ffffff']
-      });
-    };
-
-    // Start confetti interval
-    confettiInterval = setInterval(triggerConfetti, 200);
-
-    // Stop after 5 seconds
-    timeoutId = setTimeout(() => {
-      clearInterval(confettiInterval);
-    }, 5000);
-
-    // Cleanup on unmount or when modal closes
-    return () => {
-      clearInterval(confettiInterval);
-      clearTimeout(timeoutId);
-    };
-  }, [showSemesterEndModal]);
 
   useEffect(() => {
     const calculateProgress = () => {
@@ -1124,16 +1084,13 @@ const Dashboard = ({ setActiveTab }) => {
     handleStartEdit(task);
   };
 
-  const handleBeginBreak = () => {
-    if (!nextBreakStart || !nextSemesterStart || !nextSemesterEnd) {
-      alert('Please fill in all date fields.');
-      return;
-    }
+  const handleBeginBreak = (dates) => {
+    const { breakStartDate, semesterStartDate, semesterEndDate } = dates;
 
     // Save the new semester dates and break start date
-    localStorage.setItem('breakStartDate', nextBreakStart);
-    localStorage.setItem('semesterStartDate', nextSemesterStart);
-    localStorage.setItem('semesterEndDate', nextSemesterEnd);
+    localStorage.setItem('breakStartDate', breakStartDate);
+    localStorage.setItem('semesterStartDate', semesterStartDate);
+    localStorage.setItem('semesterEndDate', semesterEndDate);
 
     // Trigger auto-backup
     backupManager.saveAutoBackup();
@@ -1246,33 +1203,30 @@ const Dashboard = ({ setActiveTab }) => {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleFilterChange('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      taskFilter === 'all'
-                        ? 'liquid-bubble-filled text-green-glow'
-                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'all'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                      }`}
                     style={taskFilter === 'all' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     All
                   </button>
                   <button
                     onClick={() => handleFilterChange('academic')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      taskFilter === 'academic'
-                        ? 'liquid-bubble-filled text-green-glow'
-                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'academic'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                      }`}
                     style={taskFilter === 'academic' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Academic
                   </button>
                   <button
                     onClick={() => handleFilterChange('personal')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      taskFilter === 'personal'
-                        ? 'liquid-bubble-filled text-green-glow'
-                        : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'personal'
+                      ? 'liquid-bubble-filled text-green-glow'
+                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                      }`}
                     style={taskFilter === 'personal' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                   >
                     Personal
@@ -1435,138 +1389,138 @@ const Dashboard = ({ setActiveTab }) => {
                                 <div className="space-y-4">
                                   <TaskForm
                                     initialData={detailTask}
-                                        onTaskCreate={(data) => {
-                                          try {
-                                            const { scope, ...updatedFields } = data;
+                                    onTaskCreate={(data) => {
+                                      try {
+                                        const { scope, ...updatedFields } = data;
 
-                                            // Sync edit scope from TaskForm
-                                            if (scope) editScopeRef.current = scope;
+                                        // Sync edit scope from TaskForm
+                                        if (scope) editScopeRef.current = scope;
 
 
-                                            // CASE 1: Converting plain task → recurring
-                                          if (!detailTask.templateId && updatedFields.recurrence) {
-                                            const newTemplateId = 'template-' + Date.now();
-                                            const newTemplate = { ...updatedFields, id: newTemplateId, createdAt: new Date().toISOString() };
+                                        // CASE 1: Converting plain task → recurring
+                                        if (!detailTask.templateId && updatedFields.recurrence) {
+                                          const newTemplateId = 'template-' + Date.now();
+                                          const newTemplate = { ...updatedFields, id: newTemplateId, createdAt: new Date().toISOString() };
 
-                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-                                            const updatedTasks = tasks.map(t => t.id === detailTask.id ? {
-                                              ...t, ...updatedFields, templateId: newTemplateId,
-                                              recurrenceAnchor: updatedFields.dueDate || t.dueDate, customPriority: 0
-                                            } : t);
+                                          const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                          const updatedTasks = tasks.map(t => t.id === detailTask.id ? {
+                                            ...t, ...updatedFields, templateId: newTemplateId,
+                                            recurrenceAnchor: updatedFields.dueDate || t.dueDate, customPriority: 0
+                                          } : t);
 
-                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-                                            templates.push(newTemplate);
-                                            localStorage.setItem('recurringTasks', JSON.stringify(templates));
-                                            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                                            setTasks(updatedTasks);
-                                            handleCancelEdit();
-                                            backupManager.saveAutoBackup();
-                                            window.dispatchEvent(new Event('storage'));
-                                            return;
-                                          }
-
-                                          // CASE 2: Recurring → plain (remove recurrence)
-                                          if (detailTask.templateId && !updatedFields.recurrence) {
-                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-
-                                            if (scope === 'series') {
-                                              const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
-                                              const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
-                                              newTasks.push({ ...updatedFields, id: detailTask.id, recurrence: null, templateId: null, recurrenceAnchor: null, status: detailTask.status, createdAt: detailTask.createdAt, completedAt: null });
-                                              localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
-                                              localStorage.setItem('tasks', JSON.stringify(newTasks));
-                                              setTasks(newTasks);
-                                            } else {
-                                              const updatedTasks = tasks.map(t => t.id === detailTask.id ? { ...t, ...updatedFields, recurrence: null, templateId: null, recurrenceAnchor: null } : t);
-                                              localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                                              setTasks(updatedTasks);
-                                            }
-                                            handleCancelEdit();
-                                            backupManager.saveAutoBackup();
-                                            window.dispatchEvent(new Event('storage'));
-                                            return;
-                                          }
-
-                                          // CASE 3: SERIES EDIT - Nuclear rebuild (recurrence type changes)
-                                          if (detailTask.templateId && scope === 'series' && updatedFields.recurrence) {
-                                            const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-                                            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-                                            const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-
-                                            // 1. DELETE OLD - Remove old template and all instances (including completed)
-                                            const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
-                                            const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
-                                            const newCompletedTasks = completedTasks.filter(t => t.templateId !== detailTask.templateId);
-
-                                            // 2. CREATE NEW template - ONLY template-specific properties (no dueDate, status, etc.)
-                                            const newTemplateId = 'template-' + Date.now();
-                                            const newTemplate = {
-                                              id: newTemplateId,
-                                              title: updatedFields.title,
-                                              description: updatedFields.description || '',
-                                              url: updatedFields.url || null,
-                                              time: updatedFields.time || null,
-                                              taskType: updatedFields.taskType || 'academic',
-                                              attachments: updatedFields.attachments || [],
-                                              recurrence: updatedFields.recurrence,
-                                              createdAt: new Date().toISOString()
-                                            };
-                                            newTemplates.push(newTemplate);
-
-                                            // 3. CREATE NEW instance - ONLY instance-specific properties (no recurrence object)
-                                            const instanceDueDate = updatedFields.dueDate || detailTask.dueDate;
-                                            const newInstance = {
-                                              id: detailTask.id,
-                                              title: updatedFields.title,
-                                              description: updatedFields.description || '',
-                                              url: updatedFields.url || null,
-                                              dueDate: instanceDueDate,
-                                              time: updatedFields.time || null,
-                                              taskType: updatedFields.taskType || 'academic',
-                                              attachments: updatedFields.attachments || [],
-                                              templateId: newTemplateId,
-                                              recurrenceAnchor: instanceDueDate,
-                                              customPriority: 0,
-                                              status: detailTask.status || 'not-started',
-                                              createdAt: detailTask.createdAt || new Date().toISOString(),
-                                              completedAt: null
-                                            };
-                                            newTasks.push(newInstance);
-
-                                            localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
-                                            localStorage.setItem('tasks', JSON.stringify(newTasks));
-                                            localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
-                                            setTasks(newTasks);
-                                            handleCancelEdit();
-                                            backupManager.saveAutoBackup();
-                                            window.dispatchEvent(new Event('storage'));
-                                            return;
-                                          }
-
-                                          // CASE 4: INSTANCE EDIT (or plain task edit)
-                                          const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-                                          const updatedTasks = storedTasks.map(t => {
-                                            if (t.id === detailTask.id) {
-                                              return {
-                                                ...t,
-                                                ...updatedFields,
-                                              };
-                                            }
-                                            return t;
-                                          });
-
+                                          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                          templates.push(newTemplate);
+                                          localStorage.setItem('recurringTasks', JSON.stringify(templates));
                                           localStorage.setItem('tasks', JSON.stringify(updatedTasks));
                                           setTasks(updatedTasks);
+                                          handleCancelEdit();
                                           backupManager.saveAutoBackup();
                                           window.dispatchEvent(new Event('storage'));
-                                          handleCancelEdit();
-                                          } catch (error) {
-                                            console.error('[Dashboard] Error saving task edit:', error);
-                                            alert('Failed to save task changes. Please try again.');
+                                          return;
+                                        }
+
+                                        // CASE 2: Recurring → plain (remove recurrence)
+                                        if (detailTask.templateId && !updatedFields.recurrence) {
+                                          const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+
+                                          if (scope === 'series') {
+                                            const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                            const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
+                                            newTasks.push({ ...updatedFields, id: detailTask.id, recurrence: null, templateId: null, recurrenceAnchor: null, status: detailTask.status, createdAt: detailTask.createdAt, completedAt: null });
+                                            localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                            localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                            setTasks(newTasks);
+                                          } else {
+                                            const updatedTasks = tasks.map(t => t.id === detailTask.id ? { ...t, ...updatedFields, recurrence: null, templateId: null, recurrenceAnchor: null } : t);
+                                            localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                            setTasks(updatedTasks);
                                           }
-                                        }}
-                                      />
+                                          handleCancelEdit();
+                                          backupManager.saveAutoBackup();
+                                          window.dispatchEvent(new Event('storage'));
+                                          return;
+                                        }
+
+                                        // CASE 3: SERIES EDIT - Nuclear rebuild (recurrence type changes)
+                                        if (detailTask.templateId && scope === 'series' && updatedFields.recurrence) {
+                                          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+                                          const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                          const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+
+                                          // 1. DELETE OLD - Remove old template and all instances (including completed)
+                                          const newTemplates = templates.filter(t => t.id !== detailTask.templateId);
+                                          const newTasks = tasks.filter(t => t.templateId !== detailTask.templateId);
+                                          const newCompletedTasks = completedTasks.filter(t => t.templateId !== detailTask.templateId);
+
+                                          // 2. CREATE NEW template - ONLY template-specific properties (no dueDate, status, etc.)
+                                          const newTemplateId = 'template-' + Date.now();
+                                          const newTemplate = {
+                                            id: newTemplateId,
+                                            title: updatedFields.title,
+                                            description: updatedFields.description || '',
+                                            url: updatedFields.url || null,
+                                            time: updatedFields.time || null,
+                                            taskType: updatedFields.taskType || 'academic',
+                                            attachments: updatedFields.attachments || [],
+                                            recurrence: updatedFields.recurrence,
+                                            createdAt: new Date().toISOString()
+                                          };
+                                          newTemplates.push(newTemplate);
+
+                                          // 3. CREATE NEW instance - ONLY instance-specific properties (no recurrence object)
+                                          const instanceDueDate = updatedFields.dueDate || detailTask.dueDate;
+                                          const newInstance = {
+                                            id: detailTask.id,
+                                            title: updatedFields.title,
+                                            description: updatedFields.description || '',
+                                            url: updatedFields.url || null,
+                                            dueDate: instanceDueDate,
+                                            time: updatedFields.time || null,
+                                            taskType: updatedFields.taskType || 'academic',
+                                            attachments: updatedFields.attachments || [],
+                                            templateId: newTemplateId,
+                                            recurrenceAnchor: instanceDueDate,
+                                            customPriority: 0,
+                                            status: detailTask.status || 'not-started',
+                                            createdAt: detailTask.createdAt || new Date().toISOString(),
+                                            completedAt: null
+                                          };
+                                          newTasks.push(newInstance);
+
+                                          localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
+                                          localStorage.setItem('tasks', JSON.stringify(newTasks));
+                                          localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
+                                          setTasks(newTasks);
+                                          handleCancelEdit();
+                                          backupManager.saveAutoBackup();
+                                          window.dispatchEvent(new Event('storage'));
+                                          return;
+                                        }
+
+                                        // CASE 4: INSTANCE EDIT (or plain task edit)
+                                        const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+                                        const updatedTasks = storedTasks.map(t => {
+                                          if (t.id === detailTask.id) {
+                                            return {
+                                              ...t,
+                                              ...updatedFields,
+                                            };
+                                          }
+                                          return t;
+                                        });
+
+                                        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                        setTasks(updatedTasks);
+                                        backupManager.saveAutoBackup();
+                                        window.dispatchEvent(new Event('storage'));
+                                        handleCancelEdit();
+                                      } catch (error) {
+                                        console.error('[Dashboard] Error saving task edit:', error);
+                                        alert('Failed to save task changes. Please try again.');
+                                      }
+                                    }}
+                                  />
 
 
                                   {/* Action Buttons */}
@@ -1612,13 +1566,12 @@ const Dashboard = ({ setActiveTab }) => {
                                       {detailTask.title}
                                     </h3>
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className={`px-2 py-1 rounded text-xs ${
-                                        detailTask.status === 'complete'
-                                          ? 'bg-green-muted text-green-glow'
-                                          : detailTask.status === 'in-progress'
+                                      <span className={`px-2 py-1 rounded text-xs ${detailTask.status === 'complete'
+                                        ? 'bg-green-muted text-green-glow'
+                                        : detailTask.status === 'in-progress'
                                           ? 'bg-yellow-500/10 text-yellow-500'
                                           : 'liquid-bubble-filled text-white/40'
-                                      }`}>
+                                        }`}>
                                         {detailTask.status === 'complete' ? 'Complete' : detailTask.status === 'in-progress' ? 'In Progress' : 'Not Started'}
                                       </span>
                                       {taskIsOverdue && (
@@ -1748,105 +1701,12 @@ const Dashboard = ({ setActiveTab }) => {
       {/* Semester End Modal */}
       <AnimatePresence>
         {showSemesterEndModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{
-              background: 'rgba(0, 0, 0, 0.85)',
-              backdropFilter: 'blur(8px)',
-            }}
-            onClick={() => {}} // Prevent closing on backdrop click
-          >
-            {/* Modal Card */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="liquid-bubble-filled rounded-2xl p-8 max-w-lg w-full relative"
-              style={{
-                backdropFilter: 'blur(16px) saturate(180%)',
-                boxShadow: '0 0 40px rgba(61, 214, 140, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4)',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-
-              {/* Header */}
-              <div className="text-center mb-8">
-                <div className="text-6xl mb-4">🎉</div>
-                <h2 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-green-glow to-yellow-500 bg-clip-text text-transparent">
-                  Semester Complete!
-                </h2>
-                <p className="text-white/80 text-lg leading-relaxed">
-                  Congratulations! Time to recharge and celebrate your accomplishments.
-                </p>
-              </div>
-
-              {/* Info Section */}
-              <div className="mb-6 p-4 rounded-xl bg-green-glow/10 border border-green-glow/30">
-                <p className="text-white/90 text-sm leading-relaxed">
-                  <strong className="text-green-glow">What's next?</strong> Set your break dates to track your well-deserved rest, and plan for the upcoming semester.
-                </p>
-              </div>
-
-              {/* Form */}
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    Break Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={nextBreakStart}
-                    onChange={(e) => setNextBreakStart(e.target.value)}
-                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
-                  />
-                  <p className="text-xs text-white/50 mt-2">
-                    Defaults to the day after semester ended
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    Next Semester Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={nextSemesterStart}
-                    onChange={(e) => setNextSemesterStart(e.target.value)}
-                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    Next Semester End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={nextSemesterEnd}
-                    onChange={(e) => setNextSemesterEnd(e.target.value)}
-                    className="w-full liquid-bubble-filled rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-glow/50 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-8">
-                <button
-                  onClick={handleBeginBreak}
-                  className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-glow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-                  style={{
-                    boxShadow: '0 0 20px rgba(61, 214, 140, 0.3)',
-                  }}
-                >
-                  Begin Break 🌴
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <Suspense fallback={null}>
+            <SemesterCompleteModal
+              defaultBreakStart={nextBreakStartDefault}
+              onBeginBreak={handleBeginBreak}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </>
