@@ -142,33 +142,30 @@ const StatsTab = () => {
       return { text: 'Not enough data', value: null };
     }
 
-    // Filter data from the start of the current year
-    const currentYearStart = new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
-    const currentYearStartStr = format(currentYearStart, 'yyyy-MM-dd');
+    // 1. Define Start of Current Year
+    const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
+    currentYearStart.setHours(0, 0, 0, 0);
 
-    const recentMoods = moodLog.filter(m => m.date >= currentYearStartStr);
-    const recentTasks = completedTasks.filter(t => {
-      const completedDate = new Date(t.completedAt).toISOString().split('T')[0];
-      return completedDate >= currentYearStartStr;
-    });
-
-    if (!recentMoods.length || !recentTasks.length) {
-      return { text: 'Not enough data this year', value: null };
-    }
+    // 2. Filter Data
+    const currentYearMoods = moodLog.filter(entry =>
+      new Date(entry.date) >= currentYearStart
+    );
+    const currentYearTasks = completedTasks.filter(task =>
+      new Date(task.completedAt) >= currentYearStart
+    );
 
     const goodMoodDays = new Set();
     const badMoodDays = new Set();
 
-    recentMoods.forEach(entry => {
+    currentYearMoods.forEach(entry => {
       if (entry.level >= 4) goodMoodDays.add(entry.date);
       else if (entry.level <= 2) badMoodDays.add(entry.date);
     });
 
-    // Count tasks for both categories
     let goodDayTaskCount = 0;
     let badDayTaskCount = 0;
 
-    recentTasks.forEach(task => {
+    currentYearTasks.forEach(task => {
       const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
       if (goodMoodDays.has(completedDate)) {
         goodDayTaskCount++;
@@ -177,7 +174,6 @@ const StatsTab = () => {
       }
     });
 
-    // SCENARIO 1: Data for BOTH (Standard Comparison)
     if (goodMoodDays.size > 0 && badMoodDays.size > 0) {
       const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
       const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
@@ -186,7 +182,7 @@ const StatsTab = () => {
         const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
         if (!isFinite(multiplier)) return { text: 'Not enough data', value: null };
         return {
-          text: 'more tasks on good days',
+          text: 'more tasks on good days (YTD)',
           value: `${multiplier.toFixed(1)}x`,
         };
       }
@@ -197,28 +193,24 @@ const StatsTab = () => {
           value: `${avgTasksOnGoodDays.toFixed(1)}`,
         };
       }
-      return { text: 'No task/mood overlap found', value: null };
     }
 
-    // SCENARIO 2: Good Days ONLY (Fallback)
-    if (goodMoodDays.size > 0 && badMoodDays.size === 0) {
-       const avgTasksOnGoodDays = goodDayTaskCount / goodMoodDays.size;
+    // Partial Data Fallbacks
+    if (goodMoodDays.size > 0) {
        return {
-         text: 'avg tasks on good days (log bad days to compare)',
-         value: `${avgTasksOnGoodDays.toFixed(1)}`
+         text: 'avg tasks on good days (YTD)',
+         value: `${(goodDayTaskCount / goodMoodDays.size).toFixed(1)}`
        };
     }
 
-    // SCENARIO 3: Bad Days ONLY (Fallback)
-    if (badMoodDays.size > 0 && goodMoodDays.size === 0) {
-       const avgTasksOnBadDays = badDayTaskCount / badMoodDays.size;
+    if (badMoodDays.size > 0) {
        return {
-         text: 'avg tasks on bad days (log good days to compare)',
-         value: `${avgTasksOnBadDays.toFixed(1)}`
+         text: 'avg tasks on bad days (YTD)',
+         value: `${(badDayTaskCount / badMoodDays.size).toFixed(1)}`
        };
     }
 
-    return { text: 'Log more good/bad days', value: null };
+    return { text: 'Not enough data this year', value: null };
 
   }, [completedTasks, moodLog]);
 
