@@ -7,7 +7,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(''); // Internal ISO format: YYYY-MM-DD
+  const [dateInput, setDateInput] = useState(''); // User input / Display format: MM-DD-YYYY
   const [time, setTime] = useState('');
   const [taskType, setTaskType] = useState('academic');
   const [status, setStatus] = useState('not-started');
@@ -36,6 +37,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setDescription(initialData.description || '');
       setUrl(initialData.url || '');
       setDueDate(initialData.dueDate || '');
+      setDateInput(isoToDisplay(initialData.dueDate || ''));
       setTime(initialData.time || '');
       setTaskType(initialData.taskType || 'academic');
       setStatus(initialData.status || 'not-started');
@@ -107,6 +109,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setDescription('');
       setUrl('');
       setDueDate('');
+      setDateInput('');
       setTime('');
       setTaskType('academic');
       setAttachments([]);
@@ -199,24 +202,127 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setAttachments(prev => prev.filter(path => path !== filePathToRemove));
   };
 
+  // Convert ISO date (YYYY-MM-DD) to display format (MM-DD-YYYY)
+  const isoToDisplay = (isoDate) => {
+    if (!isoDate || !isoDate.trim()) return '';
+
+    const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${month}-${day}-${year}`;
+    }
+
+    return isoDate;
+  };
+
+  // Convert display format (MM-DD-YYYY) to ISO (YYYY-MM-DD)
+  const displayToIso = (displayDate) => {
+    if (!displayDate || !displayDate.trim()) return '';
+
+    const match = displayDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (match) {
+      const [, month, day, year] = match;
+      return `${year}-${month}-${day}`;
+    }
+
+    return displayDate;
+  };
+
+  // Helper function to parse smart date input
+  const parseSmartDate = (input) => {
+    if (!input || !input.trim()) {
+      return { iso: '', display: '' };
+    }
+
+    const trimmed = input.trim();
+
+    // Regex patterns for shorthand dates: M/D, MM/DD, M-D, MM-DD
+    const shorthandPattern = /^(\d{1,2})[\/\-](\d{1,2})$/;
+    const match = trimmed.match(shorthandPattern);
+
+    if (match) {
+      const month = match[1].padStart(2, '0');
+      const day = match[2].padStart(2, '0');
+      const currentYear = new Date().getFullYear();
+
+      // Return both ISO and display formats
+      return {
+        iso: `${currentYear}-${month}-${day}`,
+        display: `${month}-${day}-${currentYear}`
+      };
+    }
+
+    // Check if it's already in MM-DD-YYYY format
+    const displayMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (displayMatch) {
+      const month = displayMatch[1].padStart(2, '0');
+      const day = displayMatch[2].padStart(2, '0');
+      const year = displayMatch[3];
+
+      return {
+        iso: `${year}-${month}-${day}`,
+        display: `${month}-${day}-${year}`
+      };
+    }
+
+    // Check if it's in YYYY-MM-DD format (convert to display)
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      return {
+        iso: trimmed,
+        display: isoToDisplay(trimmed)
+      };
+    }
+
+    // Return as-is if format is unrecognized
+    return { iso: trimmed, display: trimmed };
+  };
+
+  // Change handler for free typing
+  const handleDateChange = (e) => {
+    setDateInput(e.target.value);
+  };
+
+  // Blur handler for the date input
+  const handleDateBlur = (e) => {
+    const { iso, display } = parseSmartDate(e.target.value);
+    setDueDate(iso);
+    setDateInput(display);
+  };
+
   // Due date helper functions
   const setDueToday = () => {
-    setDueDate(getToday());
+    const today = getToday();
+    setDueDate(today);
+    setDateInput(isoToDisplay(today));
   };
 
   const setDueTomorrow = () => {
-    setDueDate(getTomorrow());
+    const tomorrow = getTomorrow();
+    setDueDate(tomorrow);
+    setDateInput(isoToDisplay(tomorrow));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Parse date input FIRST to ensure we have current ISO date
+    // This handles the case where user hits Enter without blurring the date field
+    let finalDueDate = dueDate;
+    if (dateInput && dateInput.trim()) {
+      const { iso, display } = parseSmartDate(dateInput);
+      finalDueDate = iso;
+      // Update states for consistency (even though we're about to submit)
+      setDueDate(iso);
+      setDateInput(display);
+    }
 
     if (!title.trim()) {
       return;
     }
 
     // Validate dueDate for monthly/yearly/custom recurring tasks (weekly uses day selection)
-    if ((recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !dueDate) {
+    if ((recurrenceType === 'monthly' || recurrenceType === 'yearly' || recurrenceType === 'custom') && !finalDueDate) {
       alert('Please select a due date for this recurring task.');
       return;
     }
@@ -228,8 +334,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     }
 
     // Validate weekly days selection
-    if (recurrenceType === 'weekly' && weeklyDays.length === 0 && dueDate) {
-      const currentDay = new Date(dueDate).getDay();
+    if (recurrenceType === 'weekly' && weeklyDays.length === 0 && finalDueDate) {
+      const currentDay = new Date(finalDueDate).getDay();
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const confirmed = window.confirm(
         `No days selected for weekly recurrence. The task will repeat on ${dayNames[currentDay]}s (based on the due date). Continue?`
@@ -244,7 +350,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         title: title.trim(),
         description: description.trim(),
         url: url.trim() || null,
-        dueDate: dueDate || null,
+        dueDate: finalDueDate || null,
         time: time || null,
         taskType: taskType,
         status: status,
@@ -259,7 +365,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         updatedTaskData.recurrenceAnchor = initialData.recurrenceAnchor || initialData.dueDate || null;
       } else if (editScope === 'series') {
         // Edit series: Update both dueDate and recurrenceAnchor to shift the schedule
-        updatedTaskData.recurrenceAnchor = dueDate || null;
+        updatedTaskData.recurrenceAnchor = finalDueDate || null;
       }
 
       // Rebuild recurrence object cleanly (no merging with old data)
@@ -273,12 +379,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
           case 'weekly':
             newRecurrence.interval = 1;
-            // Critical: Derive days from dueDate if weeklyDays is empty
+            // Critical: Derive days from finalDueDate if weeklyDays is empty
             if (weeklyDays && weeklyDays.length > 0) {
               newRecurrence.days = weeklyDays;
-            } else if (dueDate) {
-              // Default to the current weekday from dueDate
-              const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+            } else if (finalDueDate) {
+              // Default to the current weekday from finalDueDate
+              const currentDay = new Date(finalDueDate).getDay(); // 0 = Sunday, 6 = Saturday
               newRecurrence.days = [currentDay];
             }
             break;
@@ -294,13 +400,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           case 'custom':
             newRecurrence.interval = parseInt(customInterval);
             newRecurrence.unit = customUnit;
-            // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+            // Sanitize: Derive days from finalDueDate for custom weeks if weeklyDays is empty
             if (customUnit === 'weeks') {
               if (weeklyDays && weeklyDays.length > 0) {
                 newRecurrence.days = weeklyDays;
-              } else if (dueDate) {
-                // Default to the current weekday from dueDate
-                const currentDay = new Date(dueDate).getDay();
+              } else if (finalDueDate) {
+                // Default to the current weekday from finalDueDate
+                const currentDay = new Date(finalDueDate).getDay();
                 newRecurrence.days = [currentDay];
               }
             }
@@ -333,12 +439,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
         case 'weekly':
           newRecurrence.interval = 1;
-          // Critical: Derive days from dueDate if weeklyDays is empty
+          // Critical: Derive days from finalDueDate if weeklyDays is empty
           if (weeklyDays && weeklyDays.length > 0) {
             newRecurrence.days = weeklyDays;
-          } else if (dueDate) {
-            // Default to the current weekday from dueDate
-            const currentDay = new Date(dueDate).getDay(); // 0 = Sunday, 6 = Saturday
+          } else if (finalDueDate) {
+            // Default to the current weekday from finalDueDate
+            const currentDay = new Date(finalDueDate).getDay(); // 0 = Sunday, 6 = Saturday
             newRecurrence.days = [currentDay];
           }
           break;
@@ -354,13 +460,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         case 'custom':
           newRecurrence.interval = parseInt(customInterval);
           newRecurrence.unit = customUnit;
-          // Sanitize: Derive days from dueDate for custom weeks if weeklyDays is empty
+          // Sanitize: Derive days from finalDueDate for custom weeks if weeklyDays is empty
           if (customUnit === 'weeks') {
             if (weeklyDays && weeklyDays.length > 0) {
               newRecurrence.days = weeklyDays;
-            } else if (dueDate) {
-              // Default to the current weekday from dueDate
-              const currentDay = new Date(dueDate).getDay();
+            } else if (finalDueDate) {
+              // Default to the current weekday from finalDueDate
+              const currentDay = new Date(finalDueDate).getDay();
               newRecurrence.days = [currentDay];
             }
           }
@@ -436,14 +542,14 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           instanceDate = today.toISOString().split('T')[0];
         }
       } else if (template.recurrence.type === 'monthly') {
-        // Monthly tasks use the user-provided dueDate
-        instanceDate = dueDate;
+        // Monthly tasks use the user-provided finalDueDate
+        instanceDate = finalDueDate;
       } else if (template.recurrence.type === 'yearly') {
-        // Yearly tasks use the user-provided dueDate
-        instanceDate = dueDate;
+        // Yearly tasks use the user-provided finalDueDate
+        instanceDate = finalDueDate;
       } else if (template.recurrence.type === 'custom') {
-        // Custom tasks use the user-provided dueDate
-        instanceDate = dueDate;
+        // Custom tasks use the user-provided finalDueDate
+        instanceDate = finalDueDate;
       }
 
       // Generate the instance with the calculated date
@@ -474,7 +580,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
         title: title.trim(),
         description: description.trim(),
         url: url.trim() || null,
-        dueDate: dueDate || null,
+        dueDate: finalDueDate || null,
         time: time || null,
         status: 'not-started',
         taskType: taskType,
@@ -492,6 +598,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
     setDescription('');
     setUrl('');
     setDueDate('');
+    setDateInput('');
     setTime('');
     setTaskType('academic');
     setAttachments([]);
@@ -602,10 +709,12 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 </div>
               </label>
               <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                type="text"
+                value={dateInput}
+                onChange={handleDateChange}
+                onBlur={handleDateBlur}
+                placeholder="MM/DD or MM-DD-YYYY"
+                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
               />
             </div>
             <div>
