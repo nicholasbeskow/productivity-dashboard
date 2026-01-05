@@ -136,16 +136,30 @@ const StatsTab = () => {
     1: { label: 'Rocky', color: '#ef4444' }
   };
 
-  // Calculate mood/productivity correlation (All Time)
+  // Calculate mood/productivity correlation (Current Year)
   const correlationStats = useMemo(() => {
     if (!moodLog.length || !completedTasks.length) {
       return { text: 'Not enough data', value: null };
     }
 
+    // Filter data from start of current year
+    const currentYearStart = new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
+    const currentYearStartStr = format(currentYearStart, 'yyyy-MM-dd');
+
+    const recentMoods = moodLog.filter(m => m.date >= currentYearStartStr);
+    const recentTasks = completedTasks.filter(t => {
+      const completedDate = new Date(t.completedAt).toISOString().split('T')[0];
+      return completedDate >= currentYearStartStr;
+    });
+
+    if (!recentMoods.length || !recentTasks.length) {
+      return { text: 'Not enough data this year', value: null };
+    }
+
     const goodMoodDays = new Set();
     const badMoodDays = new Set();
 
-    moodLog.forEach(entry => {
+    recentMoods.forEach(entry => {
       if (entry.level >= 4) goodMoodDays.add(entry.date);
       else if (entry.level <= 2) badMoodDays.add(entry.date);
     });
@@ -157,7 +171,7 @@ const StatsTab = () => {
     let goodDayTaskCount = 0;
     let badDayTaskCount = 0;
 
-    completedTasks.forEach(task => {
+    recentTasks.forEach(task => {
       const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
       if (goodMoodDays.has(completedDate)) {
         goodDayTaskCount++;
