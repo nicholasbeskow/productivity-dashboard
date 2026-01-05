@@ -557,8 +557,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
   return (
     <>
-      {/* Show indicator when editing a recurring task */}
-      {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && (
+      {/* Show indicator when editing a recurring task (only for series edits) */}
+      {initialData && initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat' && editScope === 'series' && (
         <div className="mb-4 p-3 liquid-bubble-filled rounded-lg" style={{ boxShadow: '0 0 20px rgba(61, 214, 140, 0.2), inset 0 0 20px rgba(61, 214, 140, 0.05)' }}>
           <p className="text-sm text-green-glow">
             <Repeat size={16} className="inline mr-2" />
@@ -792,19 +792,22 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               <LinkIcon size={14} />
               Link
             </button>
-            <button
-              type="button"
-              onClick={() => toggleSection('recurrence')}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                showRecurrence
-                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
-              }`}
-              style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
-            >
-              <Repeat size={14} />
-              Recurring
-            </button>
+            {/* Hide recurrence button when editing instance only */}
+            {!(isRecurringEdit && editScope === 'instance') && (
+              <button
+                type="button"
+                onClick={() => toggleSection('recurrence')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  showRecurrence
+                    ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                    : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+                }`}
+                style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
+              >
+                <Repeat size={14} />
+                Recurring
+              </button>
+            )}
           </div>
         </div>
 
@@ -885,14 +888,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           </div>
         )}
 
-        {/* Collapsible Content - Recurrence */}
-        {showRecurrence && (
+        {/* Collapsible Content - Recurrence (hidden when editing instance only) */}
+        {showRecurrence && !(isRecurringEdit && editScope === 'instance') && (
           <div className="space-y-3">
             <select
               value={recurrenceType}
               onChange={(e) => setRecurrenceType(e.target.value)}
               className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
-              disabled={isRecurringEdit && editScope === 'instance'}
             >
               <option value="does-not-repeat">Does not repeat</option>
               <option value="daily">Daily</option>
