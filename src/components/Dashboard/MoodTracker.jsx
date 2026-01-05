@@ -324,15 +324,27 @@ const MoodTracker = () => {
       ? (last7Moods.reduce((sum, entry) => sum + entry.level, 0) / last7Moods.length).toFixed(1)
       : null;
 
-    // Calculate mood-task correlation (matching Stats tab format)
+    // --- START UPDATE: Mood-Task Correlation (Current Year Only) ---
     let correlationText = 'Not enough data';
     let correlationValue = null;
 
-    if (moodLog.length > 0 && completedTasks.length > 0) {
+    // 1. Define Start of Current Year
+    const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
+    currentYearStart.setHours(0, 0, 0, 0);
+
+    // 2. Filter Data
+    const currentYearMoods = moodLog.filter(entry =>
+      new Date(entry.date) >= currentYearStart
+    );
+    const currentYearTasks = completedTasks.filter(task =>
+      new Date(task.completedAt) >= currentYearStart
+    );
+
+    if (currentYearMoods.length > 0 && currentYearTasks.length > 0) {
       const goodMoodDays = new Set();
       const badMoodDays = new Set();
 
-      moodLog.forEach(entry => {
+      currentYearMoods.forEach(entry => {
         if (entry.level >= 4) goodMoodDays.add(entry.date);
         else if (entry.level <= 2) badMoodDays.add(entry.date);
       });
@@ -341,7 +353,7 @@ const MoodTracker = () => {
         let goodDayTaskCount = 0;
         let badDayTaskCount = 0;
 
-        completedTasks.forEach(task => {
+        currentYearTasks.forEach(task => {
           const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
           if (goodMoodDays.has(completedDate)) {
             goodDayTaskCount++;
@@ -355,20 +367,41 @@ const MoodTracker = () => {
 
         if (avgTasksOnBadDays > 0) {
           const multiplier = avgTasksOnGoodDays / avgTasksOnBadDays;
-          correlationText = 'more tasks on good days';
-          correlationValue = `${multiplier.toFixed(1)}x`;
+          if (isFinite(multiplier)) {
+            correlationText = 'more tasks on good days (YTD)';
+            correlationValue = `${multiplier.toFixed(1)}x`;
+          }
         } else if (avgTasksOnGoodDays > 0) {
           correlationText = 'avg tasks on good days (vs 0 on bad)';
           correlationValue = `${avgTasksOnGoodDays.toFixed(1)}`;
         } else {
-          correlationText = 'No task/mood overlap found';
-          correlationValue = null;
+          correlationText = 'No task/mood overlap found (YTD)';
         }
       } else {
-        correlationText = 'Log more good/bad days';
-        correlationValue = null;
+        // Fallbacks for partial data
+        if (goodMoodDays.size > 0) {
+             // Calculate simple average if we only have good days
+             let goodDayTaskCount = 0;
+             currentYearTasks.forEach(task => {
+                const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+                if (goodMoodDays.has(completedDate)) goodDayTaskCount++;
+             });
+             correlationText = 'avg tasks on good days (YTD)';
+             correlationValue = (goodDayTaskCount / goodMoodDays.size).toFixed(1);
+        } else if (badMoodDays.size > 0) {
+             let badDayTaskCount = 0;
+             currentYearTasks.forEach(task => {
+                const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+                if (badMoodDays.has(completedDate)) badDayTaskCount++;
+             });
+             correlationText = 'avg tasks on bad days (YTD)';
+             correlationValue = (badDayTaskCount / badMoodDays.size).toFixed(1);
+        } else {
+             correlationText = 'Log more good/bad days';
+        }
       }
     }
+    // --- END UPDATE ---
 
     const getMoodLabel = (avgMood) => {
       const moodVal = parseFloat(avgMood);
