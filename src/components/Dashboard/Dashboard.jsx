@@ -555,6 +555,63 @@ const Dashboard = ({ setActiveTab }) => {
 
   // Using the isTaskOverdue utility function defined at the top of the file
 
+  /* ===== RECURRENCE HELPER (Internal to Dashboard) ===== */
+  const createNextRecurrence = (task, currentTasks) => {
+    if (!task.templateId) return { nextTask: null, insertIndex: -1 };
+
+    const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+    const template = templates.find(t => t.id === task.templateId);
+
+    if (!template) {
+      console.warn(`[Dashboard] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
+      return { nextTask: null, insertIndex: -1 };
+    }
+
+    // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
+    const nextDueDate = calculateNextDueDate(task, template);
+
+    // Create the new task instance for the next occurrence
+    const nextOccurrence = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: template.title,
+      description: template.description || '',
+      url: template.url || null,
+      dueDate: nextDueDate,
+      recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
+      time: template.time || null,
+      status: 'not-started',
+      taskType: template.taskType || 'academic',
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      attachments: template.attachments || [],
+      templateId: template.id,
+    };
+
+    // Helper to check if a task is overdue
+    const isTaskOverdue = (t) => {
+      if (!t.dueDate || t.status === 'complete') return false;
+      const now = new Date();
+      now.setHours(12, 0, 0, 0);
+      const dueDate = new Date(t.dueDate + 'T12:00:00');
+      return dueDate < now;
+    };
+
+    // Find the right position for the new task based on due date
+    let insertIndex = currentTasks.length;
+    const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+    for (let i = 0; i < currentTasks.length; i++) {
+      const t = currentTasks[i];
+      if (isTaskOverdue(t)) continue;
+      if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
+        insertIndex = i;
+        break;
+      }
+    }
+
+    return { nextTask: nextOccurrence, insertIndex };
+  };
+
   const handleStatusChange = useCallback((taskId) => {
     const task = tasks.find(t => t.id === taskId);
 
@@ -572,65 +629,19 @@ const Dashboard = ({ setActiveTab }) => {
         let updatedTasks = tasks.filter(t => t.id !== taskId);
 
         // --- RECURRING TASK: Create next occurrence ---
+        // Refactored to use createNextRecurrence helper
         if (task.templateId) {
-          // Get the recurring task template
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const template = templates.find(t => t.id === task.templateId);
+          const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
 
-          if (template) {
-            // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
-            const nextDueDate = calculateNextDueDate(task, template);
-
-            // Create the new task instance for the next occurrence
-            const nextOccurrence = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              title: template.title,
-              description: template.description || '',
-              url: template.url || null,
-              dueDate: nextDueDate,
-              recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
-              time: template.time || null,
-              status: 'not-started',
-              taskType: template.taskType || 'academic',
-              createdAt: new Date().toISOString(),
-              completedAt: null,
-              attachments: template.attachments || [],
-              templateId: template.id,
-            };
-
-            // Helper to check if a task is overdue
-            const isTaskOverdue = (t) => {
-              if (!t.dueDate || t.status === 'complete') return false;
-              const now = new Date();
-              now.setHours(12, 0, 0, 0);
-              const dueDate = new Date(t.dueDate + 'T12:00:00');
-              return dueDate < now;
-            };
-
-            // Find the right position for the new task based on due date
-            let insertIndex = updatedTasks.length;
-            const newDueDate = new Date(nextDueDate + 'T12:00:00');
-
-            for (let i = 0; i < updatedTasks.length; i++) {
-              const t = updatedTasks[i];
-              if (isTaskOverdue(t)) continue;
-              if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
-                insertIndex = i;
-                break;
-              }
-            }
-
+          if (nextTask) {
             // Insert at the right position
-            updatedTasks.splice(insertIndex, 0, nextOccurrence);
+            updatedTasks.splice(insertIndex, 0, nextTask);
 
             // Recalculate all priorities to maintain order
             updatedTasks = updatedTasks.map((t, index) => ({
               ...t,
               customPriority: updatedTasks.length - index,
             }));
-
-          } else {
-            console.warn(`[Dashboard] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
           }
         }
 
@@ -867,7 +878,31 @@ const Dashboard = ({ setActiveTab }) => {
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
-        const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+        let updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+        // --- BUG FIX: Generate next occurrence when deleting an instance ---
+        // This prevents the series from disappearing from view
+        const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
+
+        if (nextTask) {
+          updatedTasks.splice(insertIndex, 0, nextTask);
+
+          // Helper to check if a task is overdue (needed inside correct priority calc scope)
+          const isTaskOverdue = (t) => {
+            if (!t.dueDate || t.status === 'complete') return false;
+            const now = new Date();
+            now.setHours(12, 0, 0, 0);
+            const dueDate = new Date(t.dueDate + 'T12:00:00');
+            return dueDate < now;
+          };
+
+          // Re-sort to be safe before priority assignment (optional but good)
+          // Actually, let's just re-calculate priorities safely
+          updatedTasks = updatedTasks.map((t, index) => ({
+            ...t,
+            customPriority: updatedTasks.length - index,
+          }));
+        }
 
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
         backupManager.saveAutoBackup();
@@ -1108,9 +1143,9 @@ const Dashboard = ({ setActiveTab }) => {
   const displayTasks = useMemo(() => {
     return tasks
       .filter(task => {
-        if (taskFilter === 'all') return true;
-        if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
-        if (taskFilter === 'personal') return task.taskType === 'personal';
+        // Type Filter
+        if (taskFilter === 'academic' && (task.taskType || 'academic') !== 'academic') return false;
+        if (taskFilter === 'personal' && task.taskType !== 'personal') return false;
         return true;
       })
       .sort((a, b) => {
@@ -1142,7 +1177,7 @@ const Dashboard = ({ setActiveTab }) => {
 
         return new Date(b.createdAt) - new Date(a.createdAt);
       })
-      .slice(0, 5); // Show up to 5 tasks
+      .slice(0, 5);
   }, [tasks, taskFilter]);
 
   // Format user name - capitalize first letter of each word
@@ -1233,6 +1268,8 @@ const Dashboard = ({ setActiveTab }) => {
                   </button>
                 </div>
               </div>
+
+
 
               {displayTasks.length === 0 ? (
                 <div className="text-center py-8">

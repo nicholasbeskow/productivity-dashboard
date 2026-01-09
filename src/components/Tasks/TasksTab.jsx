@@ -8,6 +8,7 @@ import { isTaskOverdue } from '../../utils/taskHelpers';
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('all');
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,15 +86,25 @@ const TasksTab = () => {
     const savedFilter = localStorage.getItem('taskFilter') || 'all';
     setTaskFilter(savedFilter);
 
+    const savedTimeFilter = localStorage.getItem('taskTimeFilter') || 'all';
+    setTimeFilter(savedTimeFilter);
+
     const handleFilterChange = () => {
       const filter = localStorage.getItem('taskFilter') || 'all';
       setTaskFilter(filter);
     };
 
+    const handleTimeFilterChange = () => {
+      const filter = localStorage.getItem('taskTimeFilter') || 'all';
+      setTimeFilter(filter);
+    };
+
     window.addEventListener('taskFilterChanged', handleFilterChange);
+    window.addEventListener('taskTimeFilterChanged', handleTimeFilterChange);
 
     return () => {
       window.removeEventListener('taskFilterChanged', handleFilterChange);
+      window.removeEventListener('taskTimeFilterChanged', handleTimeFilterChange);
     };
   }, []);
 
@@ -102,6 +113,14 @@ const TasksTab = () => {
     localStorage.setItem('taskFilter', filter);
     window.dispatchEvent(new Event('taskFilterChanged'));
   };
+
+  const handleTimeFilterChange = (filter) => {
+    setTimeFilter(filter);
+    localStorage.setItem('taskTimeFilter', filter);
+    window.dispatchEvent(new Event('taskTimeFilterChanged'));
+  };
+
+
 
   // Smart sorting: overdue first, then by due date, then by custom priority
   const sortedTasks = useMemo(() => {
@@ -116,6 +135,60 @@ const TasksTab = () => {
         return true;
       })
       .filter(task => {
+        // Time Filter
+        if (timeFilter === 'all') return true;
+
+        const isOverdue = isTaskOverdue(task);
+        if (timeFilter === 'today') {
+          // Show Overdue + Due Today
+          if (isOverdue) return true;
+          if (!task.dueDate) return false;
+          const today = new Date().toISOString().split('T')[0];
+          return task.dueDate === today;
+        }
+
+        if (timeFilter === 'week') {
+          // Show Overdue + Due within next 7 days
+          if (isOverdue) return true;
+          if (!task.dueDate) return false;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const sevenDaysFromNow = new Date(today);
+          sevenDaysFromNow.setDate(today.getDate() + 7);
+          const taskDate = new Date(task.dueDate + 'T00:00:00'); // Normalize to start of day
+
+          // Check if it's today or in the future, but before 7 days from now
+          return taskDate >= today && taskDate <= sevenDaysFromNow;
+        }
+
+        if (timeFilter === 'month') {
+          // Show Overdue + Due within current month
+          if (isOverdue) return true;
+          if (!task.dueDate) return false;
+
+          const today = new Date();
+          const taskDate = new Date(task.dueDate + 'T00:00:00');
+
+          // Check if same month and year
+          return taskDate.getMonth() === today.getMonth() && taskDate.getFullYear() === today.getFullYear();
+        }
+
+        if (timeFilter === 'later') {
+          // Show Due after this month OR No Due Date (if not overdue)
+          if (isOverdue) return false; // Overdue belongs to Today/Week/Month
+          if (!task.dueDate) return true; // No date = Later
+
+          const today = new Date();
+          const taskDate = new Date(task.dueDate + 'T00:00:00');
+
+          // Return true if future month or future year
+          return taskDate.getMonth() > today.getMonth() || taskDate.getFullYear() > today.getFullYear();
+        }
+
+        return true;
+      })
+      .filter(task => {
         // Second, filter by the search term
         if (!lowerCaseSearch) return true; // Show all if search is empty
 
@@ -125,56 +198,56 @@ const TasksTab = () => {
         return titleMatch || descMatch;
       })
       .sort((a, b) => {
-      const aOverdue = isTaskOverdue(a);
-      const bOverdue = isTaskOverdue(b);
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
 
-      // Overdue tasks first
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
+        // Overdue tasks first
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
 
-      // Both overdue: sort by most overdue first
-      if (aOverdue && bOverdue) {
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
-
-      // If one has custom priority and the other doesn't, prioritize the one with custom priority
-      const aHasPriority = (a.customPriority ?? 0) > 0;
-      const bHasPriority = (b.customPriority ?? 0) > 0;
-
-      if (aHasPriority && !bHasPriority) return -1;
-      if (!aHasPriority && bHasPriority) return 1;
-
-      // Both have custom priority: sort by priority
-      if (aHasPriority && bHasPriority) {
-        return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-      }
-
-      // Neither has custom priority: sort by due date (and time if present)
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      if (a.dueDate && b.dueDate) {
-        // Same date check
-        if (a.dueDate === b.dueDate) {
-          // Same day: tasks with times come before tasks without times
-          if (a.time && !b.time) return -1;
-          if (!a.time && b.time) return 1;
-
-          // Both have times: sort by time (earlier first)
-          if (a.time && b.time) {
-            const aDateTime = new Date(`${a.dueDate}T${a.time}`);
-            const bDateTime = new Date(`${b.dueDate}T${b.time}`);
-            return aDateTime - bDateTime;
-          }
+        // Both overdue: sort by most overdue first
+        if (aOverdue && bOverdue) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
         }
 
-        // Different dates: sort by date
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
+        // If one has custom priority and the other doesn't, prioritize the one with custom priority
+        const aHasPriority = (a.customPriority ?? 0) > 0;
+        const bHasPriority = (b.customPriority ?? 0) > 0;
 
-      // Both have no due date: sort by creation date (newest first)
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-  }, [tasks, taskFilter, searchTerm]);
+        if (aHasPriority && !bHasPriority) return -1;
+        if (!aHasPriority && bHasPriority) return 1;
+
+        // Both have custom priority: sort by priority
+        if (aHasPriority && bHasPriority) {
+          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
+        }
+
+        // Neither has custom priority: sort by due date (and time if present)
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        if (a.dueDate && b.dueDate) {
+          // Same date check
+          if (a.dueDate === b.dueDate) {
+            // Same day: tasks with times come before tasks without times
+            if (a.time && !b.time) return -1;
+            if (!a.time && b.time) return 1;
+
+            // Both have times: sort by time (earlier first)
+            if (a.time && b.time) {
+              const aDateTime = new Date(`${a.dueDate}T${a.time}`);
+              const bDateTime = new Date(`${b.dueDate}T${b.time}`);
+              return aDateTime - bDateTime;
+            }
+          }
+
+          // Different dates: sort by date
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
+
+        // Both have no due date: sort by creation date (newest first)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+  }, [tasks, taskFilter, timeFilter, searchTerm]);
 
   const handleTaskCreate = (newTask) => {
     // Find the right position for the new task based on due date
@@ -257,36 +330,87 @@ const TasksTab = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleFilterChange('all')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'all'
-                      ? 'liquid-bubble-filled text-green-glow'
-                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'all'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
                   style={taskFilter === 'all' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   All
                 </button>
                 <button
                   onClick={() => handleFilterChange('academic')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'academic'
-                      ? 'liquid-bubble-filled text-green-glow'
-                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'academic'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
                   style={taskFilter === 'academic' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   Academic
                 </button>
                 <button
                   onClick={() => handleFilterChange('personal')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    taskFilter === 'personal'
-                      ? 'liquid-bubble-filled text-green-glow'
-                      : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskFilter === 'personal'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/60 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
                   style={taskFilter === 'personal' ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
                 >
                   Personal
+                </button>
+              </div>
+            </div>
+
+            {/* Time Filter */}
+            <div className="mb-4">
+              <label className="block text-sm text-white/70 mb-2">
+                Time:
+              </label>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  onClick={() => handleTimeFilterChange('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeFilter === 'all'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                >
+                  All Time
+                </button>
+                <button
+                  onClick={() => handleTimeFilterChange('today')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeFilter === 'today'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                >
+                  Focus (Today)
+                </button>
+                <button
+                  onClick={() => handleTimeFilterChange('week')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeFilter === 'week'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => handleTimeFilterChange('month')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeFilter === 'month'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => handleTimeFilterChange('later')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeFilter === 'later'
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                >
+                  Later
                 </button>
               </div>
             </div>

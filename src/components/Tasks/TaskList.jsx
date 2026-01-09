@@ -255,11 +255,10 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
       onDragOver={(e) => !isEditing && onDragOver(e, task)}
       onDragEnd={onDragEnd}
       onDrop={(e) => !isEditing && onDrop(e, task)}
-      className={`relative rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${
-        task.status === 'complete' ? 'opacity-75 border-transparent' :
-        dragOverTask?.id === task.id ? 'border-green-glow' :
-        taskIsOverdue ? 'border-red-500/50' : 'border-transparent'
-      } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
+      className={`relative rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${task.status === 'complete' ? 'opacity-75 border-transparent' :
+          dragOverTask?.id === task.id ? 'border-green-glow' :
+            taskIsOverdue ? 'border-red-500/50' : 'border-transparent'
+        } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
@@ -425,9 +424,8 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <motion.h3
-                className={`text-lg font-semibold transition-all duration-300 ${
-                  task.status === 'complete' ? 'text-white/70 line-through' : 'text-white'
-                }`}
+                className={`text-lg font-semibold transition-all duration-300 ${task.status === 'complete' ? 'text-white/70 line-through' : 'text-white'
+                  }`}
                 animate={{ opacity: task.status === 'complete' ? 0.6 : 1 }}
               >
                 {task.title}
@@ -473,13 +471,12 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
                 </span>
               )}
               <motion.span
-                className={`px-2 py-1 rounded transition-all ${
-                  task.status === 'complete'
+                className={`px-2 py-1 rounded transition-all ${task.status === 'complete'
                     ? 'bg-green-muted text-green-glow'
                     : task.status === 'in-progress'
-                    ? 'bg-yellow-500/10 text-yellow-500'
-                    : 'liquid-bubble-filled text-white/40'
-                }`}
+                      ? 'bg-yellow-500/10 text-yellow-500'
+                      : 'liquid-bubble-filled text-white/40'
+                  }`}
                 animate={{ scale: isJustCompleted ? [1, 1.1, 1] : 1 }}
                 transition={{ duration: 0.3 }}
               >
@@ -565,6 +562,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         }
       }
       // Check if near bottom edge
+      // Check if near bottom edge
       else if (e.clientY > viewportHeight - edgeThreshold) {
         if (!isScrollingRef.current) {
           isScrollingRef.current = true;
@@ -609,6 +607,69 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       }
     };
   }, [openMenuTaskId, setOpenMenuTaskId]);
+
+  /* ===== RECURRENCE HELPER (Internal to TaskList) ===== */
+  const createNextRecurrence = (task, currentTasks) => {
+    if (!task.templateId) return { nextTask: null, insertIndex: -1 };
+
+    const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
+    const template = templates.find(t => t.id === task.templateId);
+
+    if (!template) {
+      console.warn(`[TaskList] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
+      return { nextTask: null, insertIndex: -1 };
+    }
+
+    // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
+    const nextDueDate = calculateNextDueDate(task, template);
+
+    // Create the new task instance for the next occurrence
+    const nextOccurrence = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: template.title,
+      description: template.description || '',
+      url: template.url || null,
+      dueDate: nextDueDate,
+      recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
+      time: template.time || null,
+      status: 'not-started',
+      taskType: template.taskType || 'academic',
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      attachments: template.attachments || [],
+      templateId: template.id,
+    };
+
+    // Helper to check if a task is overdue
+    const isTaskOverdue = (t) => {
+      if (!t.dueDate || t.status === 'complete') return false;
+      try {
+        const now = new Date();
+        now.setHours(12, 0, 0, 0);
+        const dueDate = new Date(t.dueDate + 'T12:00:00');
+        if (isNaN(dueDate.getTime())) return false;
+        return dueDate < now;
+      } catch (error) {
+        console.error('[TaskList] Error checking overdue status:', error);
+        return false;
+      }
+    };
+
+    // Find the right position for the new task based on due date
+    let insertIndex = currentTasks.length;
+    const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+    for (let i = 0; i < currentTasks.length; i++) {
+      const t = currentTasks[i];
+      if (isTaskOverdue(t)) continue;
+      if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
+        insertIndex = i;
+        break;
+      }
+    }
+
+    return { nextTask: nextOccurrence, insertIndex };
+  };
 
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
@@ -661,72 +722,19 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         let activeTasks = freshAllTasks.filter(t => t.id !== taskId);
 
         // --- RECURRING TASK: Create next occurrence ---
+        // Refactored to use createNextRecurrence helper
         if (taskToComplete.templateId) {
-          // Get the recurring task template
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const template = templates.find(t => t.id === taskToComplete.templateId);
+          const { nextTask, insertIndex } = createNextRecurrence(taskToComplete, activeTasks);
 
-          if (template) {
-            // Calculate the next due date based on the original task's recurrenceAnchor
-            // This ensures consistent scheduling even for early/late completions
-            const nextDueDate = calculateNextDueDate(taskToComplete, template);
-
-            // Create the new task instance for the next occurrence
-            const nextOccurrence = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              title: template.title,
-              description: template.description || '',
-              url: template.url || null,
-              dueDate: nextDueDate,
-              recurrenceAnchor: nextDueDate, // Track planned date for consistent scheduling
-              time: template.time || null,
-              status: 'not-started',
-              taskType: template.taskType || 'academic',
-              createdAt: new Date().toISOString(),
-              completedAt: null,
-              attachments: template.attachments || [],
-              templateId: template.id,
-            };
-
-            // Helper to check if a task is overdue (reusing the function defined at line 51)
-            const isTaskOverdue = (task) => {
-              if (!task.dueDate || task.status === 'complete') return false;
-              try {
-                const now = new Date();
-                now.setHours(12, 0, 0, 0);
-                const dueDate = new Date(task.dueDate + 'T12:00:00');
-                if (isNaN(dueDate.getTime())) return false;
-                return dueDate < now;
-              } catch (error) {
-                console.error('[TaskList] Error checking overdue status:', error);
-                return false;
-              }
-            };
-
-            // Find the right position for the new task based on due date
-            let insertIndex = activeTasks.length;
-            const newDueDate = new Date(nextDueDate + 'T12:00:00');
-
-            for (let i = 0; i < activeTasks.length; i++) {
-              const task = activeTasks[i];
-              if (isTaskOverdue(task)) continue;
-              if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
-                insertIndex = i;
-                break;
-              }
-            }
-
+          if (nextTask) {
             // Insert at the right position
-            activeTasks.splice(insertIndex, 0, nextOccurrence);
+            activeTasks.splice(insertIndex, 0, nextTask);
 
             // Recalculate all priorities to maintain order
-            activeTasks = activeTasks.map((task, index) => ({
-              ...task,
+            activeTasks = activeTasks.map((t, index) => ({
+              ...t,
               customPriority: activeTasks.length - index,
             }));
-
-          } else {
-            console.warn(`[TaskList] Orphaned task detected: templateId "${taskToComplete.templateId}" not found. Task will not generate next occurrence.`);
           }
         }
 
@@ -981,7 +989,22 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
 
     // Remove the task
-    const updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+    let updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+
+    // --- BUG FIX: Generate next occurrence if it's a recurring task ---
+    if (task.templateId) {
+      const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
+
+      if (nextTask) {
+        updatedTasks.splice(insertIndex, 0, nextTask);
+
+        // Recalculate priorities
+        updatedTasks = updatedTasks.map((t, index) => ({
+          ...t,
+          customPriority: updatedTasks.length - index,
+        }));
+      }
+    }
 
     // Save to localStorage
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
@@ -1035,7 +1058,18 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         if (confirmed) {
           const storedTasks = localStorage.getItem('tasks');
           const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-          const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+          let updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
+
+          // --- BUG FIX: Generate next occurrence ---
+          const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
+          if (nextTask) {
+            updatedTasks.splice(insertIndex, 0, nextTask);
+            updatedTasks = updatedTasks.map((t, index) => ({
+              ...t,
+              customPriority: updatedTasks.length - index,
+            }));
+          }
+
           localStorage.setItem('tasks', JSON.stringify(updatedTasks));
           backupManager.saveAutoBackup();
           setTasks(updatedTasks);
