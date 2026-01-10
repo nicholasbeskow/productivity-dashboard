@@ -741,8 +741,8 @@ const SettingsTab = () => {
                 onClick={handleSaveAndTest}
                 disabled={!canvasUrl || !apiToken}
                 className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${canvasUrl && apiToken
-                    ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                    : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
+                  ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                  : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
                   }`}
               >
                 Save & Test Connection
@@ -751,8 +751,8 @@ const SettingsTab = () => {
               {/* Connection Status Feedback */}
               {connectionStatus && (
                 <div className={`p-3 rounded-lg ${connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' :
-                    connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
-                      'bg-blue-500/20 text-blue-500'
+                  connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
+                    'bg-blue-500/20 text-blue-500'
                   }`}>
                   {connectionStatus.message}
                 </div>
@@ -853,8 +853,8 @@ const SettingsTab = () => {
             {/* Message Display */}
             {backupMessage && (
               <div className={`mb-4 p-3 rounded-lg ${backupMessage.type === 'success' ? 'bg-green-glow/20 text-green-glow' :
-                  backupMessage.type === 'error' ? 'bg-red-500/20 text-red-500' :
-                    'bg-blue-500/20 text-blue-500'
+                backupMessage.type === 'error' ? 'bg-red-500/20 text-red-500' :
+                  'bg-blue-500/20 text-blue-500'
                 }`}>
                 {backupMessage.text}
               </div>
@@ -885,8 +885,8 @@ const SettingsTab = () => {
                     <button
                       onClick={() => setImportExportMode('export')}
                       className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'export'
-                          ? 'bg-green-glow text-bg-primary'
-                          : 'text-white/70 hover:text-white'
+                        ? 'bg-green-glow text-bg-primary'
+                        : 'text-white/70 hover:text-white'
                         }`}
                     >
                       Export
@@ -894,8 +894,8 @@ const SettingsTab = () => {
                     <button
                       onClick={() => setImportExportMode('import')}
                       className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'import'
-                          ? 'bg-blue-500 text-white'
-                          : 'text-white/70 hover:text-white'
+                        ? 'bg-blue-500 text-white'
+                        : 'text-white/70 hover:text-white'
                         }`}
                     >
                       Import
@@ -911,8 +911,8 @@ const SettingsTab = () => {
                   <button
                     onClick={importExportMode === 'export' ? handleExport : handleImport}
                     className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${importExportMode === 'export'
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                        : 'bg-blue-500 bg-opacity-20 text-blue-500 hover:bg-opacity-30'
+                      ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                      : 'bg-blue-500 bg-opacity-20 text-blue-500 hover:bg-opacity-30'
                       }`}
                   >
                     {importExportMode === 'export' ? 'Export All Data' : 'Import All Data'}
@@ -996,8 +996,8 @@ const SettingsTab = () => {
                       onClick={handleRestoreBackup}
                       disabled={!selectedBackup}
                       className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${selectedBackup
-                          ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                          : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                        : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
                         }`}
                     >
                       Restore Selected Backup
@@ -1014,7 +1014,7 @@ const SettingsTab = () => {
               About
             </h3>
             <div className="space-y-2 text-sm text-white/70">
-              <p><strong className="text-white">Version:</strong> 2.1.0</p>
+              <p><strong className="text-white">Version:</strong> 2.1.1</p>
               <p><strong className="text-white">Status:</strong> Optimization</p>
               <p className="text-white/40 pt-2">
                 Built with React, Electron, and Tailwind CSS
