@@ -197,17 +197,17 @@ const StatsTab = () => {
 
     // Partial Data Fallbacks
     if (goodMoodDays.size > 0) {
-       return {
-         text: 'avg tasks on good days (YTD)',
-         value: `${(goodDayTaskCount / goodMoodDays.size).toFixed(1)}`
-       };
+      return {
+        text: 'avg tasks on good days (YTD)',
+        value: `${(goodDayTaskCount / goodMoodDays.size).toFixed(1)}`
+      };
     }
 
     if (badMoodDays.size > 0) {
-       return {
-         text: 'avg tasks on bad days (YTD)',
-         value: `${(badDayTaskCount / badMoodDays.size).toFixed(1)}`
-       };
+      return {
+        text: 'avg tasks on bad days (YTD)',
+        value: `${(badDayTaskCount / badMoodDays.size).toFixed(1)}`
+      };
     }
 
     return { text: 'Not enough data this year', value: null };
@@ -500,14 +500,18 @@ const StatsTab = () => {
       periodMoodLabel = moodsConfig[roundedAvg]?.label || 'Unknown';
     }
 
-    return { periodName, periodTotal, periodAverage, periodMoodValue, periodMoodLabel };
+    // Calculate academic and personal counts for period
+    const academicCount = tasksInPeriod.filter(task => (task.taskType || 'academic') === 'academic').length;
+    const personalCount = tasksInPeriod.filter(task => task.taskType === 'personal').length;
+
+    return { periodName, periodTotal, periodAverage, periodMoodValue, periodMoodLabel, academicCount, personalCount };
   };
 
   const periodStats = calculatePeriodStats();
   const allTimeAverageMood = calculateAllTimeAverageMood();
   const totalCompleted = completedTasks.length;
-  const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
-  const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
+  // const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
+  // const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
   const mostProductiveDay = calculateMostProductiveDay();
 
   // Chart data calculation for completion trend
@@ -1049,7 +1053,7 @@ const StatsTab = () => {
         ticks: {
           ...chartOptions.scales.y.ticks,
           stepSize: 1,
-          callback: function(value) {
+          callback: function (value) {
             // Only show labels for 1-5
             return value >= 1 && value <= 5 ? value : '';
           }
@@ -1079,7 +1083,7 @@ const StatsTab = () => {
           borderRadius: 4,
           usePointStyle: true,
           pointStyle: 'circle',
-          generateLabels: function(chart) {
+          generateLabels: function (chart) {
             const data = chart.data;
             if (data.labels.length && data.datasets.length) {
               return data.labels.map((label, i) => {
@@ -1117,7 +1121,7 @@ const StatsTab = () => {
           size: 13,
         },
         callbacks: {
-          label: function(context) {
+          label: function (context) {
             const label = context.label || '';
             const value = context.parsed || 0;
             const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
@@ -1183,7 +1187,7 @@ const StatsTab = () => {
         ticks: {
           color: '#eab308',
           stepSize: 1,
-          callback: function(value) {
+          callback: function (value) {
             // Only show labels for 1-5
             return value >= 1 && value <= 5 ? value : '';
           }
@@ -1382,11 +1386,10 @@ const StatsTab = () => {
                   key={period}
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
-                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    timePeriod === period
+                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
                       ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
+                    }`}
                 >
                   {period}
                 </button>
@@ -1422,10 +1425,10 @@ const StatsTab = () => {
                 Academic Tasks
               </p>
               <div className="text-4xl font-bold text-green-glow mb-1">
-                {academicCount}
+                {periodStats.academicCount}
               </div>
               <p className="text-text-tertiary text-xs">
-                {academicCount === 1 ? 'task' : 'tasks'} completed
+                {periodStats.academicCount === 1 ? 'task' : 'tasks'} completed
               </p>
             </motion.div>
 
@@ -1440,10 +1443,10 @@ const StatsTab = () => {
                 Personal Tasks
               </p>
               <div className="text-4xl font-bold text-blue-500 mb-1">
-                {personalCount}
+                {periodStats.personalCount}
               </div>
               <p className="text-text-tertiary text-xs">
-                {personalCount === 1 ? 'task' : 'tasks'} completed
+                {periodStats.personalCount === 1 ? 'task' : 'tasks'} completed
               </p>
             </motion.div>
 
@@ -1463,23 +1466,25 @@ const StatsTab = () => {
               </p>
             </motion.div>
 
-            {/* Daily Average for Selected Timeframe */}
-            <motion.div
-              key={`period-avg-${timePeriod}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
-            >
-              <p className="text-text-secondary text-sm mb-2">
-                {timePeriod === 'Day' ? 'Tasks Completed' : 'Daily Average'}
-              </p>
-              <div className="text-4xl font-bold text-white mb-1">
-                {periodStats.periodAverage}
-              </div>
-              <p className="text-text-tertiary text-xs">
-                {timePeriod === 'Day' ? 'tasks today' : `tasks per day`}
-              </p>
-            </motion.div>
+            {/* Daily Average for Selected Timeframe - Hide if 'Day' selected */}
+            {timePeriod !== 'Day' && (
+              <motion.div
+                key={`period-avg-${timePeriod}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="glass-panel p-6 border border-green-glow/50 w-full max-w-sm"
+              >
+                <p className="text-text-secondary text-sm mb-2">
+                  Daily Average
+                </p>
+                <div className="text-4xl font-bold text-white mb-1">
+                  {periodStats.periodAverage}
+                </div>
+                <p className="text-text-tertiary text-xs">
+                  tasks per day
+                </p>
+              </motion.div>
+            )}
 
             {/* Most Productive Day */}
             <motion.div
@@ -1569,11 +1574,10 @@ const StatsTab = () => {
                   key={period}
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
-                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    timePeriod === period
+                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
                       ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
+                    }`}
                 >
                   {period}
                 </button>
@@ -1701,11 +1705,10 @@ const StatsTab = () => {
                   key={period}
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
-                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    timePeriod === period
+                  className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
                       ? 'bg-purple-400 bg-opacity-20 text-purple-400 border border-purple-400'
                       : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
-                  }`}
+                    }`}
                 >
                   {period}
                 </button>
@@ -1758,11 +1761,10 @@ const StatsTab = () => {
                 <TrendingDown className="text-orange-500" size={18} />
                 Sleep Debt (7 days)
               </p>
-              <div className={`text-4xl font-bold mb-1 ${
-                sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-green-glow' :
-                sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
-                'text-orange-500'
-              }`}>
+              <div className={`text-4xl font-bold mb-1 ${sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-green-glow' :
+                  sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
+                    'text-orange-500'
+                }`}>
                 {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
               </div>
               <p className="text-text-tertiary text-xs">
