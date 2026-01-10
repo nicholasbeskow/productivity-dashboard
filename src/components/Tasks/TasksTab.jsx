@@ -1,4 +1,4 @@
-import { CheckSquare, Search } from 'lucide-react';
+import { CheckSquare, Search, Repeat } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
@@ -9,6 +9,7 @@ const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
   const [taskFilter, setTaskFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
+  const [showRecurring, setShowRecurring] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,13 +82,18 @@ const TasksTab = () => {
     }
   }, [tasks, isInitialized]);
 
-  // Load task filter from localStorage and listen for changes
+  // Load task filters from localStorage and listen for changes
   useEffect(() => {
     const savedFilter = localStorage.getItem('taskFilter') || 'all';
     setTaskFilter(savedFilter);
 
     const savedTimeFilter = localStorage.getItem('taskTimeFilter') || 'all';
     setTimeFilter(savedTimeFilter);
+
+    const savedShowRecurring = localStorage.getItem('taskShowRecurring');
+    if (savedShowRecurring !== null) {
+      setShowRecurring(savedShowRecurring === 'true');
+    }
 
     const handleFilterChange = () => {
       const filter = localStorage.getItem('taskFilter') || 'all';
@@ -99,12 +105,21 @@ const TasksTab = () => {
       setTimeFilter(filter);
     };
 
+    const handleShowRecurringChange = () => {
+      const show = localStorage.getItem('taskShowRecurring');
+      if (show !== null) {
+        setShowRecurring(show === 'true');
+      }
+    };
+
     window.addEventListener('taskFilterChanged', handleFilterChange);
     window.addEventListener('taskTimeFilterChanged', handleTimeFilterChange);
+    window.addEventListener('taskShowRecurringChanged', handleShowRecurringChange);
 
     return () => {
       window.removeEventListener('taskFilterChanged', handleFilterChange);
       window.removeEventListener('taskTimeFilterChanged', handleTimeFilterChange);
+      window.removeEventListener('taskShowRecurringChanged', handleShowRecurringChange);
     };
   }, []);
 
@@ -120,7 +135,11 @@ const TasksTab = () => {
     window.dispatchEvent(new Event('taskTimeFilterChanged'));
   };
 
-
+  const handleShowRecurringChange = (show) => {
+    setShowRecurring(show);
+    localStorage.setItem('taskShowRecurring', String(show));
+    window.dispatchEvent(new Event('taskShowRecurringChanged'));
+  };
 
   // Smart sorting: overdue first, then by due date, then by custom priority
   const sortedTasks = useMemo(() => {
@@ -128,6 +147,9 @@ const TasksTab = () => {
 
     return [...tasks]
       .filter(task => {
+        // Toggle recurring tasks
+        if (!showRecurring && task.templateId) return false;
+
         // First, filter by type (All/Academic/Personal)
         if (taskFilter === 'all') return true;
         if (taskFilter === 'academic') return (task.taskType || 'academic') === 'academic';
@@ -247,7 +269,7 @@ const TasksTab = () => {
         // Both have no due date: sort by creation date (newest first)
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
-  }, [tasks, taskFilter, timeFilter, searchTerm]);
+  }, [tasks, taskFilter, timeFilter, showRecurring, searchTerm]);
 
   const handleTaskCreate = (newTask) => {
     // Find the right position for the new task based on due date
@@ -320,7 +342,20 @@ const TasksTab = () => {
 
           {/* Task List */}
           <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">Your Tasks</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Your Tasks</h3>
+              <button
+                onClick={() => handleShowRecurringChange(!showRecurring)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showRecurring
+                  ? 'liquid-bubble-filled text-green-glow'
+                  : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                  }`}
+                style={showRecurring ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
+              >
+                <Repeat size={14} />
+                {showRecurring ? 'Recurring On' : 'Recurring Off'}
+              </button>
+            </div>
 
             {/* Task Filter */}
             <div className="mb-4">
