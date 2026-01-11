@@ -15,6 +15,7 @@ import {
   Legend
 } from 'chart.js';
 import { subDays, format } from 'date-fns';
+import { parseLocalDate, parseLocalDateAtNoon } from '../../utils/dateHelpers';
 
 // Register Chart.js components
 ChartJS.register(
@@ -415,7 +416,7 @@ const StatsTab = () => {
   };
 
   // Calculate most productive day
-  const calculateMostProductiveDay = () => {
+  const mostProductiveDay = useMemo(() => {
     if (completedTasks.length === 0) return 'Not enough data';
 
     const dayCounts = [0, 0, 0, 0, 0, 0, 0];
@@ -433,10 +434,10 @@ const StatsTab = () => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     return dayNames[mostProductiveDayIndex];
-  };
+  }, [completedTasks]);
 
   // Calculate stats for selected time period
-  const calculatePeriodStats = () => {
+  const periodStats = useMemo(() => {
     const now = new Date();
     const today = new Date();
     today.setHours(23, 59, 59, 999);
@@ -458,7 +459,7 @@ const StatsTab = () => {
     } else if (timePeriod === 'Semester') {
       const semesterStartStr = localStorage.getItem('semesterStartDate');
       if (semesterStartStr) {
-        startDate = new Date(semesterStartStr + 'T00:00:00');
+        startDate = parseLocalDate(semesterStartStr);
       }
       periodName = 'This Semester';
     } else if (timePeriod === 'All Time') {
@@ -487,7 +488,7 @@ const StatsTab = () => {
 
     // Calculate mood average for period
     const moodsInPeriod = moodLog.filter(entry => {
-      const entryDate = new Date(entry.date + 'T12:00:00');
+      const entryDate = parseLocalDateAtNoon(entry.date);
       return entryDate >= startDate && entryDate <= today;
     });
 
@@ -505,17 +506,17 @@ const StatsTab = () => {
     const personalCount = tasksInPeriod.filter(task => task.taskType === 'personal').length;
 
     return { periodName, periodTotal, periodAverage, periodMoodValue, periodMoodLabel, academicCount, personalCount };
-  };
+  }, [completedTasks, moodLog, timePeriod]);
 
-  const periodStats = calculatePeriodStats();
+
   const allTimeAverageMood = calculateAllTimeAverageMood();
   const totalCompleted = completedTasks.length;
   // const academicCount = completedTasks.filter(task => (task.taskType || 'academic') === 'academic').length;
   // const personalCount = completedTasks.filter(task => task.taskType === 'personal').length;
-  const mostProductiveDay = calculateMostProductiveDay();
+
 
   // Chart data calculation for completion trend
-  const getChartData = () => {
+  const chartData = useMemo(() => {
     if (completedTasks.length === 0) {
       return {
         labels: [],
@@ -642,10 +643,10 @@ const StatsTab = () => {
         }
       ]
     };
-  };
+  }, [completedTasks, timePeriod]);
 
   // Mood chart data calculation
-  const getMoodChartData = () => {
+  const moodChartData = useMemo(() => {
     if (moodLog.length === 0) {
       return {
         labels: [],
@@ -707,7 +708,7 @@ const StatsTab = () => {
 
     const moodData = dates.map(date => {
       const moodsForDate = moodLog.filter(entry => {
-        const entryDate = new Date(entry.date + 'T12:00:00');
+        const entryDate = parseLocalDateAtNoon(entry.date);
         return entryDate.toDateString() === date.toDateString();
       });
 
@@ -742,10 +743,10 @@ const StatsTab = () => {
         spanGaps: true,
       }]
     };
-  };
+  }, [moodLog, timePeriod]);
 
   // Sleep quality distribution pie chart (4 categories only) - Monochromatic Purple Theme
-  const getSleepQualityData = () => {
+  const sleepQualityData = useMemo(() => {
     if (sleepLog.length === 0) {
       return {
         labels: ['Poor', 'Fair', 'Good', 'Excellent'],
@@ -850,10 +851,10 @@ const StatsTab = () => {
         hoverBorderWidth: 4,
       }]
     };
-  };
+  }, [sleepLog, timePeriod]);
 
   // Sleep & Mood trends chart
-  const getSleepMoodTrendsData = () => {
+  const sleepMoodTrendsData = useMemo(() => {
     if (sleepLog.length === 0 && moodLog.length === 0) {
       return {
         labels: [],
@@ -906,7 +907,7 @@ const StatsTab = () => {
     // Mood data
     const moodData = dates.map(date => {
       const moodsForDate = moodLog.filter(entry => {
-        const entryDate = new Date(entry.date + 'T12:00:00');
+        const entryDate = parseLocalDateAtNoon(entry.date);
         return entryDate.toDateString() === date.toDateString();
       });
       const avg = calculateAverageMood(moodsForDate);
@@ -968,7 +969,7 @@ const StatsTab = () => {
         }
       ]
     };
-  };
+  }, [sleepLog, moodLog, timePeriod]);
 
   const chartOptions = {
     responsive: true,
@@ -1387,8 +1388,8 @@ const StatsTab = () => {
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
                   className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    ? 'bg-green-glow bg-opacity-20 text-green-glow border border-green-glow'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
                     }`}
                 >
                   {period}
@@ -1532,7 +1533,7 @@ const StatsTab = () => {
                   </div>
                 </div>
               ) : (
-                <Line data={getChartData()} options={chartOptions} />
+                <Line data={chartData} options={chartOptions} />
               )}
             </div>
           </motion.div>
@@ -1575,8 +1576,8 @@ const StatsTab = () => {
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
                   className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
-                      ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    ? 'bg-yellow-500 bg-opacity-20 text-yellow-500 border border-yellow-500'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
                     }`}
                 >
                   {period}
@@ -1663,7 +1664,7 @@ const StatsTab = () => {
                   </div>
                 </div>
               ) : (
-                <Line data={getMoodChartData()} options={moodChartOptions} />
+                <Line data={moodChartData} options={moodChartOptions} />
               )}
             </div>
           </motion.div>
@@ -1706,8 +1707,8 @@ const StatsTab = () => {
                   onClick={() => setTimePeriod(period)}
                   style={{ WebkitAppRegion: 'no-drag' }}
                   className={`relative z-[51] no-drag px-4 py-2 rounded-lg text-sm font-medium transition-all ${timePeriod === period
-                      ? 'bg-purple-400 bg-opacity-20 text-purple-400 border border-purple-400'
-                      : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
+                    ? 'bg-purple-400 bg-opacity-20 text-purple-400 border border-purple-400'
+                    : 'text-text-secondary hover:bg-bg-tertiary border border-bg-primary'
                     }`}
                 >
                   {period}
@@ -1762,8 +1763,8 @@ const StatsTab = () => {
                 Sleep Debt (7 days)
               </p>
               <div className={`text-4xl font-bold mb-1 ${sleepStats && parseFloat(sleepStats.sleepDebt) === 0 ? 'text-green-glow' :
-                  sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
-                    'text-orange-500'
+                sleepStats && parseFloat(sleepStats.sleepDebt) > 5 ? 'text-red-500' :
+                  'text-orange-500'
                 }`}>
                 {sleepStats ? `${sleepStats.sleepDebt}h` : 'N/A'}
               </div>
@@ -1856,7 +1857,7 @@ const StatsTab = () => {
                     }}
                   >
                     <div className="w-full h-full relative">
-                      <Pie data={getSleepQualityData()} options={pieChartOptions} />
+                      <Pie data={sleepQualityData} options={pieChartOptions} />
                     </div>
                   </div>
                 )}
@@ -1886,7 +1887,7 @@ const StatsTab = () => {
                     </div>
                   </div>
                 ) : (
-                  <Line data={getSleepMoodTrendsData()} options={sleepMoodTrendsOptions} />
+                  <Line data={sleepMoodTrendsData} options={sleepMoodTrendsOptions} />
                 )}
               </div>
             </motion.div>

@@ -2,6 +2,7 @@ import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink } from 'lucide-react
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
 import { isTaskOverdue } from '../../utils/taskHelpers';
+import { parseLocalDateAtNoon } from '../../utils/dateHelpers';
 
 const CanvasTab = () => {
   const [newAssignments, setNewAssignments] = useState([]);
@@ -137,7 +138,7 @@ const CanvasTab = () => {
       let insertIndex = tasks.length;
 
       if (dueDate) {
-        const newDueDate = new Date(dueDate + 'T12:00:00');
+        const newDueDate = parseLocalDateAtNoon(dueDate);
 
         for (let i = 0; i < tasks.length; i++) {
           const task = tasks[i];
@@ -146,7 +147,7 @@ const CanvasTab = () => {
           if (isTaskOverdue(task)) continue;
 
           // If task has no due date or later due date, insert before it
-          if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
+          if (!task.dueDate || parseLocalDateAtNoon(task.dueDate) > newDueDate) {
             insertIndex = i;
             break;
           }

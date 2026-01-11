@@ -4,7 +4,7 @@ import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import backupManager from '../../utils/backupManager';
 import { isTaskOverdue } from '../../utils/taskHelpers';
-import { getToday } from '../../utils/dateHelpers';
+import { getToday, parseLocalDate, parseLocalDateAtNoon } from '../../utils/dateHelpers';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
@@ -41,7 +41,7 @@ const TasksTab = () => {
 
           // Validate dueDate if present
           if (task.dueDate) {
-            const testDate = new Date(task.dueDate + 'T12:00:00');
+            const testDate = parseLocalDateAtNoon(task.dueDate);
             if (isNaN(testDate.getTime())) {
               console.warn('[TasksTab] Skipping task with invalid dueDate:', task.id, task.dueDate);
               return false;
@@ -179,7 +179,7 @@ const TasksTab = () => {
           today.setHours(0, 0, 0, 0);
           const sevenDaysFromNow = new Date(today);
           sevenDaysFromNow.setDate(today.getDate() + 7);
-          const taskDate = new Date(task.dueDate + 'T00:00:00'); // Normalize to start of day
+          const taskDate = parseLocalDate(task.dueDate); // Normalize to start of day
 
           // Check if it's today or in the future, but before 7 days from now
           return taskDate >= today && taskDate <= sevenDaysFromNow;
@@ -191,7 +191,7 @@ const TasksTab = () => {
           if (!task.dueDate) return false;
 
           const today = new Date();
-          const taskDate = new Date(task.dueDate + 'T00:00:00');
+          const taskDate = parseLocalDate(task.dueDate);
 
           // Check if same month and year
           return taskDate.getMonth() === today.getMonth() && taskDate.getFullYear() === today.getFullYear();
@@ -203,7 +203,7 @@ const TasksTab = () => {
           if (!task.dueDate) return true; // No date = Later
 
           const today = new Date();
-          const taskDate = new Date(task.dueDate + 'T00:00:00');
+          const taskDate = parseLocalDate(task.dueDate);
 
           // Return true if future month or future year
           return taskDate.getMonth() > today.getMonth() || taskDate.getFullYear() > today.getFullYear();
@@ -264,7 +264,7 @@ const TasksTab = () => {
           }
 
           // Different dates: sort by date
-          return new Date(a.dueDate) - new Date(b.dueDate);
+          return parseLocalDate(a.dueDate) - parseLocalDate(b.dueDate);
         }
 
         // Both have no due date: sort by creation date (newest first)
@@ -278,7 +278,7 @@ const TasksTab = () => {
 
     if (newTask.dueDate) {
       // Parse date at noon to avoid timezone shift
-      const newDueDate = new Date(newTask.dueDate + 'T12:00:00');
+      const newDueDate = parseLocalDateAtNoon(newTask.dueDate);
 
       for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
@@ -288,7 +288,7 @@ const TasksTab = () => {
 
         // If task has no due date or later due date, insert before it
         // Parse existing task date at noon for correct comparison
-        if (!task.dueDate || new Date(task.dueDate + 'T12:00:00') > newDueDate) {
+        if (!task.dueDate || parseLocalDateAtNoon(task.dueDate) > newDueDate) {
           insertIndex = i;
           break;
         }

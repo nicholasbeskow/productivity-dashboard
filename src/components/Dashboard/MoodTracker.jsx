@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Laugh, Smile, Meh, Frown, CloudRain, Sparkles, ChevronLeft, ChevronRight, Edit2, ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { format, getDaysInMonth, startOfMonth, getDay, isSameDay, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { parseLocalDate } from '../../utils/dateHelpers';
 import backupManager from '../../utils/backupManager';
 
 // Mood definitions
@@ -270,18 +271,17 @@ const MoodTracker = () => {
       const journalEntry = journalMap.get(dateStr);
 
       const isToday = isSameDay(date, new Date());
-      const isFuture = date > new Date().setHours(0,0,0,0);
+      const isFuture = date > new Date().setHours(0, 0, 0, 0);
 
       days.push(
         <motion.button
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${
-            isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
+          className={`h-12 flex items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
             mood ? 'liquid-bubble-filled' :
-            isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
-          }`}
+              isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
+            }`}
           style={{ border: 'none', outline: 'none' }}
           whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
@@ -334,7 +334,7 @@ const MoodTracker = () => {
 
     // 2. Filter Data
     const currentYearMoods = moodLog.filter(entry =>
-      new Date(entry.date) >= currentYearStart
+      parseLocalDate(entry.date) >= currentYearStart
     );
     const currentYearTasks = completedTasks.filter(task =>
       new Date(task.completedAt) >= currentYearStart
@@ -380,24 +380,24 @@ const MoodTracker = () => {
       } else {
         // Fallbacks for partial data
         if (goodMoodDays.size > 0) {
-             // Calculate simple average if we only have good days
-             let goodDayTaskCount = 0;
-             currentYearTasks.forEach(task => {
-                const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
-                if (goodMoodDays.has(completedDate)) goodDayTaskCount++;
-             });
-             correlationText = 'avg tasks on good days (YTD)';
-             correlationValue = (goodDayTaskCount / goodMoodDays.size).toFixed(1);
+          // Calculate simple average if we only have good days
+          let goodDayTaskCount = 0;
+          currentYearTasks.forEach(task => {
+            const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+            if (goodMoodDays.has(completedDate)) goodDayTaskCount++;
+          });
+          correlationText = 'avg tasks on good days (YTD)';
+          correlationValue = (goodDayTaskCount / goodMoodDays.size).toFixed(1);
         } else if (badMoodDays.size > 0) {
-             let badDayTaskCount = 0;
-             currentYearTasks.forEach(task => {
-                const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
-                if (badMoodDays.has(completedDate)) badDayTaskCount++;
-             });
-             correlationText = 'avg tasks on bad days (YTD)';
-             correlationValue = (badDayTaskCount / badMoodDays.size).toFixed(1);
+          let badDayTaskCount = 0;
+          currentYearTasks.forEach(task => {
+            const completedDate = new Date(task.completedAt).toISOString().split('T')[0];
+            if (badMoodDays.has(completedDate)) badDayTaskCount++;
+          });
+          correlationText = 'avg tasks on bad days (YTD)';
+          correlationValue = (badDayTaskCount / badMoodDays.size).toFixed(1);
         } else {
-             correlationText = 'Log more good/bad days';
+          correlationText = 'Log more good/bad days';
         }
       }
     }
@@ -501,7 +501,7 @@ const MoodTracker = () => {
               </button>
             </div>
             <div className="grid grid-cols-7 gap-2 mb-2">
-              {['S','M','T','W','T','F','S'].map((d, i) => (
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
                 <div key={i} className="text-center text-xs text-text-tertiary h-8 flex items-center justify-center">{d}</div>
               ))}
             </div>
@@ -530,11 +530,10 @@ const MoodTracker = () => {
                   <motion.button
                     key={mood.level}
                     onClick={() => setSelectedMood(mood)}
-                    className={`p-3 rounded-2xl transition-all ${
-                      isSelected
-                        ? `${mood.color} liquid-bubble-filled`
-                        : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
-                    }`}
+                    className={`p-3 rounded-2xl transition-all ${isSelected
+                      ? `${mood.color} liquid-bubble-filled`
+                      : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
+                      }`}
                     style={{
                       boxShadow: isSelected ? `0 0 8px ${mood.glowColor}` : 'none'
                     }}
@@ -563,11 +562,10 @@ const MoodTracker = () => {
               <button
                 onClick={handleSaveEntry}
                 disabled={!selectedMood}
-                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
-                  selectedMood
-                    ? 'bg-green-glow text-bg-primary hover:shadow-glow shadow-lg'
-                    : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
-                }`}
+                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${selectedMood
+                  ? 'bg-green-glow text-bg-primary hover:shadow-glow shadow-lg'
+                  : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
+                  }`}
               >
                 <Save size={18} />
                 Log Mood

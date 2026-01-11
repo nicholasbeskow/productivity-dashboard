@@ -4,6 +4,7 @@
  */
 
 import { DURATIONS } from '../constants/config';
+import { parseLocalDateAtNoon } from './dateHelpers';
 
 /**
  * Converts 24-hour time to 12-hour format with AM/PM
@@ -46,7 +47,7 @@ export const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => 
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const taskDate = new Date(dateString + 'T12:00:00');
+  const taskDate = parseLocalDateAtNoon(dateString);
   taskDate.setHours(0, 0, 0, 0);
 
   const diffTime = taskDate - now;
@@ -60,13 +61,13 @@ export const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => 
   } else if (diffDays === 1) {
     dateDisplay = 'Tomorrow';
   } else if (diffDays < 0) {
-    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+    dateDisplay = parseLocalDateAtNoon(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: showYear ? 'numeric' : undefined
     });
   } else {
-    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
+    dateDisplay = parseLocalDateAtNoon(dateString).toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
       year: showYear ? 'numeric' : undefined
@@ -96,6 +97,6 @@ export const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => 
  */
 export const formatDate = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString + 'T12:00:00');
+  const date = parseLocalDateAtNoon(dateString);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };

@@ -8,10 +8,11 @@ import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
 import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
-import { dateToLocalISO, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
+import { dateToLocalISO, isoToDisplay, parseSmartDate, parseLocalDateAtNoon, getLocalISOString } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
 import { createNextRecurrence } from '../../utils/recurringTaskService';
+import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
 import { Moon } from 'lucide-react';
 
 const SemesterCompleteModal = React.lazy(() => import('./SemesterCompleteModal'));
@@ -38,77 +39,7 @@ const getCardGlow = (task, isOverdue) => {
   }
 };
 
-const formatTime12Hour = (time24) => {
-  if (!time24) return '';
-  const [hours, minutes] = time24.split(':');
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hour12}:${minutes} ${ampm}`;
-};
 
-const getTimeRemaining = (dateString, timeString) => {
-  if (!dateString || !timeString) return null;
-  const taskDateTime = new Date(`${dateString}T${timeString}`);
-  const now = new Date();
-  const diffMs = taskDateTime - now;
-  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-  return diffHours;
-};
-
-const formatDateTimeDisplay = (dateString, timeString, taskIsOverdue) => {
-  if (!dateString) return '';
-
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const taskDate = new Date(dateString + 'T12:00:00');
-  taskDate.setHours(0, 0, 0, 0);
-
-  const diffTime = taskDate - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  const showYear = taskDate.getFullYear() !== now.getFullYear();
-
-  let dateDisplay;
-  if (diffDays === 0) {
-    dateDisplay = 'Today';
-  } else if (diffDays === 1) {
-    dateDisplay = 'Tomorrow';
-  } else if (diffDays < 0) {
-    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: showYear ? 'numeric' : undefined
-    });
-  } else {
-    dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: showYear ? 'numeric' : undefined
-    });
-  }
-
-  if (timeString) {
-    const time12 = formatTime12Hour(timeString);
-
-    if (diffDays === 0 && !taskIsOverdue) {
-      const hoursRemaining = getTimeRemaining(dateString, timeString);
-      if (hoursRemaining !== null && hoursRemaining > 0) {
-        return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
-      }
-    }
-
-    return `${dateDisplay} » ${time12}`;
-  }
-
-  return dateDisplay;
-};
-
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString + 'T12:00:00');
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
 const getCheckboxClass = (task, taskIsOverdue) => {
   if (taskIsOverdue) return 'checkbox-overdue';
@@ -410,8 +341,8 @@ const Dashboard = ({ setActiveTab }) => {
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
 
-  // Ref for completion timeout to avoid memory leaks and race conditions
-  const completionTimeoutRef = useRef(null);
+  // Ref for completion timeouts map to handle multiple concurrent completions independently
+  const completionTimeoutsRef = useRef(new Map());
 
   // Semester End Modal state
   const [showSemesterEndModal, setShowSemesterEndModal] = useState(false);
@@ -423,9 +354,8 @@ const Dashboard = ({ setActiveTab }) => {
       const semesterEndDate = localStorage.getItem('semesterEndDate') || '2025-12-11';
       const breakStartDate = localStorage.getItem('breakStartDate') || '';
 
-      const today = new Date();
-      today.setHours(12, 0, 0, 0);
-      const endDate = new Date(semesterEndDate + 'T12:00:00');
+      const today = parseLocalDateAtNoon(getLocalISOString());
+      const endDate = parseLocalDateAtNoon(semesterEndDate);
 
       // Show modal if semester has ended and no break has been set
       if (today > endDate && !breakStartDate) {
@@ -447,11 +377,10 @@ const Dashboard = ({ setActiveTab }) => {
       const semesterStartDate = localStorage.getItem('semesterStartDate') || '2025-08-25';
       const semesterEndDate = localStorage.getItem('semesterEndDate') || '2025-12-11';
 
-      const today = new Date();
-      today.setHours(12, 0, 0, 0);
+      const today = parseLocalDateAtNoon(getLocalISOString());
 
-      const startDate = new Date(semesterStartDate + 'T12:00:00');
-      const endDate = new Date(semesterEndDate + 'T12:00:00');
+      const startDate = parseLocalDateAtNoon(semesterStartDate);
+      const endDate = parseLocalDateAtNoon(semesterEndDate);
 
       // Auto-Shutoff Logic: If semester has started and break mode is active, turn it off
       if (today >= startDate && breakStartDate) {
@@ -472,7 +401,7 @@ const Dashboard = ({ setActiveTab }) => {
 
         // If breakStartDate exists, calculate break progress
         if (breakStartDate) {
-          const breakStart = new Date(breakStartDate + 'T12:00:00');
+          const breakStart = parseLocalDateAtNoon(breakStartDate);
 
           // Calculate days until semester starts
           const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
@@ -556,7 +485,7 @@ const Dashboard = ({ setActiveTab }) => {
 
             // Validate dueDate if present
             if (task.dueDate) {
-              const testDate = new Date(task.dueDate + 'T12:00:00');
+              const testDate = parseLocalDateAtNoon(task.dueDate);
               if (isNaN(testDate.getTime())) {
                 console.warn('[Dashboard] Skipping task with invalid dueDate:', task.id, task.dueDate);
                 return false;
@@ -613,10 +542,10 @@ const Dashboard = ({ setActiveTab }) => {
 
 
   const handleStatusChange = useCallback((taskId) => {
-    // Clear any existing timeout to prevent double-firings
-    if (completionTimeoutRef.current) {
-      clearTimeout(completionTimeoutRef.current);
-      completionTimeoutRef.current = null;
+    // Clear any existing timeout for this specific task
+    if (completionTimeoutsRef.current.has(taskId)) {
+      clearTimeout(completionTimeoutsRef.current.get(taskId));
+      completionTimeoutsRef.current.delete(taskId);
     }
 
     const task = tasks.find(t => t.id === taskId);
@@ -643,13 +572,14 @@ const Dashboard = ({ setActiveTab }) => {
     if (task.status === 'in-progress') { // Status BEFORE update was in-progress, so now it's complete
       setJustCompletedId(taskId);
 
-      completionTimeoutRef.current = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         // --- CRITICAL FIX: Read fresh state from localStorage to avoid stale closures ---
         const freshTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
         const taskToComplete = freshTasks.find(t => t.id === taskId);
 
         if (!taskToComplete) {
           console.warn('[Dashboard] Task not found during completion routine (removed elsewhere?)');
+          completionTimeoutsRef.current.delete(taskId);
           return;
         }
 
@@ -680,25 +610,29 @@ const Dashboard = ({ setActiveTab }) => {
         localStorage.setItem('tasks', JSON.stringify(activeTasks));
         backupManager.saveAutoBackup();
         window.dispatchEvent(new Event('storage'));
-        setJustCompletedId(null);
 
-        // Reset ref
-        completionTimeoutRef.current = null;
+        if (justCompletedId === taskId) {
+          setJustCompletedId(null);
+        }
+
+        // Clean up map
+        completionTimeoutsRef.current.delete(taskId);
       }, 700);
+
+      completionTimeoutsRef.current.set(taskId, timeoutId);
     } else {
       // For non-completion updates, just save immediately
       localStorage.setItem('tasks', JSON.stringify(updatedTasks));
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
     }
-  }, [tasks]);
+  }, [tasks, justCompletedId]);
 
-  // Clean up timeout on unmount
+  // Clean up timeouts on unmount
   useEffect(() => {
     return () => {
-      if (completionTimeoutRef.current) {
-        clearTimeout(completionTimeoutRef.current);
-      }
+      completionTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      completionTimeoutsRef.current.clear();
     };
   }, []);
 
@@ -907,14 +841,7 @@ const Dashboard = ({ setActiveTab }) => {
         if (nextTask) {
           updatedTasks.splice(insertIndex, 0, nextTask);
 
-          // Helper to check if a task is overdue (needed inside correct priority calc scope)
-          const isTaskOverdue = (t) => {
-            if (!t.dueDate || t.status === 'complete') return false;
-            const now = new Date();
-            now.setHours(12, 0, 0, 0);
-            const dueDate = new Date(t.dueDate + 'T12:00:00');
-            return dueDate < now;
-          };
+
 
           // Re-sort to be safe before priority assignment (optional but good)
           // Actually, let's just re-calculate priorities safely
@@ -1353,62 +1280,9 @@ const Dashboard = ({ setActiveTab }) => {
                         const detailTask = tasks.find(t => t.id === detailViewTaskId);
                         if (!detailTask) return null;
 
-                        const taskIsOverdue = (detailTask.dueDate && detailTask.status !== 'complete') ? (() => {
-                          const now = new Date();
-                          now.setHours(12, 0, 0, 0);
-                          const dueDate = new Date(detailTask.dueDate + 'T12:00:00');
-                          return dueDate < now;
-                        })() : false;
+                        const taskIsOverdue = isTaskOverdue(detailTask);
 
-                        const formatDetailDateTime = (dateString, timeString) => {
-                          if (!dateString) return '';
 
-                          const now = new Date();
-                          now.setHours(0, 0, 0, 0);
-                          const taskDate = new Date(dateString + 'T12:00:00');
-                          taskDate.setHours(0, 0, 0, 0);
-
-                          const diffTime = taskDate - now;
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                          // Check if year differs from current year
-                          const showYear = taskDate.getFullYear() !== now.getFullYear();
-
-                          let dateDisplay;
-                          if (diffDays === 0) {
-                            dateDisplay = 'Today';
-                          } else if (diffDays === 1) {
-                            dateDisplay = 'Tomorrow';
-                          } else {
-                            dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-                              month: 'long',
-                              day: 'numeric',
-                              year: showYear ? 'numeric' : undefined
-                            });
-                          }
-
-                          if (timeString) {
-                            const [hours, minutes] = timeString.split(':');
-                            const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? 'PM' : 'AM';
-                            const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                            const time12 = `${hour12}:${minutes} ${ampm}`;
-
-                            if (diffDays === 0 && !taskIsOverdue) {
-                              const taskDateTime = new Date(`${dateString}T${timeString}`);
-                              const nowFull = new Date();
-                              const diffMs = taskDateTime - nowFull;
-                              const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-                              if (diffHours > 0) {
-                                return `${dateDisplay} » in ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'}`;
-                              }
-                            }
-
-                            return `${dateDisplay} » ${time12}`;
-                          }
-
-                          return dateDisplay;
-                        };
 
                         return (
                           <div className="space-y-4">
@@ -1644,7 +1518,7 @@ const Dashboard = ({ setActiveTab }) => {
                                     <div>
                                       <p className="text-sm text-white/40 mb-1">Due Date{detailTask.time && ' & Time'}</p>
                                       <p className={`text-sm font-medium ${taskIsOverdue ? 'text-red-500' : 'text-white'}`}>
-                                        {formatDetailDateTime(detailTask.dueDate, detailTask.time)}
+                                        {formatDateTimeDisplay(detailTask.dueDate, detailTask.time, taskIsOverdue)}
                                       </p>
                                     </div>
                                   )}

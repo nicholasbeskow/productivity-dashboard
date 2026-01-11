@@ -1,3 +1,5 @@
+import { getToday, isDateBefore } from './dateHelpers';
+
 /**
  * Task-related utility functions
  */
@@ -18,12 +20,10 @@ export const isTaskOverdue = (task) => {
       const now = new Date();
       return taskDateTime < now;
     } else {
-      // No time - check date only (at noon to avoid timezone shift)
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(task.dueDate + 'T12:00:00');
-      if (isNaN(dueDate.getTime())) return false;
-      return dueDate < now;
+      // No time - check date only
+      // If dueDate is strictly before today, it's overdue
+      const today = getToday();
+      return isDateBefore(task.dueDate, today);
     }
   } catch (error) {
     console.error('[taskHelpers] Error checking overdue status:', error, task);

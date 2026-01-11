@@ -6,6 +6,8 @@ import backupManager from '../../utils/backupManager';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
 import { createNextRecurrence } from '../../utils/recurringTaskService';
+import { parseLocalDateAtNoon } from '../../utils/dateHelpers';
+import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
@@ -108,87 +110,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
     }
   };
 
-  // Helper: Convert 24-hour time to 12-hour AM/PM
-  const formatTime12Hour = (time24) => {
-    if (!time24) return '';
-    const [hours, minutes] = time24.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
 
-  // Helper: Get time remaining in hours
-  const getTimeRemaining = (dateString, timeString) => {
-    if (!dateString || !timeString) return null;
-    const taskDateTime = new Date(`${dateString}T${timeString}`);
-    const now = new Date();
-    const diffMs = taskDateTime - now;
-    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-    return diffHours;
-  };
-
-  // Smart date/time display
-  const formatDateTimeDisplay = (dateString, timeString) => {
-    if (!dateString) return '';
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const taskDate = new Date(dateString + 'T12:00:00');
-    taskDate.setHours(0, 0, 0, 0);
-
-    const diffTime = taskDate - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    // Check if year differs from current year
-    const showYear = taskDate.getFullYear() !== now.getFullYear();
-
-    // Format the date part
-    let dateDisplay;
-    if (diffDays === 0) {
-      dateDisplay = 'Today';
-    } else if (diffDays === 1) {
-      dateDisplay = 'Tomorrow';
-    } else if (diffDays < 0) {
-      // Overdue - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    } else {
-      // Future - show full date
-      dateDisplay = new Date(dateString + 'T12:00:00').toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: showYear ? 'numeric' : undefined
-      });
-    }
-
-    // Add time if present
-    if (timeString) {
-      const time12 = formatTime12Hour(timeString);
-
-      // For today's tasks, show countdown if not overdue
-      if (diffDays === 0 && !taskIsOverdue) {
-        const hoursRemaining = getTimeRemaining(dateString, timeString);
-        if (hoursRemaining !== null && hoursRemaining > 0) {
-          return `${dateDisplay} » in ${hoursRemaining} ${hoursRemaining === 1 ? 'hour' : 'hours'}`;
-        }
-      }
-
-      return `${dateDisplay} » ${time12}`;
-    }
-
-    return dateDisplay;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    // Parse date at noon local time to avoid timezone shift
-    const date = new Date(dateString + 'T12:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
@@ -489,7 +411,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
               {task.dueDate && (
                 <span className={`flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-bold' : ''}`}>
                   {taskIsOverdue ? <AlertCircle size={12} /> : <Clock size={12} />}
-                  {formatDateTimeDisplay(task.dueDate, task.time)}
+                  {formatDateTimeDisplay(task.dueDate, task.time, taskIsOverdue)}
                   {task.templateId && (
                     <Repeat size={10} className="text-white/40 ml-0.5" title="Recurring task" />
                   )}
@@ -605,12 +527,24 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   // Menu position state
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
+  // Ref for completion timeouts map to handle multiple concurrent completions independently
+  const completionTimeoutsRef = useRef(new Map());
+
   // Refs for auto-scroll functionality
   const scrollIntervalRef = useRef(null);
   const isScrollingRef = useRef(false);
   const isDraggingRef = useRef(false);
 
   // Auto-scroll while dragging near viewport edges
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      completionTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      completionTimeoutsRef.current.clear();
+    };
+  }, []);
+
+
   useEffect(() => {
     const handleDragOver = (e) => {
       if (!isDraggingRef.current) return;
@@ -664,6 +598,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       }
     };
 
+
+
     // Close menu when scrolling
     const handleScroll = () => {
       if (openMenuTaskId) {
@@ -688,6 +624,12 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
 
   const handleStatusChange = (taskId) => {
+    // Clear any existing timeout for this specific task
+    if (completionTimeoutsRef.current.has(taskId)) {
+      clearTimeout(completionTimeoutsRef.current.get(taskId));
+      completionTimeoutsRef.current.delete(taskId);
+    }
+
     // 1. Get the FULL list from localStorage
     const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
     const taskIndex = allTasks.findIndex(t => t.id === taskId);
@@ -719,14 +661,19 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
       setJustCompletedId(taskId); // Trigger animation
 
-      setTimeout(() => {
-        setJustCompletedId(null);
+      const timeoutId = setTimeout(() => {
+        if (justCompletedId === taskId) {
+          setJustCompletedId(null);
+        }
 
         // Find the completed task again from a fresh read
         const freshAllTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
         const taskToComplete = freshAllTasks.find(t => t.id === taskId);
 
-        if (!taskToComplete) return; // Safety check
+        if (!taskToComplete) {
+          completionTimeoutsRef.current.delete(taskId);
+          return; // Safety check
+        }
 
         const completedTask = { ...taskToComplete, status: 'complete', completedAt };
 
@@ -758,7 +705,12 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
         backupManager.saveAutoBackup();
         setTasks(activeTasks); // Update UI
+
+        // Clean up map
+        completionTimeoutsRef.current.delete(taskId);
       }, 700); // Wait for animation
+
+      completionTimeoutsRef.current.set(taskId, timeoutId);
     } else {
       // --- 'IN-PROGRESS' or 'NOT-STARTED' LOGIC ---
 

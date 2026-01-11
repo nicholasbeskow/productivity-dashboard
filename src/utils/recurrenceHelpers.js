@@ -1,6 +1,7 @@
 /**
  * Recurrence calculation utilities for recurring tasks
  */
+import { parseLocalDateAtNoon } from './dateHelpers';
 
 /**
  * Calculates the next due date for a recurring task based on its template
@@ -19,7 +20,7 @@ export const calculateNextDueDate = (task, template) => {
 
     // Use recurrenceAnchor if available, fallback to dueDate for legacy tasks
     const baseDateStr = task.recurrenceAnchor || task.dueDate;
-    const baseDate = new Date(baseDateStr + 'T12:00:00');
+    const baseDate = parseLocalDateAtNoon(baseDateStr);
 
     // Validate baseDate
     if (isNaN(baseDate.getTime())) {

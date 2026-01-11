@@ -1,6 +1,7 @@
-import { getLocalISOString } from './dateHelpers';
+import { getLocalISOString, parseLocalDateAtNoon, isDateAfter } from './dateHelpers';
 import { calculateNextDueDate } from './recurrenceHelpers';
 import backupManager from './backupManager';
+import { isTaskOverdue } from './taskHelpers';
 
 /**
  * Creates the next instance of a recurring task
@@ -40,23 +41,14 @@ export const createNextRecurrence = (task, currentTasks) => {
     customPriority: 0,
   };
 
-  // Helper to check if a task is overdue
-  const isTaskOverdue = (t) => {
-    if (!t.dueDate || t.status === 'complete') return false;
-    const now = new Date();
-    now.setHours(12, 0, 0, 0);
-    const dueDate = new Date(t.dueDate + 'T12:00:00');
-    return dueDate < now;
-  };
-
   // Find the right position for the new task based on due date
   let insertIndex = currentTasks.length;
-  const newDueDate = new Date(nextDueDate + 'T12:00:00');
 
   for (let i = 0; i < currentTasks.length; i++) {
     const t = currentTasks[i];
     if (isTaskOverdue(t)) continue;
-    if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
+    // Lexicographical comparison works for YYYY-MM-DD
+    if (!t.dueDate || isDateAfter(t.dueDate, nextDueDate)) {
       insertIndex = i;
       break;
     }
@@ -149,7 +141,7 @@ export const generateRecurringTasks = () => {
         shouldGenerate = true;
       } else if (template.recurrence && template.recurrence.type === 'weekly' && template.recurrence.days) {
         // Get today's day (0 = Sunday, 1 = Monday, etc.)
-        const today = new Date(todayString + 'T12:00:00');
+        const today = parseLocalDateAtNoon(todayString);
         const dayOfWeek = today.getDay();
 
         // Check if today is one of the selected days
