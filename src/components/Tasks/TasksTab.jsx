@@ -4,6 +4,7 @@ import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import backupManager from '../../utils/backupManager';
 import { isTaskOverdue } from '../../utils/taskHelpers';
+import { getToday } from '../../utils/dateHelpers';
 
 const TasksTab = () => {
   const [tasks, setTasks] = useState([]);
@@ -165,7 +166,7 @@ const TasksTab = () => {
           // Show Overdue + Due Today
           if (isOverdue) return true;
           if (!task.dueDate) return false;
-          const today = new Date().toISOString().split('T')[0];
+          const today = getToday();
           return task.dueDate === today;
         }
 

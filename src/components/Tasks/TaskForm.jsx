@@ -204,10 +204,28 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
 
 
 
+  const handleOpenFile = async (filePath) => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:open-path', filePath);
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  };
+
+
+
   // Change handler for free typing
   const handleDateChange = (e) => {
     setDateInput(e.target.value);
   };
+  // ... (rest of the content is later in the file, but I need to insert handleOpenFile before usage and update the list)
+
+  // Actually, I should use multi_replace for this file since I need to insert the function AND update the JSX.
+
 
   // Blur handler for the date input
   const handleDateBlur = (e) => {
@@ -633,8 +651,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => setEditScope('instance')}
               className={`px-4 py-3 rounded-lg transition-all ${editScope === 'instance'
-                  ? 'text-green-glow liquid-bubble-filled'
-                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                ? 'text-green-glow liquid-bubble-filled'
+                : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                 }`}
               style={editScope === 'instance' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
@@ -645,8 +663,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => setEditScope('series')}
               className={`px-4 py-3 rounded-lg transition-all ${editScope === 'series'
-                  ? 'text-green-glow liquid-bubble-filled'
-                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                ? 'text-green-glow liquid-bubble-filled'
+                : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                 }`}
               style={editScope === 'series' ? { boxShadow: '0 0 20px rgba(61, 214, 140, 0.25)' } : {}}
             >
@@ -758,8 +776,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => setTaskType('academic')}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskType === 'academic'
-                  ? 'text-green-glow liquid-bubble-filled'
-                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                ? 'text-green-glow liquid-bubble-filled'
+                : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                 }`}
             >
               📚 Academic
@@ -768,8 +786,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => setTaskType('personal')}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${taskType === 'personal'
-                  ? 'text-green-glow liquid-bubble-filled'
-                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                ? 'text-green-glow liquid-bubble-filled'
+                : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                 }`}
             >
               🏠 Personal
@@ -788,8 +806,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 type="button"
                 onClick={() => setStatus('not-started')}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'not-started'
-                    ? 'text-green-glow liquid-bubble-filled'
-                    : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                   }`}
               >
                 Not Started
@@ -798,8 +816,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 type="button"
                 onClick={() => setStatus('in-progress')}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${status === 'in-progress'
-                    ? 'text-green-glow liquid-bubble-filled'
-                    : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                  ? 'text-green-glow liquid-bubble-filled'
+                  : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                   }`}
               >
                 In Progress
@@ -818,8 +836,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => toggleSection('files')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showFiles
-                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+                ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
                 }`}
               style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
@@ -835,8 +853,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               type="button"
               onClick={() => toggleSection('links')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showLinks
-                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+                ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
                 }`}
               style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
             >
@@ -849,8 +867,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                 type="button"
                 onClick={() => toggleSection('recurrence')}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${showRecurrence
-                    ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
-                    : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
+                  ? 'liquid-bubble-filled text-green-glow border border-green-glow/30'
+                  : 'liquid-bubble-filled text-white/60 hover:text-green-glow hover:border-green-glow/30'
                   }`}
                 style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
               >
@@ -870,8 +888,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${isDragging
-                  ? 'border-green-glow bg-green-glow/10'
-                  : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
+                ? 'border-green-glow bg-green-glow/10'
+                : 'border-white/5 hover:border-green-glow/30 liquid-bubble-empty'
                 }`}
             >
               <UploadCloud
@@ -900,14 +918,19 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                   return (
                     <div
                       key={index}
-                      className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2"
+                      className="flex items-center justify-between liquid-bubble-filled rounded-lg px-3 py-2 group"
                     >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenFile(filePath)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer hover:text-green-glow transition-colors"
+                        title={`Open ${fileName}`}
+                      >
                         <FileText size={16} className="text-green-glow flex-shrink-0" />
-                        <span className="text-sm text-white truncate" title={filePath}>
+                        <span className="text-sm text-white truncate group-hover:underline decoration-green-glow/50 underline-offset-2">
                           {fileName}
                         </span>
-                      </div>
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveAttachment(filePath)}
@@ -973,8 +996,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
                       type="button"
                       onClick={() => handleWeeklyDayToggle(index)}
                       className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${weeklyDays.includes(index)
-                          ? 'text-green-glow liquid-bubble-filled'
-                          : 'liquid-bubble-empty text-white/60 hover:text-white/80'
+                        ? 'text-green-glow liquid-bubble-filled'
+                        : 'liquid-bubble-empty text-white/60 hover:text-white/80'
                         }`}
                     >
                       {label}

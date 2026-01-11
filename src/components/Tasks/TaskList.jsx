@@ -1,6 +1,6 @@
 import { useState, memo, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat } from 'lucide-react';
+import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat, ArrowUp, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
@@ -12,6 +12,30 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
+
+  // State for attachment dropdown
+  const [isAttachmentsMenuOpen, setIsAttachmentsMenuOpen] = useState(false);
+
+  const handleOpenFile = async (filePath) => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:open-path', filePath);
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  };
+
+  const handleAttachmentClick = (e) => {
+    e.stopPropagation();
+    if (task.attachments && task.attachments.length === 1) {
+      handleOpenFile(task.attachments[0]);
+    } else if (task.attachments && task.attachments.length > 1) {
+      setIsAttachmentsMenuOpen(!isAttachmentsMenuOpen);
+    }
+  };
 
   // Handlers for attachment drag-and-drop
   const handleAttachmentDragStart = (e, index) => {
@@ -256,8 +280,8 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
       onDragEnd={onDragEnd}
       onDrop={(e) => !isEditing && onDrop(e, task)}
       className={`relative rounded-xl p-4 border transition-all ${isEditing ? 'cursor-default' : 'cursor-move'} ${glowClass} ${task.status === 'complete' ? 'opacity-75 border-transparent' :
-          dragOverTask?.id === task.id ? 'border-green-glow' :
-            taskIsOverdue ? 'border-red-500/50' : 'border-transparent'
+        dragOverTask?.id === task.id ? 'border-green-glow' :
+          taskIsOverdue ? 'border-red-500/50' : 'border-transparent'
         } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${!isEditing && 'hover:border-green-glow/30'}`}
       style={{
         willChange: 'transform',
@@ -472,10 +496,10 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
               )}
               <motion.span
                 className={`px-2 py-1 rounded transition-all ${task.status === 'complete'
-                    ? 'bg-green-muted text-green-glow'
-                    : task.status === 'in-progress'
-                      ? 'bg-yellow-500/10 text-yellow-500'
-                      : 'liquid-bubble-filled text-white/40'
+                  ? 'bg-green-muted text-green-glow'
+                  : task.status === 'in-progress'
+                    ? 'bg-yellow-500/10 text-yellow-500'
+                    : 'liquid-bubble-filled text-white/40'
                   }`}
                 animate={{ scale: isJustCompleted ? [1, 1.1, 1] : 1 }}
                 transition={{ duration: 0.3 }}
@@ -483,11 +507,63 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
                 {getStatusLabel(task.status)}
               </motion.span>
               {task.attachments && task.attachments.length > 0 && (
-                <span className="flex items-center gap-1 text-white/40" title="Task has attachments">
+                <motion.button
+                  onClick={handleAttachmentClick}
+                  className={`relative flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-white/5 ${isAttachmentsMenuOpen ? 'text-green-glow bg-white/5' : 'text-white/40 hover:text-green-glow'
+                    }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Open attachment"
+                >
                   <FileText size={14} />
                   <span className="text-xs">{task.attachments.length}</span>
-                </span>
+                  {task.attachments.length > 1 && (
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-green-glow text-[8px] font-bold text-bg-primary">
+                      +
+                    </span>
+                  )}
+                </motion.button>
               )}
+
+              {/* Attachment Menu Dropdown */}
+              <AnimatePresence>
+                {isAttachmentsMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsAttachmentsMenuOpen(false); }} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50 flex flex-col"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="px-3 py-2 border-b border-white/5 bg-white/5">
+                        <span className="text-xs font-semibold text-white/70">Attached Files</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {task.attachments.map((filePath, index) => {
+                          const fileName = filePath.split(/[\\/]/).pop();
+                          return (
+                            <button
+                              key={index}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenFile(filePath);
+                                setIsAttachmentsMenuOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                              title={filePath}
+                            >
+                              <FileText size={14} className="text-green-glow flex-shrink-0" />
+                              <span className="truncate">{fileName}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -1113,6 +1189,134 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     }
   };
 
+  const handleMoveToTop = (taskId) => {
+    // 1. Get all tasks
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    // 2. Find max priority
+    let maxPriority = -1;
+    fullTasksArray.forEach(t => {
+      if (t.customPriority && typeof t.customPriority === 'number') {
+        if (t.customPriority > maxPriority) maxPriority = t.customPriority;
+      }
+    });
+
+    // 3. Update target task
+    const updatedTasks = fullTasksArray.map(t => {
+      if (t.id === taskId) {
+        return { ...t, customPriority: maxPriority + 1 };
+      }
+      return t;
+    });
+
+    // 4. Save
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    backupManager.saveAutoBackup();
+    setTasks(updatedTasks);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  /* ===== SORT HELPER (Matches TasksTab.jsx) ===== */
+  const compareTasks = (a, b) => {
+    const aOverdue = isTaskOverdue(a);
+    const bOverdue = isTaskOverdue(b);
+    if (aOverdue && !bOverdue) return -1;
+    if (!aOverdue && bOverdue) return 1;
+    if (aOverdue && bOverdue) return new Date(a.dueDate) - new Date(b.dueDate);
+
+    // Ignore priorities for natural sort
+
+    // Date/Time sort
+    if (a.dueDate && !b.dueDate) return -1;
+    if (!a.dueDate && b.dueDate) return 1;
+    if (a.dueDate && b.dueDate) {
+      if (a.dueDate === b.dueDate) {
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        if (a.time && b.time) {
+          const aDateTime = new Date(`${a.dueDate}T${a.time}`);
+          const bDateTime = new Date(`${b.dueDate}T${b.time}`);
+          return aDateTime - bDateTime;
+        }
+      }
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    }
+    return 0;
+  };
+
+  const handleRestoreLocation = (taskId) => {
+    // 1. Get all tasks
+    const storedTasks = localStorage.getItem('tasks');
+    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+
+    // 2. Identify target task
+    const targetTask = fullTasksArray.find(t => t.id === taskId);
+    if (!targetTask) return;
+
+    // 3. Create a list of tasks WITHOUT the target, sorted by CURRENT ACTUAL ORDER (Priority > Date)
+    // We need to find where it *would* land if we just Unpinned it (removed priority).
+    // If everyone else is Pinned, we need to inject it into the Pinned list at the right sorted spot.
+
+    // Let's Sort the CURRENT full list by Natural Date Order (ignoring Priorities)
+    // This gives us the "Ideal Date Order"
+    const naturalSorted = [...fullTasksArray].sort(compareTasks);
+
+    // Find neighbors in Natural Order
+    const naturalIndex = naturalSorted.findIndex(t => t.id === taskId);
+    if (naturalIndex === -1) return; // Should not happen
+
+    const prevTask = naturalIndex > 0 ? naturalSorted[naturalIndex - 1] : null;
+    const nextTask = naturalIndex < naturalSorted.length - 1 ? naturalSorted[naturalIndex + 1] : null;
+
+    // Now find the ACTUAL Priorities of these neighbors in the real list
+    let newPriority;
+
+    if (prevTask && nextTask) {
+      const prevPrio = prevTask.customPriority ?? 0;
+      const nextPrio = nextTask.customPriority ?? 0;
+      // If both neighbors are 0 (unpinned), I can be 0.
+      // If neighbors have priorities, I need to be between them.
+      if (prevPrio === 0 && nextPrio === 0) {
+        newPriority = undefined; // Unpin
+      } else {
+        // Calculate midpoint
+        newPriority = (prevPrio + nextPrio) / 2;
+      }
+    } else if (prevTask) {
+      // I am last in natural order
+      const prevPrio = prevTask.customPriority ?? 0;
+      if (prevPrio === 0) newPriority = undefined;
+      else newPriority = prevPrio - 1; // Go below prev
+    } else if (nextTask) {
+      // I am first in natural order
+      const nextPrio = nextTask.customPriority ?? 0;
+      if (nextPrio === 0) newPriority = undefined;
+      else newPriority = nextPrio + 1; // Go above next
+    } else {
+      // Alone
+      newPriority = undefined;
+    }
+
+    // 5. Update Task
+    const updatedTasks = fullTasksArray.map(t => {
+      if (t.id === taskId) {
+        if (newPriority === undefined) {
+          const { customPriority, ...rest } = t;
+          return rest;
+        }
+        return { ...t, customPriority: newPriority };
+      }
+      return t;
+    });
+
+    // 6. Save
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    backupManager.saveAutoBackup();
+    setTasks(updatedTasks);
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const handleMenuToggle = useCallback((task, buttonRect) => {
     const clickedTaskId = task.id;
 
@@ -1282,6 +1486,27 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             >
               <Copy size={14} />
               Duplicate
+            </button>
+            <div className="border-t border-white/10" />
+            <button
+              onClick={() => {
+                handleMoveToTop(openMenuTaskId);
+                setOpenMenuTaskId(null);
+              }}
+              className="w-full px-4 py-2 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            >
+              <ArrowUp size={14} />
+              Move to Top
+            </button>
+            <button
+              onClick={() => {
+                handleRestoreLocation(openMenuTaskId);
+                setOpenMenuTaskId(null);
+              }}
+              className="w-full px-4 py-2 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            >
+              <RotateCcw size={14} />
+              Restore Location
             </button>
             <div className="border-t border-white/10" />
             {/* Show split delete options for recurring tasks */}

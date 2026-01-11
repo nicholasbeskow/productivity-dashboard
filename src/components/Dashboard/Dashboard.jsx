@@ -122,21 +122,30 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
 
+  const [isAttachmentsMenuOpen, setIsAttachmentsMenuOpen] = useState(false);
+
   // Memoize event handlers
-  const handleOpenFirstAttachment = useCallback(async (e) => {
-    e.stopPropagation();
-    if (task.attachments && task.attachments.length > 0) {
-      try {
-        const { ipcRenderer } = window.require('electron');
-        const result = await ipcRenderer.invoke('shell:open-path', task.attachments[0]);
-        if (!result.success) {
-          console.error('Failed to open file:', result.error);
-        }
-      } catch (error) {
-        console.error('Error opening file:', error);
+  const handleOpenFile = useCallback(async (filePath) => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const result = await ipcRenderer.invoke('shell:open-path', filePath);
+      if (!result.success) {
+        console.error('Failed to open file:', result.error);
       }
+    } catch (error) {
+      console.error('Error opening file:', error);
     }
-  }, [task.attachments]);
+  }, []);
+
+  const handleAttachmentClick = useCallback((e) => {
+    e.stopPropagation();
+    if (task.attachments && task.attachments.length === 1) {
+      handleOpenFile(task.attachments[0]);
+    } else if (task.attachments && task.attachments.length > 1) {
+      setIsAttachmentsMenuOpen(prev => !prev);
+    }
+  }, [task.attachments, handleOpenFile]);
+
 
   const handleMouseEnter = useCallback((e) => {
     if ((task.description || task.url) && !draggedTask) {
@@ -289,26 +298,68 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
         {/* Attachment Icon Button */}
         {task.attachments && task.attachments.length > 0 && (
-          <motion.button
-            onClick={handleOpenFirstAttachment}
-            className="relative p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            title={`Open first attachment (${task.attachments.length} total)`}
-          >
-            <FileText size={14} />
-            {(() => {
-              const additionalFiles = task.attachments.length - 1;
-              if (additionalFiles > 0) {
-                return (
-                  <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
-                    +{additionalFiles}
-                  </span>
-                );
-              }
-              return null;
-            })()}
-          </motion.button>
+          <div className="relative">
+            <motion.button
+              onClick={handleAttachmentClick}
+              className="relative p-1.5 rounded-lg bg-glass-overlay hover:bg-glass-surface border border-bg-secondary hover:border-green-glow/50 text-white/40 hover:text-green-glow transition-all flex-shrink-0"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title={`Open first attachment (${task.attachments.length} total)`}
+            >
+              <FileText size={14} />
+              {(() => {
+                const additionalFiles = task.attachments.length - 1;
+                if (additionalFiles > 0) {
+                  return (
+                    <span className="absolute -top-1.5 -right-1.5 bg-green-glow text-bg-primary text-[10px] font-bold px-1 rounded-full leading-none">
+                      +{additionalFiles}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+            </motion.button>
+
+            {/* Attachment Menu Dropdown */}
+            <AnimatePresence>
+              {isAttachmentsMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsAttachmentsMenuOpen(false); }} />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                    className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50 flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="px-3 py-2 border-b border-white/5 bg-white/5">
+                      <span className="text-xs font-semibold text-white/70">Attached Files</span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {task.attachments.map((filePath, index) => {
+                        const fileName = filePath.split(/[\\/]/).pop();
+                        return (
+                          <button
+                            key={index}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenFile(filePath);
+                              setIsAttachmentsMenuOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                            title={filePath}
+                          >
+                            <FileText size={14} className="text-green-glow flex-shrink-0" />
+                            <span className="truncate">{fileName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
         {/* Edit Button */}
