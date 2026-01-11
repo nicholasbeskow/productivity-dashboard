@@ -1096,32 +1096,31 @@ const Dashboard = ({ setActiveTab }) => {
         return true;
       })
       .sort((a, b) => {
+        // 1. Primary Split: Overdue tasks always at the top
         const aOverdue = isTaskOverdue(a);
         const bOverdue = isTaskOverdue(b);
 
         if (aOverdue && !bOverdue) return -1;
         if (!aOverdue && bOverdue) return 1;
 
-        if (aOverdue && bOverdue) {
-          return new Date(a.dueDate) - new Date(b.dueDate);
+        // 2. Secondary Sort: Custom Priority (Highest first)
+        const priorityA = a.customPriority ?? 0;
+        const priorityB = b.customPriority ?? 0;
+
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA;
         }
 
-        const aHasPriority = (a.customPriority ?? 0) > 0;
-        const bHasPriority = (b.customPriority ?? 0) > 0;
+        // 3. Tie-breakers
 
-        if (aHasPriority && !bHasPriority) return -1;
-        if (!aHasPriority && bHasPriority) return 1;
-
-        if (aHasPriority && bHasPriority) {
-          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-        }
-
+        // Due Date (Earliest first)
         if (a.dueDate && !b.dueDate) return -1;
         if (!a.dueDate && b.dueDate) return 1;
         if (a.dueDate && b.dueDate) {
           return new Date(a.dueDate) - new Date(b.dueDate);
         }
 
+        // Creation Date (Newest first)
         return new Date(b.createdAt) - new Date(a.createdAt);
       })
       .slice(0, 5);

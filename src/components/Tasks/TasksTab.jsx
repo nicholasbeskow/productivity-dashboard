@@ -1,4 +1,4 @@
-import { CheckSquare, Search, Repeat } from 'lucide-react';
+import { CheckSquare, Search, Repeat, Sparkles } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
@@ -221,31 +221,27 @@ const TasksTab = () => {
         return titleMatch || descMatch;
       })
       .sort((a, b) => {
+        // 1. Primary Split: Overdue tasks always at the top
         const aOverdue = isTaskOverdue(a);
         const bOverdue = isTaskOverdue(b);
 
-        // Overdue tasks first
         if (aOverdue && !bOverdue) return -1;
         if (!aOverdue && bOverdue) return 1;
 
-        // Both overdue: sort by most overdue first
-        if (aOverdue && bOverdue) {
-          return new Date(a.dueDate) - new Date(b.dueDate);
+        // 2. Secondary Sort: Custom Priority (Highest first)
+        // This applies to BOTH overdue and non-overdue groups independently.
+        // It allows the user to manually reorder tasks within the overdue section
+        // and within the main list.
+        const priorityA = a.customPriority ?? 0;
+        const priorityB = b.customPriority ?? 0;
+
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA;
         }
 
-        // If one has custom priority and the other doesn't, prioritize the one with custom priority
-        const aHasPriority = (a.customPriority ?? 0) > 0;
-        const bHasPriority = (b.customPriority ?? 0) > 0;
+        // 3. Tie-breakers
 
-        if (aHasPriority && !bHasPriority) return -1;
-        if (!aHasPriority && bHasPriority) return 1;
-
-        // Both have custom priority: sort by priority
-        if (aHasPriority && bHasPriority) {
-          return (b.customPriority ?? 0) - (a.customPriority ?? 0);
-        }
-
-        // Neither has custom priority: sort by due date (and time if present)
+        // Due Date (Earliest first)
         if (a.dueDate && !b.dueDate) return -1;
         if (!a.dueDate && b.dueDate) return 1;
         if (a.dueDate && b.dueDate) {
@@ -267,7 +263,7 @@ const TasksTab = () => {
           return parseLocalDate(a.dueDate) - parseLocalDate(b.dueDate);
         }
 
-        // Both have no due date: sort by creation date (newest first)
+        // Creation Date (Newest first)
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
   }, [tasks, taskFilter, timeFilter, showRecurring, searchTerm]);
@@ -314,6 +310,52 @@ const TasksTab = () => {
     setTasks(tasksWithUpdatedPriorities);
   };
 
+  const handleSmartReset = () => {
+    // Confirm with user
+    if (!window.confirm('Reset task order? This will re-sort all tasks by date and creation time, overriding your manual order.')) {
+      return;
+    }
+
+    const sortedTasks = [...tasks].sort((a, b) => {
+      const aOverdue = isTaskOverdue(a);
+      const bOverdue = isTaskOverdue(b);
+
+      // 1. Overdue first
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+
+      // 2. Sort by Due Date (Earliest first)
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+
+      if (a.dueDate && b.dueDate) {
+        if (a.dueDate !== b.dueDate) {
+          // Compare YYYY-MM-DD
+          return parseLocalDate(a.dueDate) - parseLocalDate(b.dueDate);
+        }
+
+        // Same date, check time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+        return 0; // Same date and time (or no time)
+      }
+
+      // 3. No due date: Newest created first
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    // Re-assign customPriority strictly based on this new order
+    const resetTasks = sortedTasks.map((task, index) => ({
+      ...task,
+      customPriority: sortedTasks.length - index
+    }));
+
+    setTasks(resetTasks);
+  };
+
   return (
     <div className="h-full p-8 overflow-y-auto" style={{ WebkitAppRegion: 'no-drag' }}>
       {/* Global Backdrop - closes menu when clicking away */}
@@ -345,17 +387,27 @@ const TasksTab = () => {
           <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">Your Tasks</h3>
-              <button
-                onClick={() => handleShowRecurringChange(!showRecurring)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showRecurring
-                  ? 'liquid-bubble-filled text-green-glow'
-                  : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
-                  }`}
-                style={showRecurring ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
-              >
-                <Repeat size={14} />
-                {showRecurring ? 'Recurring On' : 'Recurring Off'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSmartReset}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 hover:text-green-glow transition-all border border-transparent"
+                  title="Reset tasks to default chronological order"
+                >
+                  <Sparkles size={14} />
+                  Smart Reset
+                </button>
+                <button
+                  onClick={() => handleShowRecurringChange(!showRecurring)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showRecurring
+                    ? 'liquid-bubble-filled text-green-glow'
+                    : 'bg-zinc-800/20 text-white/50 hover:bg-zinc-800/40 border border-transparent'
+                    }`}
+                  style={showRecurring ? { boxShadow: '0 0 12px rgba(61, 214, 140, 0.2)' } : {}}
+                >
+                  <Repeat size={14} />
+                  {showRecurring ? 'Recurring On' : 'Recurring Off'}
+                </button>
+              </div>
             </div>
 
             {/* Task Filter */}
