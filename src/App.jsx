@@ -4,7 +4,6 @@ import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import backupManager from './utils/backupManager';
 import { getLocalISOString } from './utils/dateHelpers';
-import { generateRecurringTasks } from './utils/recurringTaskService';
 
 // Error Boundary to catch errors in lazy-loaded components
 class ErrorBoundary extends Component {
@@ -114,14 +113,6 @@ function App() {
         console.error('Error migrating completed tasks:', error);
       }
     }
-  }, []);
-
-  // Continuous recurring task generator - runs on-demand, no midnight scheduling
-  // Extracted to separate service for better error handling and testability
-  useEffect(() => {
-    // Run once on mount to catch up on any missed tasks
-    // No interval needed - task creation/completion already handles generation!
-    generateRecurringTasks();
   }, []);
 
   // Start backup system: automatic snapshots (on launch + daily at midnight)

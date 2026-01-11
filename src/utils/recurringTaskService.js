@@ -106,8 +106,30 @@ const safeSaveLocalStorage = (key, value) => {
  * @returns {number} Number of new tasks generated
  */
 export const generateRecurringTasks = () => {
-  try {
+  // Helper to insert task in date-sorted position
+  const insertTaskSorted = (taskArray, newTask) => {
+    let insertIdx = taskArray.length;
 
+    // Parse new task date (default to far future if none)
+    const newTaskDate = newTask.dueDate ? parseLocalDateAtNoon(newTask.dueDate) : new Date(8640000000000000);
+
+    for (let i = 0; i < taskArray.length; i++) {
+      const t = taskArray[i];
+      if (isTaskOverdue(t)) continue; // Skip overdue tasks (they stay at top)
+
+      const tDate = t.dueDate ? parseLocalDateAtNoon(t.dueDate) : new Date(8640000000000000);
+
+      // If current task is later than new task, insert here
+      if (tDate > newTaskDate) {
+        insertIdx = i;
+        break;
+      }
+    }
+
+    taskArray.splice(insertIdx, 0, newTask);
+  };
+
+  try {
     const todayString = getLocalISOString();
 
     // Get all recurring task templates with error handling
@@ -196,17 +218,26 @@ export const generateRecurringTasks = () => {
         createdAt: new Date().toISOString(),
         completedAt: null,
         attachments: template.attachments || [],
+        // Priority will be recalculated after insertion
         customPriority: 0,
         templateId: template.id,
       };
 
-      tasks.push(newTask);
+      // Insert at correct position based on Date (Sorted Insert)
+      insertTaskSorted(tasks, newTask);
       newTasksGenerated++;
     });
 
     if (newTasksGenerated > 0) {
+      // Recalculate priorities for ALL tasks to maintain order
+      // This ensures the new tasks get a priority relative to their position
+      const updatedTasks = tasks.map((t, index) => ({
+        ...t,
+        customPriority: tasks.length - index,
+      }));
+
       // Save updated tasks with error handling
-      const saveSuccess = safeSaveLocalStorage('tasks', tasks);
+      const saveSuccess = safeSaveLocalStorage('tasks', updatedTasks);
 
       if (!saveSuccess) {
         console.error('[RecurringTaskService] Failed to save generated tasks to localStorage');
@@ -226,8 +257,6 @@ export const generateRecurringTasks = () => {
       } catch (error) {
         console.error('[RecurringTaskService] Failed to dispatch storage event:', error);
       }
-
-    } else {
     }
 
     return newTasksGenerated;

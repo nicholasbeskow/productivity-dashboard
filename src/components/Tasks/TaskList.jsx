@@ -765,11 +765,20 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     }
 
     // Reorder tasks
-    const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
-    const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
+    // IMPORTANT: Read from localStorage to get the FULL list, not just the filtered 'tasks' prop
+    // This prevents data loss when reordering tasks while a filter is active
+    const fullTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
 
+    const draggedIndex = fullTasks.findIndex(t => t.id === draggedTask.id);
+    const dropIndex = fullTasks.findIndex(t => t.id === dropTask.id);
 
-    const newTasks = [...tasks];
+    if (draggedIndex === -1 || dropIndex === -1) {
+      console.warn('[TaskList] Could not find dragged or drop task in full list');
+      handleDragEnd();
+      return;
+    }
+
+    const newTasks = [...fullTasks];
     const [removed] = newTasks.splice(draggedIndex, 1);
     newTasks.splice(dropIndex, 0, removed);
 
@@ -788,6 +797,9 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
     setTasks(updatedTasks);
     handleDragEnd();
+
+    // Dispatch storage event to update other components
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleOpenUrl = (url) => {
