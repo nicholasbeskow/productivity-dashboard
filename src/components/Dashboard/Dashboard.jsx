@@ -11,6 +11,7 @@ import backupManager from '../../utils/backupManager';
 import { dateToLocalISO, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
+import { createNextRecurrence } from '../../utils/recurringTaskService';
 import { Moon } from 'lucide-react';
 
 const SemesterCompleteModal = React.lazy(() => import('./SemesterCompleteModal'));
@@ -409,6 +410,9 @@ const Dashboard = ({ setActiveTab }) => {
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
 
+  // Ref for completion timeout to avoid memory leaks and race conditions
+  const completionTimeoutRef = useRef(null);
+
   // Semester End Modal state
   const [showSemesterEndModal, setShowSemesterEndModal] = useState(false);
   const [nextBreakStartDefault, setNextBreakStartDefault] = useState('');
@@ -606,107 +610,19 @@ const Dashboard = ({ setActiveTab }) => {
 
   // Using the isTaskOverdue utility function defined at the top of the file
 
-  /* ===== RECURRENCE HELPER (Internal to Dashboard) ===== */
-  const createNextRecurrence = (task, currentTasks) => {
-    if (!task.templateId) return { nextTask: null, insertIndex: -1 };
 
-    const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-    const template = templates.find(t => t.id === task.templateId);
-
-    if (!template) {
-      console.warn(`[Dashboard] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
-      return { nextTask: null, insertIndex: -1 };
-    }
-
-    // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
-    const nextDueDate = calculateNextDueDate(task, template);
-
-    // Create the new task instance for the next occurrence
-    const nextOccurrence = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: template.title,
-      description: template.description || '',
-      url: template.url || null,
-      dueDate: nextDueDate,
-      recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
-      time: template.time || null,
-      status: 'not-started',
-      taskType: template.taskType || 'academic',
-      createdAt: new Date().toISOString(),
-      completedAt: null,
-      attachments: template.attachments || [],
-      templateId: template.id,
-    };
-
-    // Helper to check if a task is overdue
-    const isTaskOverdue = (t) => {
-      if (!t.dueDate || t.status === 'complete') return false;
-      const now = new Date();
-      now.setHours(12, 0, 0, 0);
-      const dueDate = new Date(t.dueDate + 'T12:00:00');
-      return dueDate < now;
-    };
-
-    // Find the right position for the new task based on due date
-    let insertIndex = currentTasks.length;
-    const newDueDate = new Date(nextDueDate + 'T12:00:00');
-
-    for (let i = 0; i < currentTasks.length; i++) {
-      const t = currentTasks[i];
-      if (isTaskOverdue(t)) continue;
-      if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
-        insertIndex = i;
-        break;
-      }
-    }
-
-    return { nextTask: nextOccurrence, insertIndex };
-  };
 
   const handleStatusChange = useCallback((taskId) => {
-    const task = tasks.find(t => t.id === taskId);
-
-    if (task && task.status === 'in-progress') {
-      // Trigger celebration animation
-      setJustCompletedId(taskId);
-
-      // After animation, delete task and save to completedTasks (snappy 700ms timing)
-      setTimeout(() => {
-        const completedTask = { ...task, status: 'complete', completedAt: new Date().toISOString() };
-        const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-        localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
-
-        // Remove from active tasks
-        let updatedTasks = tasks.filter(t => t.id !== taskId);
-
-        // --- RECURRING TASK: Create next occurrence ---
-        // Refactored to use createNextRecurrence helper
-        if (task.templateId) {
-          const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
-
-          if (nextTask) {
-            // Insert at the right position
-            updatedTasks.splice(insertIndex, 0, nextTask);
-
-            // Recalculate all priorities to maintain order
-            updatedTasks = updatedTasks.map((t, index) => ({
-              ...t,
-              customPriority: updatedTasks.length - index,
-            }));
-          }
-        }
-
-        setTasks(updatedTasks);
-        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-        // Backup after save
-        backupManager.saveAutoBackup();
-
-        window.dispatchEvent(new Event('storage'));
-        setJustCompletedId(null);
-      }, 700);
+    // Clear any existing timeout to prevent double-firings
+    if (completionTimeoutRef.current) {
+      clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = null;
     }
 
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // OPTIMISTIC UI UPDATE
     const updatedTasks = tasks.map(t => {
       if (t.id === taskId) {
         let newStatus;
@@ -721,17 +637,70 @@ const Dashboard = ({ setActiveTab }) => {
       }
       return t;
     });
-
     setTasks(updatedTasks);
-    if (task && task.status !== 'in-progress') {
+
+    // If just moved to complete, start the timer logic
+    if (task.status === 'in-progress') { // Status BEFORE update was in-progress, so now it's complete
+      setJustCompletedId(taskId);
+
+      completionTimeoutRef.current = setTimeout(() => {
+        // --- CRITICAL FIX: Read fresh state from localStorage to avoid stale closures ---
+        const freshTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+        const taskToComplete = freshTasks.find(t => t.id === taskId);
+
+        if (!taskToComplete) {
+          console.warn('[Dashboard] Task not found during completion routine (removed elsewhere?)');
+          return;
+        }
+
+        const completedTask = { ...taskToComplete, status: 'complete', completedAt: new Date().toISOString() };
+
+        // Update completed tasks list
+        const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+        localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
+
+        // Remove from active tasks list
+        let activeTasks = freshTasks.filter(t => t.id !== taskId);
+
+        // create recurrence if needed
+        if (taskToComplete.templateId) {
+          const { nextTask, insertIndex } = createNextRecurrence(taskToComplete, activeTasks);
+          if (nextTask) {
+            activeTasks.splice(insertIndex, 0, nextTask);
+            // Re-calculate priorities
+            activeTasks = activeTasks.map((t, index) => ({
+              ...t,
+              customPriority: activeTasks.length - index,
+            }));
+          }
+        }
+
+        // Save everything
+        setTasks(activeTasks);
+        localStorage.setItem('tasks', JSON.stringify(activeTasks));
+        backupManager.saveAutoBackup();
+        window.dispatchEvent(new Event('storage'));
+        setJustCompletedId(null);
+
+        // Reset ref
+        completionTimeoutRef.current = null;
+      }, 700);
+    } else {
+      // For non-completion updates, just save immediately
       localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-      // Backup after save
       backupManager.saveAutoBackup();
-
       window.dispatchEvent(new Event('storage'));
     }
   }, [tasks]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (completionTimeoutRef.current) {
+        clearTimeout(completionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleOpenUrl = (url) => {
     if (!url) return;

@@ -1,5 +1,69 @@
 import { getLocalISOString } from './dateHelpers';
+import { calculateNextDueDate } from './recurrenceHelpers';
 import backupManager from './backupManager';
+
+/**
+ * Creates the next instance of a recurring task
+ * @param {Object} task - The completed task object
+ * @param {Array} currentTasks - Current list of tasks (for insertion)
+ * @returns {Object} { nextTask, insertIndex }
+ */
+export const createNextRecurrence = (task, currentTasks) => {
+  if (!task.templateId) return { nextTask: null, insertIndex: -1 };
+
+  const templates = safeParseLocalStorage('recurringTasks', []);
+  const template = templates.find(t => t.id === task.templateId);
+
+  if (!template) {
+    console.warn(`[RecurringTaskService] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
+    return { nextTask: null, insertIndex: -1 };
+  }
+
+  // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
+  const nextDueDate = calculateNextDueDate(task, template);
+
+  // Create the new task instance for the next occurrence
+  const nextOccurrence = {
+    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    title: template.title,
+    description: template.description || '',
+    url: template.url || null,
+    dueDate: nextDueDate,
+    recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
+    time: template.time || null,
+    status: 'not-started',
+    taskType: template.taskType || 'academic',
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+    attachments: template.attachments || [],
+    templateId: template.id,
+    customPriority: 0,
+  };
+
+  // Helper to check if a task is overdue
+  const isTaskOverdue = (t) => {
+    if (!t.dueDate || t.status === 'complete') return false;
+    const now = new Date();
+    now.setHours(12, 0, 0, 0);
+    const dueDate = new Date(t.dueDate + 'T12:00:00');
+    return dueDate < now;
+  };
+
+  // Find the right position for the new task based on due date
+  let insertIndex = currentTasks.length;
+  const newDueDate = new Date(nextDueDate + 'T12:00:00');
+
+  for (let i = 0; i < currentTasks.length; i++) {
+    const t = currentTasks[i];
+    if (isTaskOverdue(t)) continue;
+    if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
+      insertIndex = i;
+      break;
+    }
+  }
+
+  return { nextTask: nextOccurrence, insertIndex };
+};
 
 /**
  * Safely parse JSON from localStorage with error handling

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
+import { createNextRecurrence } from '../../utils/recurringTaskService';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
@@ -684,68 +685,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
     };
   }, [openMenuTaskId, setOpenMenuTaskId]);
 
-  /* ===== RECURRENCE HELPER (Internal to TaskList) ===== */
-  const createNextRecurrence = (task, currentTasks) => {
-    if (!task.templateId) return { nextTask: null, insertIndex: -1 };
 
-    const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-    const template = templates.find(t => t.id === task.templateId);
-
-    if (!template) {
-      console.warn(`[TaskList] Orphaned task detected: templateId "${task.templateId}" not found. Task will not generate next occurrence.`);
-      return { nextTask: null, insertIndex: -1 };
-    }
-
-    // Calculate the next due date based on recurrenceAnchor (or dueDate fallback)
-    const nextDueDate = calculateNextDueDate(task, template);
-
-    // Create the new task instance for the next occurrence
-    const nextOccurrence = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: template.title,
-      description: template.description || '',
-      url: template.url || null,
-      dueDate: nextDueDate,
-      recurrenceAnchor: nextDueDate, // Set anchor for consistent future scheduling
-      time: template.time || null,
-      status: 'not-started',
-      taskType: template.taskType || 'academic',
-      createdAt: new Date().toISOString(),
-      completedAt: null,
-      attachments: template.attachments || [],
-      templateId: template.id,
-    };
-
-    // Helper to check if a task is overdue
-    const isTaskOverdue = (t) => {
-      if (!t.dueDate || t.status === 'complete') return false;
-      try {
-        const now = new Date();
-        now.setHours(12, 0, 0, 0);
-        const dueDate = new Date(t.dueDate + 'T12:00:00');
-        if (isNaN(dueDate.getTime())) return false;
-        return dueDate < now;
-      } catch (error) {
-        console.error('[TaskList] Error checking overdue status:', error);
-        return false;
-      }
-    };
-
-    // Find the right position for the new task based on due date
-    let insertIndex = currentTasks.length;
-    const newDueDate = new Date(nextDueDate + 'T12:00:00');
-
-    for (let i = 0; i < currentTasks.length; i++) {
-      const t = currentTasks[i];
-      if (isTaskOverdue(t)) continue;
-      if (!t.dueDate || new Date(t.dueDate + 'T12:00:00') > newDueDate) {
-        insertIndex = i;
-        break;
-      }
-    }
-
-    return { nextTask: nextOccurrence, insertIndex };
-  };
 
   const handleStatusChange = (taskId) => {
     // 1. Get the FULL list from localStorage
