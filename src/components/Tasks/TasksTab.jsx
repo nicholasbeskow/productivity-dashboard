@@ -1,5 +1,5 @@
 import { CheckSquare, Search, Repeat, Sparkles } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import backupManager from '../../utils/backupManager';
@@ -14,6 +14,9 @@ const TasksTab = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Ref to track if a state change was user-initiated (needing save)
+  const userActionRef = useRef(false);
 
   // Load tasks from localStorage on mount
   useEffect(() => {
@@ -73,15 +76,28 @@ const TasksTab = () => {
     setIsInitialized(true);
   }, []);
 
-  // Save tasks to localStorage whenever they change (after initial load)
+  // Handle Persistence when tasks change
   useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
+    // Skip saving on initial load or if not initialized
+    if (!isInitialized) return;
 
-      // Backup after save
-      backupManager.saveAutoBackup();
-    }
+    // We can also skip if tasks array is empty to avoid wiping data on a bad load,
+    // but the initialization logic above handles the specific "bad load" cases.
+    // If tasks is empty here, it means the user deleted everything or it started empty.
+
+    console.log('[TasksTab] Persisting tasks to localStorage...', tasks.length);
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    backupManager.saveAutoBackup();
+    window.dispatchEvent(new Event('storage'));
   }, [tasks, isInitialized]);
+
+  // Helper to update tasks state request persistence
+  // Now supports functional updates: updateTasks(prev => ...)
+  // Helper to update tasks state
+  // Now supports functional updates: updateTasks(prev => ...)
+  const updateTasks = (tasksOrUpdater) => {
+    setTasks(tasksOrUpdater);
+  };
 
   // Load task filters from localStorage and listen for changes
   useEffect(() => {
@@ -307,7 +323,7 @@ const TasksTab = () => {
       customPriority: updatedTasks.length - index,
     }));
 
-    setTasks(tasksWithUpdatedPriorities);
+    updateTasks(tasksWithUpdatedPriorities);
   };
 
   const handleSmartReset = () => {
@@ -353,7 +369,7 @@ const TasksTab = () => {
       customPriority: sortedTasks.length - index
     }));
 
-    setTasks(resetTasks);
+    updateTasks(resetTasks);
   };
 
   return (
@@ -525,7 +541,8 @@ const TasksTab = () => {
 
             <TaskList
               tasks={sortedTasks}
-              setTasks={setTasks}
+              allTasks={tasks}
+              setTasks={updateTasks}
               openMenuTaskId={openMenuTaskId}
               setOpenMenuTaskId={setOpenMenuTaskId}
             />

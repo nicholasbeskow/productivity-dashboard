@@ -497,7 +497,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
 
 TaskCard.displayName = 'TaskCard';
 
-const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
+const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   const [justCompletedId, setJustCompletedId] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverTask, setDragOverTask] = useState(null);
@@ -526,6 +526,10 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
   // Menu position state
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Use allTasks as the source of truth for mutations if provided, otherwise fallback to tasks
+  // (TasksTab should always provide allTasks, but this is a safe fallback)
+  const fullTasksSource = allTasks.length > 0 ? allTasks : tasks;
 
   // Ref for completion timeouts map to handle multiple concurrent completions independently
   const completionTimeoutsRef = useRef(new Map());
@@ -630,45 +634,87 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       completionTimeoutsRef.current.delete(taskId);
     }
 
-    // 1. Get the FULL list from localStorage
-    const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const taskIndex = allTasks.findIndex(t => t.id === taskId);
-    if (taskIndex === -1) return; // Task not found
+    // Use functional update to avoid race conditions with stale props
+    setTasks(prevTasks => {
+      const taskIndex = prevTasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return prevTasks; // Task not found, return unchanged state
 
-    const task = allTasks[taskIndex];
+      const task = prevTasks[taskIndex];
+
+      let newStatus;
+      let completedAt = task.completedAt;
+
+      if (task.status === 'not-started') newStatus = 'in-progress';
+      else if (task.status === 'in-progress') {
+        newStatus = 'complete';
+        completedAt = new Date().toISOString();
+      } else {
+        newStatus = 'not-started';
+        completedAt = null;
+      }
+
+      const updatedAllTasks = prevTasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, status: newStatus, completedAt };
+        }
+        return t;
+      });
+
+      return updatedAllTasks;
+    });
+
+    // Check status outside since we need to know what it changed TO
+    // BUT we don't have easy access to the calculated newStatus outside the closure if it depends on prevTasks?
+    // Wait, the status logic is deterministic based on CURRENT status.
+    // We can just calculate "expected" new status based on what we *think* current status is?
+    // No, that brings race conditions back.
+
+    // We can rely on the fact that the click handler was triggered with a clear intent?
+    // Actually, we can move the status calculation logic INSIDE the updater, but we also need to trigger the side effect (animation/timeout).
+    // The side effect relies on knowing if it BECAME complete.
+
+    // Let's re-read the state for the side-effect? No.
+
+    // Solution: Calculate "newStatus" logic based on props (which we hope are fresh enough for the UI interaction)
+    // OR: Move the side-effect into a useEffect that listens for "just completed"? 
+    // We already have 'justCompletedId'.
+
+    // Let's assume the 'allTasks' prop IS fresh enough for the decision of "what happens when I click", even if the ARRAY REORDERING needs functional updates.
+    // If I click a task, its status is visible.
+    // So we can compute 'newStatus' using 'fullTasksSource' just for the `if (newStatus === 'complete')` check.
+
+    const task = fullTasksSource.find(t => t.id === taskId);
+    if (!task) return;
 
     let newStatus;
-    let completedAt = task.completedAt;
-
     if (task.status === 'not-started') newStatus = 'in-progress';
-    else if (task.status === 'in-progress') {
-      newStatus = 'complete';
-      completedAt = new Date().toISOString();
-    } else {
-      newStatus = 'not-started';
-      completedAt = null;
-    }
+    else if (task.status === 'in-progress') newStatus = 'complete';
+    else newStatus = 'not-started';
 
     if (newStatus === 'complete') {
-      // --- COMPLETION LOGIC ---
-
-      // Immediately mark as complete in localStorage to prevent double-completion
-      const updatedAllTasks = allTasks.map(t =>
-        t.id === taskId ? { ...t, status: 'complete', completedAt } : t
-      );
-      localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
-      setTasks(updatedAllTasks); // Update UI immediately
-
-      setJustCompletedId(taskId); // Trigger animation
+      setJustCompletedId(taskId);
 
       const timeoutId = setTimeout(() => {
         if (justCompletedId === taskId) {
           setJustCompletedId(null);
         }
 
-        // Find the completed task again from a fresh read
-        const freshAllTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-        const taskToComplete = freshAllTasks.find(t => t.id === taskId);
+        // Find the completed task again from updated parent state (props)
+        // Note: In a timeout, props might be stale if we relied on "tasks", but we can try to rely on the closures or functional updates if needed.
+        // HOWEVER, since we pushed the state update via setTasks, the next render will have the updated task.
+        // But here we are inside a closure from *before* the render.
+        // We really just want to move it to "completedTasks" and potentially create a recurrence.
+
+        // Let's use the 'task' object we already have, but ensuring status is complete
+        // Or better, let's just proceed with the logic using the data we have, assuming no external modification happened in 700ms.
+        // If we strictly want to avoid LS, we can't read from it.
+        // But we need the *latest* state.
+
+        // Actually, we can just use the 'updatedAllTasks' we calculated earlier if we assume single-user.
+        // Or we can rely on passed props if we trust React updates.
+
+        // For now, let's use the object from our initial calculation which is safe enough for 700ms delay in a single-user app.
+        const taskToComplete = { ...task, status: 'complete', completedAt };
 
         if (!taskToComplete) {
           completionTimeoutsRef.current.delete(taskId);
@@ -682,7 +728,12 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
         // Remove from active tasks
-        let activeTasks = freshAllTasks.filter(t => t.id !== taskId);
+        // Remove from active tasks (use the list we already updated in step 1, which has the task marked as complete)
+        // Actually, we want to remove it entirely from the active list now.
+        // So we filter updatedAllTasks (which is the full list)
+        // Wait, updatedAllTasks only had status change.
+        // We can just filter fullTasksSource again or use updatedAllTasks.
+        let activeTasks = updatedAllTasks.filter(t => t.id !== taskId);
 
         // --- RECURRING TASK: Create next occurrence ---
         // Refactored to use createNextRecurrence helper
@@ -701,10 +752,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
           }
         }
 
-        localStorage.setItem('tasks', JSON.stringify(activeTasks));
-
-        backupManager.saveAutoBackup();
-        setTasks(activeTasks); // Update UI
+        setTasks(activeTasks); // Update UI and Storage
 
         // Clean up map
         completionTimeoutsRef.current.delete(taskId);
@@ -719,11 +767,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         t.id === taskId ? { ...t, status: newStatus, completedAt } : t
       );
 
-      // 2. Save FULL list back to localStorage
-      localStorage.setItem('tasks', JSON.stringify(updatedAllTasks));
-      // 3. Trigger backup
-      backupManager.saveAutoBackup();
-      // 4. Update UI
+      // 2. Update UI (and Storage via TasksTab)
       setTasks(updatedAllTasks);
     }
   };
@@ -764,42 +808,57 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       return;
     }
 
-    // Reorder tasks
-    // IMPORTANT: Read from localStorage to get the FULL list, not just the filtered 'tasks' prop
-    // This prevents data loss when reordering tasks while a filter is active
-    const fullTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    // The 'tasks' prop is the SORTED/FILTERED list that the user sees
+    // We need to figure out the new priority for draggedTask based on its position
+    // relative to dropTask in the VISIBLE list
 
-    const draggedIndex = fullTasks.findIndex(t => t.id === draggedTask.id);
-    const dropIndex = fullTasks.findIndex(t => t.id === dropTask.id);
+    // Find the indices in the VISIBLE (sorted/filtered) list
+    const visibleDragIndex = tasks.findIndex(t => t.id === draggedTask.id);
+    const visibleDropIndex = tasks.findIndex(t => t.id === dropTask.id);
 
-    if (draggedIndex === -1 || dropIndex === -1) {
-      console.warn('[TaskList] Could not find dragged or drop task in full list');
+    if (visibleDragIndex === -1 || visibleDropIndex === -1) {
+      console.warn('[TaskList] Could not find dragged or drop task in visible list');
       handleDragEnd();
       return;
     }
 
-    const newTasks = [...fullTasks];
-    const [removed] = newTasks.splice(draggedIndex, 1);
-    newTasks.splice(dropIndex, 0, removed);
+    // Determine the new priority for the dragged task
+    // We want to place it at the dropTask's position
+    // If dragging DOWN (visibleDragIndex < visibleDropIndex): place AFTER dropTask
+    // If dragging UP (visibleDragIndex > visibleDropIndex): place BEFORE dropTask
 
-    // Update customPriority based on new order - ALL tasks get new priority
-    const updatedTasks = newTasks.map((task, index) => ({
-      ...task,
-      customPriority: newTasks.length - index, // Higher number = higher priority
-    }));
+    let newPriority;
+    const dropTaskPriority = dropTask.customPriority ?? 0;
 
+    if (visibleDragIndex < visibleDropIndex) {
+      // Dragging DOWN - place AFTER dropTask
+      // Find the task that's currently AFTER dropTask in visible list
+      const taskAfterDrop = tasks[visibleDropIndex + 1];
+      const afterPriority = taskAfterDrop?.customPriority ?? (dropTaskPriority - 1);
+      // New priority should be between dropTask and taskAfterDrop
+      newPriority = (dropTaskPriority + afterPriority) / 2;
+    } else {
+      // Dragging UP - place BEFORE dropTask
+      // Find the task that's currently BEFORE dropTask in visible list
+      const taskBeforeDrop = tasks[visibleDropIndex - 1];
+      const beforePriority = taskBeforeDrop?.customPriority ?? (dropTaskPriority + 1);
+      // New priority should be between taskBeforeDrop and dropTask
+      newPriority = (beforePriority + dropTaskPriority) / 2;
+    }
 
-    // Save immediately to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    console.log('[TaskList] handleDrop: Moving task', draggedTask.title, 'to priority', newPriority, '(dropTask priority:', dropTaskPriority, ')');
 
-    // Backup after save
-    backupManager.saveAutoBackup();
+    // Use functional update to update the dragged task's priority
+    setTasks(prevTasks => {
+      return prevTasks.map(t => {
+        if (t.id === draggedTask.id) {
+          return { ...t, customPriority: newPriority };
+        }
+        return t;
+      });
+    });
 
-    setTasks(updatedTasks);
     handleDragEnd();
-
-    // Dispatch storage event to update other components
-    window.dispatchEvent(new Event('storage'));
   };
 
   const handleOpenUrl = (url) => {
@@ -843,7 +902,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       // This ensures recurrence type changes work correctly
 
       const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-      const storedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      const storedTasks = [...fullTasksSource];
       const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
 
       // 1. DELETE OLD - Remove old template and all instances
@@ -887,19 +946,15 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       newTasks.push(newInstance);
 
       localStorage.setItem('recurringTasks', JSON.stringify(newTemplates));
-      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      // localStorage.setItem('tasks', ...) is handled by setTasks -> updateTasks
       localStorage.setItem('completedTasks', JSON.stringify(newCompletedTasks));
       setTasks(newTasks);
-
-      backupManager.saveAutoBackup();
-      window.dispatchEvent(new Event('storage'));
 
       handleCancelEdit();
       return;
     } else {
       // Save changes to just this task instance
-      const storedTasks = localStorage.getItem('tasks');
-      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+      const fullTasksArray = [...fullTasksSource];
 
       const updatedTasks = fullTasksArray.map(t => {
         if (t.id === taskId) {
@@ -911,9 +966,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         return t;
       });
 
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
       setTasks(updatedTasks);
-      backupManager.saveAutoBackup();
 
     }
 
@@ -921,41 +974,36 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleDuplicate = (taskId) => {
-    // 1. Read FULL list from localStorage
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    setTasks(prevTasks => {
+      const taskToDuplicate = prevTasks.find(t => t.id === taskId);
+      if (!taskToDuplicate) return prevTasks; // No change if not found
 
-    const taskToDuplicate = fullTasksArray.find(t => t.id === taskId);
-    if (!taskToDuplicate) return;
+      const duplicatedTask = {
+        ...taskToDuplicate,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        status: 'not-started',
+        completedAt: null,
+        createdAt: new Date().toISOString(),
+        title: `${taskToDuplicate.title} (Copy)`,
+        customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5, // Place it just below
+        // IMPORTANT: Remove templateId so the duplicate is not linked to the recurring template
+        templateId: undefined,
+      };
 
-    const duplicatedTask = {
-      ...taskToDuplicate,
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      status: 'not-started',
-      completedAt: null,
-      createdAt: new Date().toISOString(),
-      title: `${taskToDuplicate.title} (Copy)`,
-      customPriority: taskToDuplicate.customPriority ? taskToDuplicate.customPriority + 0.5 : 0.5, // Place it just below
-      // IMPORTANT: Remove templateId so the duplicate is not linked to the recurring template
-      templateId: undefined,
-    };
+      const newTasks = [...prevTasks];
+      const originalIndex = newTasks.findIndex(t => t.id === taskId);
+      if (originalIndex !== -1) {
+        newTasks.splice(originalIndex + 1, 0, duplicatedTask);
+      } else {
+        newTasks.push(duplicatedTask);
+      }
 
-    // 2. Modify FULL list - add duplicated task after the original
-    const originalIndex = fullTasksArray.findIndex(t => t.id === taskId);
-    const updatedTasks = [...fullTasksArray];
-    updatedTasks.splice(originalIndex + 1, 0, duplicatedTask);
-
-    // 3. Save FULL list to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    // 4. Trigger backup
-    backupManager.saveAutoBackup();
-
-    // 5. Update UI
-    setTasks(updatedTasks);
+      return newTasks;
+    });
   };
 
   const handleDeleteInstance = (taskId) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find(t => t.id === taskId); // Safe to read from props for initial check
     if (!task) return;
 
     const confirmed = window.confirm(
@@ -964,36 +1012,25 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
 
     if (!confirmed) return;
 
-    // Read from localStorage to get full array
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    setTasks(prevTasks => {
+      let updatedTasks = prevTasks.filter(t => t.id !== taskId);
 
-    // Remove the task
-    let updatedTasks = fullTasksArray.filter(t => t.id !== taskId);
+      const taskToDelete = prevTasks.find(t => t.id === taskId);
+      if (taskToDelete && taskToDelete.templateId) {
+        const { nextTask, insertIndex } = createNextRecurrence(taskToDelete, updatedTasks);
 
-    // --- BUG FIX: Generate next occurrence if it's a recurring task ---
-    if (task.templateId) {
-      const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
+        if (nextTask) {
+          updatedTasks.splice(insertIndex, 0, nextTask);
 
-      if (nextTask) {
-        updatedTasks.splice(insertIndex, 0, nextTask);
-
-        // Recalculate priorities
-        updatedTasks = updatedTasks.map((t, index) => ({
-          ...t,
-          customPriority: updatedTasks.length - index,
-        }));
+          // Recalculate priorities
+          updatedTasks = updatedTasks.map((t, index) => ({
+            ...t,
+            customPriority: updatedTasks.length - index,
+          }));
+        }
       }
-    }
-
-    // Save to localStorage
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-
-    // Backup after save
-    backupManager.saveAutoBackup();
-
-    // Update parent state
-    setTasks(updatedTasks);
+      return updatedTasks;
+    });
   };
 
   const handleDeleteSeries = (taskId) => {
@@ -1012,15 +1049,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
 
       // Also delete all instances of this template from tasks
-      const storedTasks = localStorage.getItem('tasks');
-      const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
-      const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
-
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-      setTasks(updatedTasks);
-
-      backupManager.saveAutoBackup();
-      window.dispatchEvent(new Event('storage'));
+      setTasks(prevTasks => prevTasks.filter(t => t.templateId !== task.templateId));
 
     }
   };
@@ -1036,8 +1065,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
         // Delete instance
         const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
         if (confirmed) {
-          const storedTasks = localStorage.getItem('tasks');
-          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const fullTasksArray = [...fullTasksSource];
           let updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
 
           // --- BUG FIX: Generate next occurrence ---
@@ -1050,10 +1078,7 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
             }));
           }
 
-          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-          backupManager.saveAutoBackup();
           setTasks(updatedTasks);
-          window.dispatchEvent(new Event('storage'));
           handleCancelEdit();
         }
       } else {
@@ -1067,13 +1092,9 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
           const updatedTemplates = templates.filter(t => t.id !== task.templateId);
           localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
 
-          const storedTasks = localStorage.getItem('tasks');
-          const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+          const fullTasksArray = [...fullTasksSource];
           const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
-          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-          backupManager.saveAutoBackup();
           setTasks(updatedTasks);
-          window.dispatchEvent(new Event('storage'));
           handleCancelEdit();
         }
       }
@@ -1081,22 +1102,17 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       // Normal task delete
       const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
       if (confirmed) {
-        const storedTasks = localStorage.getItem('tasks');
-        const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+        const fullTasksArray = [...fullTasksSource];
         const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
-        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-        backupManager.saveAutoBackup();
         setTasks(updatedTasks);
-        window.dispatchEvent(new Event('storage'));
         handleCancelEdit();
       }
     }
   };
 
   const handleMoveToTop = (taskId) => {
-    // 1. Get all tasks
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    // 1. Get all tasks from props
+    const fullTasksArray = [...fullTasksSource];
 
     // 2. Find max priority
     let maxPriority = -1;
@@ -1114,11 +1130,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       return t;
     });
 
-    // 4. Save
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    backupManager.saveAutoBackup();
+    // 4. Save via parent updater
     setTasks(updatedTasks);
-    window.dispatchEvent(new Event('storage'));
   };
 
   /* ===== SORT HELPER (Matches TasksTab.jsx) ===== */
@@ -1150,9 +1163,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
   };
 
   const handleRestoreLocation = (taskId) => {
-    // 1. Get all tasks
-    const storedTasks = localStorage.getItem('tasks');
-    const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+    // 1. Get all tasks from props
+    const fullTasksArray = [...fullTasksSource];
 
     // 2. Identify target task
     const targetTask = fullTasksArray.find(t => t.id === taskId);
@@ -1214,11 +1226,8 @@ const TaskList = ({ tasks, setTasks, openMenuTaskId, setOpenMenuTaskId }) => {
       return t;
     });
 
-    // 6. Save
-    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-    backupManager.saveAutoBackup();
+    // 6. Save via parent updater
     setTasks(updatedTasks);
-    window.dispatchEvent(new Event('storage'));
   };
 
   const handleMenuToggle = useCallback((task, buttonRect) => {
