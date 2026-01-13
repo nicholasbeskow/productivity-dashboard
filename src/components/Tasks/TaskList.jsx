@@ -692,24 +692,41 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
             const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
 
             if (nextTask) {
-              // Calculate priority for the new task based on its neighbors
-              // instead of recalculating ALL priorities
-              const beforeTask = activeTasks[insertIndex - 1];
-              const afterTask = activeTasks[insertIndex];
+              // Find tasks with the SAME due date (and optionally time) to place near them
+              const sameDateTasks = activeTasks.filter(t =>
+                t.dueDate === nextTask.dueDate && !isTaskOverdue(t)
+              );
+
+              // Further filter to same time if the new task has a time
+              const sameTimeTasks = nextTask.time
+                ? sameDateTasks.filter(t => t.time === nextTask.time)
+                : sameDateTasks;
 
               let newPriority;
-              if (beforeTask && afterTask) {
-                // Between two tasks: use midpoint
-                newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
-              } else if (beforeTask) {
-                // At end of list: lower than before
-                newPriority = (beforeTask.customPriority ?? 0) - 1;
-              } else if (afterTask) {
-                // At start of list: higher than after
-                newPriority = (afterTask.customPriority ?? 0) + 1;
+
+              if (sameTimeTasks.length > 0) {
+                // Use the average priority of same-date/time tasks
+                const avgPriority = sameTimeTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameTimeTasks.length;
+                // Slight offset to avoid exact collision
+                newPriority = avgPriority - 0.01;
+              } else if (sameDateTasks.length > 0) {
+                // No same-time tasks, but same-date tasks exist
+                const avgPriority = sameDateTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameDateTasks.length;
+                newPriority = avgPriority - 0.01;
               } else {
-                // Only task in list
-                newPriority = 1;
+                // No similar tasks - fall back to neighbor-based calculation
+                const beforeTask = activeTasks[insertIndex - 1];
+                const afterTask = activeTasks[insertIndex];
+
+                if (beforeTask && afterTask) {
+                  newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
+                } else if (beforeTask) {
+                  newPriority = (beforeTask.customPriority ?? 0) - 1;
+                } else if (afterTask) {
+                  newPriority = (afterTask.customPriority ?? 0) + 1;
+                } else {
+                  newPriority = 1;
+                }
               }
 
               const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
@@ -785,6 +802,7 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
 
     let newPriority;
     const dropTaskPriority = dropTask.customPriority ?? 0;
+    const dropTaskOverdue = isTaskOverdue(dropTask);
 
     if (visibleDragIndex < visibleDropIndex) {
       // Dragging DOWN - place AFTER dropTask
@@ -797,7 +815,19 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
       // Dragging UP - place BEFORE dropTask
       // Find the task that's currently BEFORE dropTask in visible list
       const taskBeforeDrop = tasks[visibleDropIndex - 1];
-      const beforePriority = taskBeforeDrop?.customPriority ?? (dropTaskPriority + 1);
+
+      // Check if we're crossing the overdue/non-overdue boundary
+      // If taskBeforeDrop is overdue but dropTask is not, we're at the top of non-overdue section
+      const crossingBoundary = taskBeforeDrop && isTaskOverdue(taskBeforeDrop) && !dropTaskOverdue;
+
+      let beforePriority;
+      if (!taskBeforeDrop || crossingBoundary) {
+        // No task before, or crossing overdue boundary - use a priority ABOVE dropTask
+        beforePriority = dropTaskPriority + 1;
+      } else {
+        beforePriority = taskBeforeDrop.customPriority ?? (dropTaskPriority + 1);
+      }
+
       // New priority should be between taskBeforeDrop and dropTask
       newPriority = (beforePriority + dropTaskPriority) / 2;
     }
@@ -1066,15 +1096,24 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
 
   /* ===== SORT HELPER (Matches TasksTab.jsx) ===== */
   const compareTasks = (a, b) => {
+    // 1. Primary Split: Overdue tasks always at the top
     const aOverdue = isTaskOverdue(a);
     const bOverdue = isTaskOverdue(b);
+
     if (aOverdue && !bOverdue) return -1;
     if (!aOverdue && bOverdue) return 1;
     if (aOverdue && bOverdue) return new Date(a.dueDate) - new Date(b.dueDate);
 
-    // Ignore priorities for natural sort
+    // 2. Secondary Sort: Custom Priority (Highest first)
+    // This applies to non-overdue tasks and allows user to manually reorder.
+    const priorityA = a.customPriority ?? 0;
+    const priorityB = b.customPriority ?? 0;
 
-    // Date/Time sort
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA;
+    }
+
+    // 3. Tie-breakers: Date/Time sort
     if (a.dueDate && !b.dueDate) return -1;
     if (!a.dueDate && b.dueDate) return 1;
     if (a.dueDate && b.dueDate) {

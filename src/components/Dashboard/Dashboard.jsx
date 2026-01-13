@@ -603,19 +603,41 @@ const Dashboard = ({ setActiveTab }) => {
         if (completedTask.templateId) {
           const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
           if (nextTask) {
-            // Calculate priority for the new task based on its neighbors
-            const beforeTask = activeTasks[insertIndex - 1];
-            const afterTask = activeTasks[insertIndex];
+            // Find tasks with the SAME due date (and optionally time) to place near them
+            const sameDateTasks = activeTasks.filter(t =>
+              t.dueDate === nextTask.dueDate && !isTaskOverdue(t)
+            );
+
+            // Further filter to same time if the new task has a time
+            const sameTimeTasks = nextTask.time
+              ? sameDateTasks.filter(t => t.time === nextTask.time)
+              : sameDateTasks;
 
             let newPriority;
-            if (beforeTask && afterTask) {
-              newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
-            } else if (beforeTask) {
-              newPriority = (beforeTask.customPriority ?? 0) - 1;
-            } else if (afterTask) {
-              newPriority = (afterTask.customPriority ?? 0) + 1;
+
+            if (sameTimeTasks.length > 0) {
+              // Use the average priority of same-date/time tasks
+              const avgPriority = sameTimeTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameTimeTasks.length;
+              // Slight offset to avoid exact collision
+              newPriority = avgPriority - 0.01;
+            } else if (sameDateTasks.length > 0) {
+              // No same-time tasks, but same-date tasks exist
+              const avgPriority = sameDateTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameDateTasks.length;
+              newPriority = avgPriority - 0.01;
             } else {
-              newPriority = 1;
+              // No similar tasks - fall back to neighbor-based calculation
+              const beforeTask = activeTasks[insertIndex - 1];
+              const afterTask = activeTasks[insertIndex];
+
+              if (beforeTask && afterTask) {
+                newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
+              } else if (beforeTask) {
+                newPriority = (beforeTask.customPriority ?? 0) - 1;
+              } else if (afterTask) {
+                newPriority = (afterTask.customPriority ?? 0) + 1;
+              } else {
+                newPriority = 1;
+              }
             }
 
             const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
@@ -752,6 +774,7 @@ const Dashboard = ({ setActiveTab }) => {
 
     let newPriority;
     const dropTaskPriority = dropTask.customPriority ?? 0;
+    const dropTaskOverdue = isTaskOverdue(dropTask);
 
     if (visibleDragIndex < visibleDropIndex) {
       // Dragging DOWN - place AFTER dropTask
@@ -761,7 +784,19 @@ const Dashboard = ({ setActiveTab }) => {
     } else {
       // Dragging UP - place BEFORE dropTask
       const taskBeforeDrop = displayTasks[visibleDropIndex - 1];
-      const beforePriority = taskBeforeDrop?.customPriority ?? (dropTaskPriority + 1);
+
+      // Check if we're crossing the overdue/non-overdue boundary
+      // If taskBeforeDrop is overdue but dropTask is not, we're at the top of non-overdue section
+      const crossingBoundary = taskBeforeDrop && isTaskOverdue(taskBeforeDrop) && !dropTaskOverdue;
+
+      let beforePriority;
+      if (!taskBeforeDrop || crossingBoundary) {
+        // No task before, or crossing overdue boundary - use a priority ABOVE dropTask
+        beforePriority = dropTaskPriority + 1;
+      } else {
+        beforePriority = taskBeforeDrop.customPriority ?? (dropTaskPriority + 1);
+      }
+
       newPriority = (beforePriority + dropTaskPriority) / 2;
     }
 
