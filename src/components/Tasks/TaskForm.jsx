@@ -3,7 +3,7 @@ import { Plus, FileText, UploadCloud, X, Repeat, Link as LinkIcon, ChevronDown, 
 import backupManager from '../../utils/backupManager';
 import { getToday, getTomorrow, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
 
-const TaskForm = ({ onTaskCreate, initialData = null }) => {
+const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -29,6 +29,14 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
   // Edit scope for recurring tasks
   const [editScope, setEditScope] = useState('instance');
   const [isRecurringEdit, setIsRecurringEdit] = useState(false);
+
+  // Sync internal scope change with parent
+  const handleScopeChange = (newScope) => {
+    setEditScope(newScope);
+    if (onScopeChange) {
+      onScopeChange(newScope);
+    }
+  };
 
   // Populate form when initialData changes (for editing)
   useEffect(() => {
@@ -72,7 +80,13 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       // Check if this is a recurring task (has recurrence or templateId)
       const isRecurring = !!(recurrence || initialData.templateId);
       setIsRecurringEdit(isRecurring);
+      setIsRecurringEdit(isRecurring);
       setShowRecurrence(isRecurring); // Auto-expand recurrence if editing recurring task
+
+      // Reset scope to 'instance' when opening a task, and notify parent
+      if (initialData.templateId || (initialData.recurrence && initialData.recurrence.type !== 'does-not-repeat')) {
+        handleScopeChange('instance');
+      }
 
       // Handle recurrence fields - crucial for editing recurring tasks
       if (recurrence) {
@@ -118,7 +132,8 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
       setCustomInterval(1);
       setCustomUnit('days');
       setIsRecurringEdit(false);
-      setEditScope('instance');
+      setIsRecurringEdit(false);
+      handleScopeChange('instance');
       setShowFiles(false);
       setShowLinks(false);
       setShowRecurrence(false);
@@ -649,7 +664,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setEditScope('instance')}
+              onClick={() => handleScopeChange('instance')}
               className={`px-4 py-3 rounded-lg transition-all ${editScope === 'instance'
                 ? 'text-green-glow liquid-bubble-filled'
                 : 'liquid-bubble-empty text-white/60 hover:text-white/80'
@@ -661,7 +676,7 @@ const TaskForm = ({ onTaskCreate, initialData = null }) => {
             </button>
             <button
               type="button"
-              onClick={() => setEditScope('series')}
+              onClick={() => handleScopeChange('series')}
               className={`px-4 py-3 rounded-lg transition-all ${editScope === 'series'
                 ? 'text-green-glow liquid-bubble-filled'
                 : 'liquid-bubble-empty text-white/60 hover:text-white/80'

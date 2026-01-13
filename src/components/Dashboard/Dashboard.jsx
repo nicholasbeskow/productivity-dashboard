@@ -334,7 +334,8 @@ const Dashboard = ({ setActiveTab }) => {
     attachments: []
   });
   // Edit scope ref for recurring tasks (synced with TaskForm)
-  const editScopeRef = useRef('instance');
+  const editScopeRef = useRef('instance'); // Keep ref for internal logic if needed, but primary UI driver is now state
+  const [editScope, setEditScope] = useState('instance');
   // Ref for scrollable container
   const scrollContainerRef = useRef(null);
   // State for attachment drag-and-drop
@@ -551,57 +552,74 @@ const Dashboard = ({ setActiveTab }) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    // Calculate the new status
+    let newStatus;
+    let completedAt = task.completedAt;
+
+    if (task.status === 'not-started') {
+      newStatus = 'in-progress';
+    } else if (task.status === 'in-progress') {
+      newStatus = 'complete';
+      completedAt = new Date().toISOString();
+    } else {
+      newStatus = 'not-started';
+      completedAt = null;
+    }
+
     // OPTIMISTIC UI UPDATE
     const updatedTasks = tasks.map(t => {
       if (t.id === taskId) {
-        let newStatus;
-        if (t.status === 'not-started') {
-          newStatus = 'in-progress';
-        } else if (t.status === 'in-progress') {
-          newStatus = 'complete';
-        } else {
-          newStatus = 'not-started';
-        }
-        return { ...t, status: newStatus };
+        return { ...t, status: newStatus, completedAt };
       }
       return t;
     });
     setTasks(updatedTasks);
 
+    // Save the optimistic update to localStorage immediately
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+
     // If just moved to complete, start the timer logic
-    if (task.status === 'in-progress') { // Status BEFORE update was in-progress, so now it's complete
+    if (newStatus === 'complete') {
       setJustCompletedId(taskId);
 
+      // Capture the completed task data for the timeout
+      const completedTask = { ...task, status: 'complete', completedAt };
+
       const timeoutId = setTimeout(() => {
-        // --- CRITICAL FIX: Read fresh state from localStorage to avoid stale closures ---
-        const freshTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-        const taskToComplete = freshTasks.find(t => t.id === taskId);
-
-        if (!taskToComplete) {
-          console.warn('[Dashboard] Task not found during completion routine (removed elsewhere?)');
-          completionTimeoutsRef.current.delete(taskId);
-          return;
-        }
-
-        const completedTask = { ...taskToComplete, status: 'complete', completedAt: new Date().toISOString() };
+        // Clear animation state
+        setJustCompletedId(null);
 
         // Update completed tasks list
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
         localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
+        // Read fresh tasks from localStorage
+        const freshTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+
         // Remove from active tasks list
         let activeTasks = freshTasks.filter(t => t.id !== taskId);
 
-        // create recurrence if needed
-        if (taskToComplete.templateId) {
-          const { nextTask, insertIndex } = createNextRecurrence(taskToComplete, activeTasks);
+        // Create recurrence if needed
+        if (completedTask.templateId) {
+          const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
           if (nextTask) {
-            activeTasks.splice(insertIndex, 0, nextTask);
-            // Re-calculate priorities
-            activeTasks = activeTasks.map((t, index) => ({
-              ...t,
-              customPriority: activeTasks.length - index,
-            }));
+            // Calculate priority for the new task based on its neighbors
+            const beforeTask = activeTasks[insertIndex - 1];
+            const afterTask = activeTasks[insertIndex];
+
+            let newPriority;
+            if (beforeTask && afterTask) {
+              newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
+            } else if (beforeTask) {
+              newPriority = (beforeTask.customPriority ?? 0) - 1;
+            } else if (afterTask) {
+              newPriority = (afterTask.customPriority ?? 0) + 1;
+            } else {
+              newPriority = 1;
+            }
+
+            const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
+            activeTasks.splice(insertIndex, 0, newTaskWithPriority);
           }
         }
 
@@ -611,22 +629,17 @@ const Dashboard = ({ setActiveTab }) => {
         backupManager.saveAutoBackup();
         window.dispatchEvent(new Event('storage'));
 
-        if (justCompletedId === taskId) {
-          setJustCompletedId(null);
-        }
-
         // Clean up map
         completionTimeoutsRef.current.delete(taskId);
       }, 700);
 
       completionTimeoutsRef.current.set(taskId, timeoutId);
     } else {
-      // For non-completion updates, just save immediately
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+      // For non-completion updates, trigger backup
       backupManager.saveAutoBackup();
       window.dispatchEvent(new Event('storage'));
     }
-  }, [tasks, justCompletedId]);
+  }, [tasks]);
 
   // Clean up timeouts on unmount
   useEffect(() => {
@@ -670,6 +683,47 @@ const Dashboard = ({ setActiveTab }) => {
     setDragOverTask(null);
   }, []);
 
+  // Sort and limit tasks for dashboard - show top 5
+  // Memoized to prevent expensive recalculation on every render
+  const displayTasks = useMemo(() => {
+    return tasks
+      .filter(task => {
+        // Type Filter
+        if (taskFilter === 'academic' && (task.taskType || 'academic') !== 'academic') return false;
+        if (taskFilter === 'personal' && task.taskType !== 'personal') return false;
+        return true;
+      })
+      .sort((a, b) => {
+        // 1. Primary Split: Overdue tasks always at the top
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
+
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
+
+        // 2. Secondary Sort: Custom Priority (Highest first)
+        const priorityA = a.customPriority ?? 0;
+        const priorityB = b.customPriority ?? 0;
+
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA;
+        }
+
+        // 3. Tie-breakers
+
+        // Due Date (Earliest first)
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        if (a.dueDate && b.dueDate) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
+
+        // Creation Date (Newest first)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+      .slice(0, 5);
+  }, [tasks, taskFilter]);
+
   const handleDrop = useCallback((e, dropTask) => {
     e.preventDefault();
 
@@ -678,21 +732,48 @@ const Dashboard = ({ setActiveTab }) => {
       return;
     }
 
-    // Reorder tasks
-    const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
-    const dropIndex = tasks.findIndex(t => t.id === dropTask.id);
+    // The 'displayTasks' is the SORTED/FILTERED list that the user sees
+    // We need to calculate the new priority for draggedTask based on its position
+    // relative to dropTask in the VISIBLE list
 
+    // Find the indices in the VISIBLE (sorted/filtered) list
+    const visibleDragIndex = displayTasks.findIndex(t => t.id === draggedTask.id);
+    const visibleDropIndex = displayTasks.findIndex(t => t.id === dropTask.id);
 
-    const newTasks = [...tasks];
-    const [removed] = newTasks.splice(draggedIndex, 1);
-    newTasks.splice(dropIndex, 0, removed);
+    if (visibleDragIndex === -1 || visibleDropIndex === -1) {
+      console.warn('[Dashboard] Could not find dragged or drop task in visible list');
+      handleDragEnd();
+      return;
+    }
 
-    // Update customPriority based on new order - ALL tasks get new priority
-    const updatedTasks = newTasks.map((task, index) => ({
-      ...task,
-      customPriority: newTasks.length - index, // Higher number = higher priority
-    }));
+    // Determine the new priority for the dragged task
+    // If dragging DOWN (visibleDragIndex < visibleDropIndex): place AFTER dropTask
+    // If dragging UP (visibleDragIndex > visibleDropIndex): place BEFORE dropTask
 
+    let newPriority;
+    const dropTaskPriority = dropTask.customPriority ?? 0;
+
+    if (visibleDragIndex < visibleDropIndex) {
+      // Dragging DOWN - place AFTER dropTask
+      const taskAfterDrop = displayTasks[visibleDropIndex + 1];
+      const afterPriority = taskAfterDrop?.customPriority ?? (dropTaskPriority - 1);
+      newPriority = (dropTaskPriority + afterPriority) / 2;
+    } else {
+      // Dragging UP - place BEFORE dropTask
+      const taskBeforeDrop = displayTasks[visibleDropIndex - 1];
+      const beforePriority = taskBeforeDrop?.customPriority ?? (dropTaskPriority + 1);
+      newPriority = (beforePriority + dropTaskPriority) / 2;
+    }
+
+    console.log('[Dashboard] handleDrop: Moving task', draggedTask.title, 'to priority', newPriority);
+
+    // Update only the dragged task's priority in the full task list
+    const updatedTasks = tasks.map(t => {
+      if (t.id === draggedTask.id) {
+        return { ...t, customPriority: newPriority };
+      }
+      return t;
+    });
 
     setTasks(updatedTasks);
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
@@ -702,7 +783,7 @@ const Dashboard = ({ setActiveTab }) => {
 
     window.dispatchEvent(new Event('storage'));
     handleDragEnd();
-  }, [draggedTask, tasks, handleDragEnd]);
+  }, [draggedTask, tasks, displayTasks, handleDragEnd]);
 
   const handleStartEdit = (task) => {
     setIsEditingDetail(true);
@@ -827,7 +908,8 @@ const Dashboard = ({ setActiveTab }) => {
     // Check if this is a recurring task instance
     if (task.templateId) {
       // Use editScopeRef to determine whether to delete instance or series
-      if (editScopeRef.current === 'instance') {
+      // Use editScope state to determine whether to delete instance or series
+      if (editScope === 'instance') {
         // Delete just this instance
         const storedTasks = localStorage.getItem('tasks');
         const fullTasksArray = storedTasks ? JSON.parse(storedTasks) : [];
@@ -841,14 +923,15 @@ const Dashboard = ({ setActiveTab }) => {
         if (nextTask) {
           updatedTasks.splice(insertIndex, 0, nextTask);
 
+          // Calculate fractional priority for ONLY the new task
+          // This preserves the order of all other tasks
+          const prevTask = updatedTasks[insertIndex - 1];
+          const nextTaskObj = updatedTasks[insertIndex + 1];
 
+          const prevPriority = prevTask ? prevTask.customPriority : (nextTaskObj ? nextTaskObj.customPriority + 200000 : 200000);
+          const nextPriority = nextTaskObj ? nextTaskObj.customPriority : (prevTask ? prevTask.customPriority - 200000 : 0);
 
-          // Re-sort to be safe before priority assignment (optional but good)
-          // Actually, let's just re-calculate priorities safely
-          updatedTasks = updatedTasks.map((t, index) => ({
-            ...t,
-            customPriority: updatedTasks.length - index,
-          }));
+          nextTask.customPriority = (prevPriority + nextPriority) / 2;
         }
 
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));
@@ -1085,46 +1168,7 @@ const Dashboard = ({ setActiveTab }) => {
     window.dispatchEvent(new Event('semesterDatesChanged'));
   };
 
-  // Sort and limit tasks for dashboard - show top 5
-  // Memoized to prevent expensive recalculation on every render
-  const displayTasks = useMemo(() => {
-    return tasks
-      .filter(task => {
-        // Type Filter
-        if (taskFilter === 'academic' && (task.taskType || 'academic') !== 'academic') return false;
-        if (taskFilter === 'personal' && task.taskType !== 'personal') return false;
-        return true;
-      })
-      .sort((a, b) => {
-        // 1. Primary Split: Overdue tasks always at the top
-        const aOverdue = isTaskOverdue(a);
-        const bOverdue = isTaskOverdue(b);
 
-        if (aOverdue && !bOverdue) return -1;
-        if (!aOverdue && bOverdue) return 1;
-
-        // 2. Secondary Sort: Custom Priority (Highest first)
-        const priorityA = a.customPriority ?? 0;
-        const priorityB = b.customPriority ?? 0;
-
-        if (priorityA !== priorityB) {
-          return priorityB - priorityA;
-        }
-
-        // 3. Tie-breakers
-
-        // Due Date (Earliest first)
-        if (a.dueDate && !b.dueDate) return -1;
-        if (!a.dueDate && b.dueDate) return 1;
-        if (a.dueDate && b.dueDate) {
-          return new Date(a.dueDate) - new Date(b.dueDate);
-        }
-
-        // Creation Date (Newest first)
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      })
-      .slice(0, 5);
-  }, [tasks, taskFilter]);
 
   // Format user name - capitalize first letter of each word
   const formatUserName = (name) => {
@@ -1319,12 +1363,16 @@ const Dashboard = ({ setActiveTab }) => {
                                 <div className="space-y-4">
                                   <TaskForm
                                     initialData={detailTask}
+                                    onScopeChange={setEditScope}
                                     onTaskCreate={(data) => {
                                       try {
                                         const { scope, ...updatedFields } = data;
 
                                         // Sync edit scope from TaskForm
-                                        if (scope) editScopeRef.current = scope;
+                                        if (scope) {
+                                          editScopeRef.current = scope;
+                                          setEditScope(scope);
+                                        }
 
 
                                         // CASE 1: Converting plain task → recurring
@@ -1471,7 +1519,8 @@ const Dashboard = ({ setActiveTab }) => {
                                       className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
                                     >
                                       <Save size={16} />
-                                      Update Task
+                                      {/* Dynamic button text based on scope */}
+                                      {detailTask.templateId && editScope === 'series' ? 'Update Series' : 'Update Task'}
                                     </button>
 
                                     {/* Delete Button */}
@@ -1480,8 +1529,9 @@ const Dashboard = ({ setActiveTab }) => {
                                       className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                                     >
                                       <Trash2 size={16} />
+                                      {/* Dynamic delete button text based on editScope state */}
                                       {detailTask.templateId
-                                        ? (editScopeRef.current === 'instance' ? 'Delete Instance' : 'Delete Series')
+                                        ? (editScope === 'instance' ? 'Delete Instance' : 'Delete Series')
                                         : 'Delete Task'
                                       }
                                     </button>

@@ -11,7 +11,7 @@ import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate }
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
-const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask }, ref) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask, editScope, onScopeChange }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -294,6 +294,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
         >
           <TaskForm
             initialData={task}
+            onScopeChange={onScopeChange}
             onTaskCreate={(data) => onSaveEdit(task.id, data)}
           />
 
@@ -316,19 +317,21 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
               className="w-full bg-green-glow hover:bg-green-glow/90 text-bg-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-glow hover:shadow-glow-lg"
             >
               <Save size={16} />
-              Update Task
+              {task.templateId && editScope === 'series' ? 'Update Series' : 'Update Task'}
             </button>
 
             {/* Delete Button */}
             <button
               type="button"
               onClick={() => {
-                onDeleteTask(task);
+                onDeleteTask(task, editScope);
               }}
               className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Trash2 size={16} />
-              {task.templateId ? 'Delete Task' : 'Delete Task'}
+              {task.templateId
+                ? (editScope === 'instance' ? 'Delete Instance' : 'Delete Series')
+                : 'Delete Task'}
             </button>
           </div>
         </motion.div>
@@ -523,6 +526,8 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
       saturday: false,
     }
   });
+  // State for edit scope of recurring tasks (synced from TaskForm)
+  const [editScope, setEditScope] = useState('instance');
 
   // Menu position state
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -634,141 +639,92 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
       completionTimeoutsRef.current.delete(taskId);
     }
 
-    // Use functional update to avoid race conditions with stale props
+    // Get the task from props to determine what the new status will be
+    const task = fullTasksSource.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Calculate the new status based on current status
+    let newStatus;
+    let completedAt = task.completedAt;
+
+    if (task.status === 'not-started') {
+      newStatus = 'in-progress';
+    } else if (task.status === 'in-progress') {
+      newStatus = 'complete';
+      completedAt = new Date().toISOString();
+    } else {
+      newStatus = 'not-started';
+      completedAt = null;
+    }
+
+    // Immediately update the task status using functional update
     setTasks(prevTasks => {
-      const taskIndex = prevTasks.findIndex(t => t.id === taskId);
-      if (taskIndex === -1) return prevTasks; // Task not found, return unchanged state
-
-      const task = prevTasks[taskIndex];
-
-      let newStatus;
-      let completedAt = task.completedAt;
-
-      if (task.status === 'not-started') newStatus = 'in-progress';
-      else if (task.status === 'in-progress') {
-        newStatus = 'complete';
-        completedAt = new Date().toISOString();
-      } else {
-        newStatus = 'not-started';
-        completedAt = null;
-      }
-
-      const updatedAllTasks = prevTasks.map(t => {
+      return prevTasks.map(t => {
         if (t.id === taskId) {
           return { ...t, status: newStatus, completedAt };
         }
         return t;
       });
-
-      return updatedAllTasks;
     });
 
-    // Check status outside since we need to know what it changed TO
-    // BUT we don't have easy access to the calculated newStatus outside the closure if it depends on prevTasks?
-    // Wait, the status logic is deterministic based on CURRENT status.
-    // We can just calculate "expected" new status based on what we *think* current status is?
-    // No, that brings race conditions back.
-
-    // We can rely on the fact that the click handler was triggered with a clear intent?
-    // Actually, we can move the status calculation logic INSIDE the updater, but we also need to trigger the side effect (animation/timeout).
-    // The side effect relies on knowing if it BECAME complete.
-
-    // Let's re-read the state for the side-effect? No.
-
-    // Solution: Calculate "newStatus" logic based on props (which we hope are fresh enough for the UI interaction)
-    // OR: Move the side-effect into a useEffect that listens for "just completed"? 
-    // We already have 'justCompletedId'.
-
-    // Let's assume the 'allTasks' prop IS fresh enough for the decision of "what happens when I click", even if the ARRAY REORDERING needs functional updates.
-    // If I click a task, its status is visible.
-    // So we can compute 'newStatus' using 'fullTasksSource' just for the `if (newStatus === 'complete')` check.
-
-    const task = fullTasksSource.find(t => t.id === taskId);
-    if (!task) return;
-
-    let newStatus;
-    if (task.status === 'not-started') newStatus = 'in-progress';
-    else if (task.status === 'in-progress') newStatus = 'complete';
-    else newStatus = 'not-started';
-
     if (newStatus === 'complete') {
+      // Trigger animation
       setJustCompletedId(taskId);
 
+      // Capture values needed by the timeout
+      const completedTask = { ...task, status: 'complete', completedAt };
+
       const timeoutId = setTimeout(() => {
-        if (justCompletedId === taskId) {
-          setJustCompletedId(null);
-        }
-
-        // Find the completed task again from updated parent state (props)
-        // Note: In a timeout, props might be stale if we relied on "tasks", but we can try to rely on the closures or functional updates if needed.
-        // HOWEVER, since we pushed the state update via setTasks, the next render will have the updated task.
-        // But here we are inside a closure from *before* the render.
-        // We really just want to move it to "completedTasks" and potentially create a recurrence.
-
-        // Let's use the 'task' object we already have, but ensuring status is complete
-        // Or better, let's just proceed with the logic using the data we have, assuming no external modification happened in 700ms.
-        // If we strictly want to avoid LS, we can't read from it.
-        // But we need the *latest* state.
-
-        // Actually, we can just use the 'updatedAllTasks' we calculated earlier if we assume single-user.
-        // Or we can rely on passed props if we trust React updates.
-
-        // For now, let's use the object from our initial calculation which is safe enough for 700ms delay in a single-user app.
-        const taskToComplete = { ...task, status: 'complete', completedAt };
-
-        if (!taskToComplete) {
-          completionTimeoutsRef.current.delete(taskId);
-          return; // Safety check
-        }
-
-        const completedTask = { ...taskToComplete, status: 'complete', completedAt };
+        // Clear animation state
+        setJustCompletedId(null);
 
         // Add to completedTasks (for stats tracking)
         const existingCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
         localStorage.setItem('completedTasks', JSON.stringify([completedTask, ...existingCompleted]));
 
-        // Remove from active tasks
-        // Remove from active tasks (use the list we already updated in step 1, which has the task marked as complete)
-        // Actually, we want to remove it entirely from the active list now.
-        // So we filter updatedAllTasks (which is the full list)
-        // Wait, updatedAllTasks only had status change.
-        // We can just filter fullTasksSource again or use updatedAllTasks.
-        let activeTasks = updatedAllTasks.filter(t => t.id !== taskId);
+        // Use functional update to remove from active tasks and handle recurrence
+        setTasks(prevTasks => {
+          // Remove the completed task
+          let activeTasks = prevTasks.filter(t => t.id !== taskId);
 
-        // --- RECURRING TASK: Create next occurrence ---
-        // Refactored to use createNextRecurrence helper
-        if (taskToComplete.templateId) {
-          const { nextTask, insertIndex } = createNextRecurrence(taskToComplete, activeTasks);
+          // --- RECURRING TASK: Create next occurrence ---
+          if (completedTask.templateId) {
+            const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
 
-          if (nextTask) {
-            // Insert at the right position
-            activeTasks.splice(insertIndex, 0, nextTask);
+            if (nextTask) {
+              // Calculate priority for the new task based on its neighbors
+              // instead of recalculating ALL priorities
+              const beforeTask = activeTasks[insertIndex - 1];
+              const afterTask = activeTasks[insertIndex];
 
-            // Recalculate all priorities to maintain order
-            activeTasks = activeTasks.map((t, index) => ({
-              ...t,
-              customPriority: activeTasks.length - index,
-            }));
+              let newPriority;
+              if (beforeTask && afterTask) {
+                // Between two tasks: use midpoint
+                newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
+              } else if (beforeTask) {
+                // At end of list: lower than before
+                newPriority = (beforeTask.customPriority ?? 0) - 1;
+              } else if (afterTask) {
+                // At start of list: higher than after
+                newPriority = (afterTask.customPriority ?? 0) + 1;
+              } else {
+                // Only task in list
+                newPriority = 1;
+              }
+
+              const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
+              activeTasks.splice(insertIndex, 0, newTaskWithPriority);
+            }
           }
-        }
 
-        setTasks(activeTasks); // Update UI and Storage
+          return activeTasks;
+        });
 
         // Clean up map
         completionTimeoutsRef.current.delete(taskId);
       }, 700); // Wait for animation
 
       completionTimeoutsRef.current.set(taskId, timeoutId);
-    } else {
-      // --- 'IN-PROGRESS' or 'NOT-STARTED' LOGIC ---
-
-      // Update the task in the full array
-      const updatedAllTasks = allTasks.map(t =>
-        t.id === taskId ? { ...t, status: newStatus, completedAt } : t
-      );
-
-      // 2. Update UI (and Storage via TasksTab)
-      setTasks(updatedAllTasks);
     }
   };
 
@@ -1022,11 +978,15 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
         if (nextTask) {
           updatedTasks.splice(insertIndex, 0, nextTask);
 
-          // Recalculate priorities
-          updatedTasks = updatedTasks.map((t, index) => ({
-            ...t,
-            customPriority: updatedTasks.length - index,
-          }));
+          // Calculate fractional priority for ONLY the new task
+          // This preserves the order of all other tasks
+          const prevTask = updatedTasks[insertIndex - 1];
+          const nextTaskObj = updatedTasks[insertIndex + 1];
+
+          const prevPriority = prevTask ? prevTask.customPriority : (nextTaskObj ? nextTaskObj.customPriority + 200000 : 200000);
+          const nextPriority = nextTaskObj ? nextTaskObj.customPriority : (prevTask ? prevTask.customPriority - 200000 : 0);
+
+          nextTask.customPriority = (prevPriority + nextPriority) / 2;
         }
       }
       return updatedTasks;
@@ -1054,58 +1014,28 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
     }
   };
 
-  const handleDeleteFromEdit = (task) => {
+  // Handle deletion from the edit form (TaskCard)
+  const handleDeleteFromEdit = (task, scope) => {
+    // Determine scope from argument or state (fallback)
+    const deletionScope = scope || editScope;
+
     if (task.templateId) {
-      // For recurring tasks, ask which scope to delete
-      const deleteScope = window.confirm(
-        'Delete just this task instance?\n\nClick OK to delete this instance only.\nClick Cancel to delete the entire series.'
-      );
-
-      if (deleteScope) {
-        // Delete instance
-        const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
-        if (confirmed) {
-          const fullTasksArray = [...fullTasksSource];
-          let updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
-
-          // --- BUG FIX: Generate next occurrence ---
-          const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
-          if (nextTask) {
-            updatedTasks.splice(insertIndex, 0, nextTask);
-            updatedTasks = updatedTasks.map((t, index) => ({
-              ...t,
-              customPriority: updatedTasks.length - index,
-            }));
-          }
-
-          setTasks(updatedTasks);
-          handleCancelEdit();
-        }
+      if (deletionScope === 'instance') {
+        handleDeleteInstance(task.id);
       } else {
-        // Delete series
-        const confirmed = window.confirm(
-          `Are you sure you want to delete the entire "${task.title}" series? This will delete the template and all future tasks.`
-        );
-
-        if (confirmed) {
-          const templates = JSON.parse(localStorage.getItem('recurringTasks') || '[]');
-          const updatedTemplates = templates.filter(t => t.id !== task.templateId);
-          localStorage.setItem('recurringTasks', JSON.stringify(updatedTemplates));
-
-          const fullTasksArray = [...fullTasksSource];
-          const updatedTasks = fullTasksArray.filter(t => t.templateId !== task.templateId);
-          setTasks(updatedTasks);
-          handleCancelEdit();
-        }
+        handleDeleteSeries(task.id);
       }
     } else {
-      // Normal task delete
-      const confirmed = window.confirm('Are you sure you want to delete this task? This cannot be undone.');
-      if (confirmed) {
-        const fullTasksArray = [...fullTasksSource];
-        const updatedTasks = fullTasksArray.filter(t => t.id !== task.id);
-        setTasks(updatedTasks);
-        handleCancelEdit();
+      // Normal task
+      if (window.confirm('Are you sure you want to delete this task?')) {
+        setTasks(prevTasks => {
+          const newTasks = prevTasks.filter(t => t.id !== task.id);
+          // Update localStorage
+          localStorage.setItem('tasks', JSON.stringify(newTasks));
+          backupManager.saveAutoBackup();
+          window.dispatchEvent(new Event('storage'));
+          return newTasks;
+        });
       }
     }
   };
@@ -1366,8 +1296,11 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
               onDuplicate={handleDuplicate}
               isMenuOpen={openMenuTaskId === task.id}
               onMenuToggle={(buttonRect) => handleMenuToggle(task, buttonRect)}
-              isEditingTemplate={isEditingTemplate}
+
+
               onDeleteTask={handleDeleteFromEdit}
+              editScope={editScope}
+              onScopeChange={setEditScope}
             />
           ))}
         </AnimatePresence>
