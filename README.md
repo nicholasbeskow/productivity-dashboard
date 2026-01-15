@@ -1,6 +1,6 @@
 # Pinnacle - Personal Productivity Dashboard
 
-**Version 2.1.2** | Built with React, Electron, and Tailwind CSS
+**Version 2.2** | Built with React, Electron, and Tailwind CSS
 
 A comprehensive productivity application designed for pre-med students to manage tasks, track wellness, and stay organized throughout the semester.
 
