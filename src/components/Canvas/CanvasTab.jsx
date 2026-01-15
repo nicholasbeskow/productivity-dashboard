@@ -1,10 +1,11 @@
 import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import backupManager from '../../utils/backupManager';
-import { isTaskOverdue } from '../../utils/taskHelpers';
-import { parseLocalDateAtNoon } from '../../utils/dateHelpers';
+import { useTasks } from '../../context/TaskContext';
 
 const CanvasTab = () => {
+  const { tasks, createTask } = useTasks();
+
   const [newAssignments, setNewAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -103,9 +104,6 @@ const CanvasTab = () => {
   // Handle adding assignment to tasks
   const handleAddTask = (assignment) => {
     try {
-      // Get existing tasks
-      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-
       // Check if task already exists
       const taskId = `canvas-${assignment.id}`;
       const existingTask = tasks.find(t => t.id === taskId);
@@ -134,27 +132,7 @@ const CanvasTab = () => {
         time = `${hours}:${minutes}`;
       }
 
-      // Find the right position for the new task based on due date
-      let insertIndex = tasks.length;
-
-      if (dueDate) {
-        const newDueDate = parseLocalDateAtNoon(dueDate);
-
-        for (let i = 0; i < tasks.length; i++) {
-          const task = tasks[i];
-
-          // Skip overdue tasks
-          if (isTaskOverdue(task)) continue;
-
-          // If task has no due date or later due date, insert before it
-          if (!task.dueDate || parseLocalDateAtNoon(task.dueDate) > newDueDate) {
-            insertIndex = i;
-            break;
-          }
-        }
-      }
-
-      // Create new task
+      // Create new task and use context - priority is calculated correctly in taskService
       const newTask = {
         id: taskId,
         title: assignment.name,
@@ -166,25 +144,11 @@ const CanvasTab = () => {
         taskType: 'academic',
         createdAt: new Date().toISOString(),
         completedAt: null,
-        customPriority: tasks.length - insertIndex + 1,
         attachments: [],
       };
 
-      // Insert task at the right position
-      const updatedTasks = [...tasks];
-      updatedTasks.splice(insertIndex, 0, newTask);
-
-      // Recalculate all priorities to maintain order
-      const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
-        ...task,
-        customPriority: updatedTasks.length - index,
-      }));
-
-      localStorage.setItem('tasks', JSON.stringify(tasksWithUpdatedPriorities));
-
-      // Save backup and trigger updates
-      backupManager.saveAutoBackup();
-      window.dispatchEvent(new Event('storage'));
+      // Use centralized createTask from context
+      createTask(newTask);
 
       // Mark assignment as processed
       handleIgnore(assignment.id);

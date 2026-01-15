@@ -1092,6 +1092,11 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
 
     // 4. Save via parent updater
     setTasks(updatedTasks);
+
+    // 5. Persist changes (Critical for Dashboard which doesn't auto-persist)
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    backupManager.saveAutoBackup();
+    window.dispatchEvent(new Event('storage'));
   };
 
   /* ===== SORT HELPER (Matches TasksTab.jsx) ===== */
@@ -1139,13 +1144,41 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
     const targetTask = fullTasksArray.find(t => t.id === taskId);
     if (!targetTask) return;
 
-    // 3. Create a list of tasks WITHOUT the target, sorted by CURRENT ACTUAL ORDER (Priority > Date)
-    // We need to find where it *would* land if we just Unpinned it (removed priority).
-    // If everyone else is Pinned, we need to inject it into the Pinned list at the right sorted spot.
+    // 3. Define NATURAL sort - ignoring customPriority entirely
+    // This gives us where the task SHOULD be based only on dates
+    const naturalSort = (a, b) => {
+      const aOverdue = isTaskOverdue(a);
+      const bOverdue = isTaskOverdue(b);
+
+      // Overdue first
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      if (aOverdue && bOverdue) return new Date(a.dueDate) - new Date(b.dueDate);
+
+      // Tasks with due dates before tasks without
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+
+      // Sort by due date (earlier first)
+      if (a.dueDate && b.dueDate) {
+        if (a.dueDate !== b.dueDate) {
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        }
+        // Same date: sort by time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+      }
+
+      // Fallback: newer created first
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    };
 
     // Let's Sort the CURRENT full list by Natural Date Order (ignoring Priorities)
     // This gives us the "Ideal Date Order"
-    const naturalSorted = [...fullTasksArray].sort(compareTasks);
+    const naturalSorted = [...fullTasksArray].sort(naturalSort);
 
     // Find neighbors in Natural Order
     const naturalIndex = naturalSorted.findIndex(t => t.id === taskId);
@@ -1197,6 +1230,11 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
 
     // 6. Save via parent updater
     setTasks(updatedTasks);
+
+    // 7. Persist changes (Critical for Dashboard which doesn't auto-persist)
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    backupManager.saveAutoBackup();
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleMenuToggle = useCallback((task, buttonRect) => {

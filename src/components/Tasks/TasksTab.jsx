@@ -1,103 +1,23 @@
 import { CheckSquare, Search, Repeat, Sparkles } from 'lucide-react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
-import backupManager from '../../utils/backupManager';
+import { useTasks } from '../../context/TaskContext';
 import { isTaskOverdue } from '../../utils/taskHelpers';
-import { getToday, parseLocalDate, parseLocalDateAtNoon } from '../../utils/dateHelpers';
+import { getToday, parseLocalDate } from '../../utils/dateHelpers';
 
 const TasksTab = () => {
-  const [tasks, setTasks] = useState([]);
+  // Use centralized task context instead of local state
+  const { tasks, isInitialized, createTask, smartReset, setTasks } = useTasks();
+
   const [taskFilter, setTaskFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [showRecurring, setShowRecurring] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Ref to track if a state change was user-initiated (needing save)
-  const userActionRef = useRef(false);
-
-  // Load tasks from localStorage on mount
-  useEffect(() => {
-    const storedTasks = localStorage.getItem('tasks');
-    if (storedTasks) {
-      try {
-        const parsedTasks = JSON.parse(storedTasks);
-
-        // Validate that parsedTasks is an array
-        if (!Array.isArray(parsedTasks)) {
-          console.error('[TasksTab] Invalid tasks data: expected array, got', typeof parsedTasks);
-          console.warn('[TasksTab] Corrupted data detected. Please restore from backup or clear storage.');
-          setTasks([]);
-          setIsInitialized(true);
-          return;
-        }
-
-        // Filter out tasks with invalid data
-        const validTasks = parsedTasks.filter(task => {
-          // Basic validation: must have an id and title
-          if (!task.id || !task.title) {
-            console.warn('[TasksTab] Skipping task with missing id or title:', task);
-            return false;
-          }
-
-          // Validate dueDate if present
-          if (task.dueDate) {
-            const testDate = parseLocalDateAtNoon(task.dueDate);
-            if (isNaN(testDate.getTime())) {
-              console.warn('[TasksTab] Skipping task with invalid dueDate:', task.id, task.dueDate);
-              return false;
-            }
-          }
-
-          return true;
-        });
-
-        // If we filtered out invalid tasks, save the cleaned array
-        if (validTasks.length !== parsedTasks.length) {
-          console.warn(`[TasksTab] Filtered out ${parsedTasks.length - validTasks.length} invalid task(s)`);
-          localStorage.setItem('tasks', JSON.stringify(validTasks));
-          backupManager.saveAutoBackup();
-        }
-
-        // Ensure all tasks have customPriority
-        const tasksWithPriority = validTasks.map((task, index) => ({
-          ...task,
-          customPriority: task.customPriority ?? (validTasks.length - index),
-        }));
-        setTasks(tasksWithPriority);
-      } catch (error) {
-        console.error('[TasksTab] Error loading tasks from localStorage:', error);
-        console.warn('[TasksTab] Tasks data is corrupted. Please restore from backup.');
-        setTasks([]);
-      }
-    }
-    setIsInitialized(true);
-  }, []);
-
-  // Handle Persistence when tasks change
-  useEffect(() => {
-    // Skip saving on initial load or if not initialized
-    if (!isInitialized) return;
-
-    // We can also skip if tasks array is empty to avoid wiping data on a bad load,
-    // but the initialization logic above handles the specific "bad load" cases.
-    // If tasks is empty here, it means the user deleted everything or it started empty.
-
-    console.log('[TasksTab] Persisting tasks to localStorage...', tasks.length);
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    backupManager.saveAutoBackup();
-    window.dispatchEvent(new Event('storage'));
-  }, [tasks, isInitialized]);
-
-  // Helper to update tasks state request persistence
-  // Now supports functional updates: updateTasks(prev => ...)
-  // Helper to update tasks state
-  // Now supports functional updates: updateTasks(prev => ...)
-  const updateTasks = (tasksOrUpdater) => {
-    setTasks(tasksOrUpdater);
-  };
+  // Wrapper for setTasks to maintain compatibility with TaskList
+  const updateTasks = setTasks;
 
   // Load task filters from localStorage and listen for changes
   useEffect(() => {
@@ -284,92 +204,17 @@ const TasksTab = () => {
       });
   }, [tasks, taskFilter, timeFilter, showRecurring, searchTerm]);
 
+  // Use context's createTask which handles priority correctly
   const handleTaskCreate = (newTask) => {
-    // Find the right position for the new task based on due date
-    let insertIndex = tasks.length;
-
-    if (newTask.dueDate) {
-      // Parse date at noon to avoid timezone shift
-      const newDueDate = parseLocalDateAtNoon(newTask.dueDate);
-
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
-
-        // Skip overdue tasks
-        if (isTaskOverdue(task)) continue;
-
-        // If task has no due date or later due date, insert before it
-        // Parse existing task date at noon for correct comparison
-        if (!task.dueDate || parseLocalDateAtNoon(task.dueDate) > newDueDate) {
-          insertIndex = i;
-          break;
-        }
-      }
-    }
-
-    // Calculate customPriority based on position
-    const newTaskWithPriority = {
-      ...newTask,
-      customPriority: tasks.length - insertIndex + 1,
-    };
-
-    // Insert task at the right position
-    const updatedTasks = [...tasks];
-    updatedTasks.splice(insertIndex, 0, newTaskWithPriority);
-
-    // Recalculate all priorities to maintain order
-    const tasksWithUpdatedPriorities = updatedTasks.map((task, index) => ({
-      ...task,
-      customPriority: updatedTasks.length - index,
-    }));
-
-    updateTasks(tasksWithUpdatedPriorities);
+    createTask(newTask);
   };
 
+  // Use context's smartReset
   const handleSmartReset = () => {
-    // Confirm with user
     if (!window.confirm('Reset task order? This will re-sort all tasks by date and creation time, overriding your manual order.')) {
       return;
     }
-
-    const sortedTasks = [...tasks].sort((a, b) => {
-      const aOverdue = isTaskOverdue(a);
-      const bOverdue = isTaskOverdue(b);
-
-      // 1. Overdue first
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-
-      // 2. Sort by Due Date (Earliest first)
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-
-      if (a.dueDate && b.dueDate) {
-        if (a.dueDate !== b.dueDate) {
-          // Compare YYYY-MM-DD
-          return parseLocalDate(a.dueDate) - parseLocalDate(b.dueDate);
-        }
-
-        // Same date, check time
-        if (a.time && !b.time) return -1;
-        if (!a.time && b.time) return 1;
-        if (a.time && b.time) {
-          return a.time.localeCompare(b.time);
-        }
-        return 0; // Same date and time (or no time)
-      }
-
-      // 3. No due date: Newest created first
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-
-    // Re-assign customPriority strictly based on this new order
-    const resetTasks = sortedTasks.map((task, index) => ({
-      ...task,
-      customPriority: sortedTasks.length - index
-    }));
-
-    updateTasks(resetTasks);
+    smartReset();
   };
 
   return (

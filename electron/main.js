@@ -16,6 +16,7 @@ const initialBlocklistPath = store.get('focusBlocklistPath', '');
 
 let mainWindow;
 let mainWindowRef = null; // Reference for sending timer updates
+let isQuitting = false; // Flag to track explicit quitting
 
 // ============================================
 // POMODORO TIMER STATE (Main Process)
@@ -69,6 +70,16 @@ function createWindow() {
   // Store window reference for timer updates
   mainWindowRef = mainWindow;
 
+  mainWindow.on('close', (event) => {
+    if (process.platform === 'darwin' && !isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    } else {
+      mainWindow = null;
+      mainWindowRef = null;
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
     mainWindowRef = null;
@@ -86,7 +97,13 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
     }
+  });
+
+  app.on('before-quit', () => {
+    isQuitting = true;
   });
 });
 

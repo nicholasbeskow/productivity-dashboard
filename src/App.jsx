@@ -4,6 +4,7 @@ import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import backupManager from './utils/backupManager';
 import { getLocalISOString } from './utils/dateHelpers';
+import { TaskProvider } from './context/TaskContext';
 
 // Error Boundary to catch errors in lazy-loaded components
 class ErrorBoundary extends Component {
@@ -143,35 +144,37 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-bg-primary overflow-hidden relative">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <TaskProvider>
+        <div className="flex h-screen bg-bg-primary overflow-hidden relative">
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeInOut" }}
-                className="h-full"
-              >
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-white/70">Loading...</div>
-                  </div>
-                }>
-                  {renderTab()}
-                </Suspense>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </main>
+          <main className="flex-1 overflow-hidden">
+            <div className="h-full overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15, ease: "easeInOut" }}
+                  className="h-full"
+                >
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-white/70">Loading...</div>
+                    </div>
+                  }>
+                    {renderTab()}
+                  </Suspense>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </main>
 
-        {/* DRAG BAR: Height h-8 (32px) */}
-        <div className="fixed top-0 left-0 right-0 h-8 z-50 drag-region" />
-      </div>
+          {/* DRAG BAR: Height h-8 (32px) */}
+          <div className="fixed top-0 left-0 right-0 h-8 z-50 drag-region" />
+        </div>
+      </TaskProvider>
     </ErrorBoundary>
   );
 }
