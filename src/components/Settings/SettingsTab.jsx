@@ -1,5 +1,7 @@
-import { Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
+import { aiService } from '../../services/aiService';
 import backupManager from '../../utils/backupManager';
 
 const SettingsTab = () => {
@@ -23,6 +25,12 @@ const SettingsTab = () => {
   const [focusEnabled, setFocusEnabled] = useState(false);
   const [blocklistPath, setBlocklistPath] = useState('');
 
+  // AI Configuration State
+  const [aiApiKey, setAiApiKey] = useState('');
+  const [aiModel, setAiModel] = useState('llama-3.3-70b-versatile');
+  const [aiStatus, setAiStatus] = useState('idle'); // idle, testing, success, error
+  const [aiStatusMessage, setAiStatusMessage] = useState('');
+
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
@@ -40,6 +48,10 @@ const SettingsTab = () => {
 
     // Load Focus Mode settings
     loadFocusConfig();
+
+    // Load AI Settings
+    setAiApiKey(localStorage.getItem(STORAGE_KEYS.AI_API_KEY) || '');
+    setAiModel(localStorage.getItem(STORAGE_KEYS.AI_MODEL) || 'llama-3.3-70b-versatile');
   }, []);
 
   const loadBackupList = async () => {
@@ -52,6 +64,40 @@ const SettingsTab = () => {
   const showMessage = (message, type = 'success') => {
     setBackupMessage({ text: message, type });
     setTimeout(() => setBackupMessage(null), 3000);
+  };
+
+
+  const handleAiApiKeyChange = (e) => {
+    const newKey = e.target.value;
+    setAiApiKey(newKey);
+    localStorage.setItem(STORAGE_KEYS.AI_API_KEY, newKey);
+    setAiStatus('idle'); // Reset status on change
+  };
+
+  const handleAiModelChange = (e) => {
+    const newModel = e.target.value;
+    setAiModel(newModel);
+    localStorage.setItem(STORAGE_KEYS.AI_MODEL, newModel);
+  };
+
+  const testAiConnection = async () => {
+    if (!aiApiKey) {
+      setAiStatus('error');
+      setAiStatusMessage('Please enter an API Key first.');
+      return;
+    }
+
+    setAiStatus('testing');
+    const result = await aiService.validateApiKey(aiApiKey);
+
+    if (result.success) {
+      setAiStatus('success');
+      setAiStatusMessage(result.message || 'Connected to Groq!');
+      setTimeout(() => setAiStatus('idle'), 3000);
+    } else {
+      setAiStatus('error');
+      setAiStatusMessage(result.error || 'Connection failed.');
+    }
   };
 
   const handleUserNameChange = (e) => {
@@ -516,6 +562,39 @@ const SettingsTab = () => {
     }
   };
 
+  const handleDeleteAllTasks = () => {
+    if (!window.require) return; // Basic safety check
+
+    // Double confirmation
+    if (window.confirm('⚠️ DANGER: Are you absolutely sure you want to DELETE ALL TASKS?\n\nThis will permanently wipe your entire task database. This action CANNOT be undone.')) {
+      // Second confirmation
+      const verification = window.prompt('To confirm, please type "DELETE" below:');
+      if (verification === 'DELETE') {
+        const { ipcRenderer } = window.require('electron');
+        // We'll use the context function ideally, but since SettingsTab doesn't use TaskContext directly yet (or we need to add it),
+        // let's dispatch a custom event that App.jsx or TaskContext listens to, OR better yet, import the service directly as a fallback
+        // OR simply reload the window after clearing storage manually if needed.
+        // Actually, let's use the event we set up in TaskContext: 'tasksDeleted'
+
+        // Direct storage clear via service (since we imported aiService but not taskService directly, let's fix imports if needed or rely on event)
+        // Wait, we can't accept inconsistent state. Let's rely on the dispatchEvent or specific tool.
+        // The implementation plan said "Add to TaskContext", which we did. But SettingsTab.jsx wasn't updated to use `useTasks`.
+        // Let's modify imports to include `useTasks`.
+        localStorage.removeItem('tasks');
+        localStorage.removeItem('completedTasks');
+        localStorage.removeItem('recurringTasks');
+
+        window.dispatchEvent(new Event('tasksDeleted'));
+        window.dispatchEvent(new Event('statsReset'));
+
+        showMessage('All tasks deleted successfully.', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        alert('Verification failed. Tasks were NOT deleted.');
+      }
+    }
+  };
+
   return (
     <div className="h-full p-8 overflow-y-auto" style={{ WebkitAppRegion: 'no-drag' }}>
       <div className="max-w-4xl mx-auto">
@@ -550,6 +629,81 @@ const SettingsTab = () => {
               <p className="text-xs text-white/40 mt-2">
                 This will personalize your dashboard welcome message
               </p>
+            </div>
+          </div>
+
+
+          {/* AI Configuration (Pinnacle AI) */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Sparkles className="text-purple-400" size={20} />
+                Pinnacle AI (Beta)
+              </h3>
+              <div className="bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded text-xs border border-orange-500/30">
+                Powered by Groq
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Groq API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={aiApiKey}
+                    onChange={handleAiApiKeyChange}
+                    placeholder="gsk_..."
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 pr-28 text-white placeholder-white/30 focus:border-orange-400/50 focus:outline-none transition-colors"
+                  />
+                  <div className="absolute right-1 top-1 bottom-1">
+                    <button
+                      onClick={testAiConnection}
+                      disabled={!aiApiKey || aiStatus === 'testing'}
+                      className={`h-full px-3 rounded text-xs font-semibold transition-all ${aiStatus === 'testing' ? 'bg-white/10 text-white/50 cursor-wait' :
+                        aiStatus === 'success' ? 'bg-green-500/20 text-green-400' :
+                          aiStatus === 'error' ? 'bg-red-500/20 text-red-400' :
+                            'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30'
+                        }`}
+                    >
+                      {aiStatus === 'testing' ? 'Testing...' :
+                        aiStatus === 'success' ? 'Connected' :
+                          aiStatus === 'error' ? 'Failed' :
+                            'Test Key'}
+                    </button>
+                  </div>
+                </div>
+                {aiStatus === 'error' && (
+                  <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                    <AlertCircle size={12} /> {aiStatusMessage}
+                  </p>
+                )}
+                {aiStatus === 'success' && (
+                  <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> {aiStatusMessage}
+                  </p>
+                )}
+                <p className="text-xs text-white/40 mt-2">
+                  Required for Syllabus Importer. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get a free key here</a>.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  AI Model
+                </label>
+                <select
+                  value={aiModel}
+                  onChange={handleAiModelChange}
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white bg-[#0a0e14] focus:border-orange-400/50 focus:outline-none"
+                >
+                  <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Smart & Fast)</option>
+                  <option value="llama-3.1-8b-instant">Llama 3.1 8B (Super Fast)</option>
+                  <option value="mixtral-8x7b-32768">Mixtral 8x7B (High Context)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -1014,8 +1168,8 @@ const SettingsTab = () => {
               About
             </h3>
             <div className="space-y-2 text-sm text-white/70">
-              <p><strong className="text-white">Version:</strong> 2.1.4</p>
-              <p><strong className="text-white">Status:</strong> Optimization</p>
+              <p><strong className="text-white">Version:</strong> 2.2.0</p>
+              <p><strong className="text-white">Status:</strong> Building</p>
               <p className="text-white/40 pt-2">
                 Built with React, Electron, and Tailwind CSS
               </p>

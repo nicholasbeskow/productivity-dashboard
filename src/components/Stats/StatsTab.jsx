@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Activity, Heart, ArrowLeft, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target } from 'lucide-react';
+import { BarChart3, Activity, Heart, ArrowLeft, TrendingUp, TrendingDown, Flame, BookOpen, Home, Smile, Moon, Trophy, Target, BrainCircuit } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line, Pie } from 'react-chartjs-2';
 import {
@@ -1220,7 +1220,7 @@ const StatsTab = () => {
           </div>
 
           {/* Category Selection Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
             {/* Productivity Button */}
             <motion.button
               onClick={() => setActiveSection('productivity')}
@@ -1271,6 +1271,27 @@ const StatsTab = () => {
                 </div>
               </div>
             </motion.button>
+
+            {/* Wellness Doctor (Coming Soon) */}
+            <div className="glass-panel p-12 relative opacity-60 cursor-not-allowed border border-white/5 group">
+              <div className="absolute top-6 right-6 text-xs font-bold px-3 py-1 bg-white/10 text-white/40 rounded-full border border-white/5">
+                COMING SOON
+              </div>
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 rounded-full bg-blue-500/5 flex items-center justify-center grayscale opacity-50">
+                  <BrainCircuit className="text-blue-400" size={48} />
+                </div>
+                <div className="text-center opacity-50">
+                  <h3 className="text-3xl font-bold text-text-primary mb-2">Wellness Doctor</h3>
+                  <p className="text-text-secondary">
+                    AI-powered health & productivity insights
+                  </p>
+                </div>
+                <div className="mt-4 px-6 py-2 rounded-full bg-white/5 border border-white/10 opacity-0">
+                  <span className="text-white/20 font-semibold">Placeholder</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

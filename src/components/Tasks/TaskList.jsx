@@ -1,13 +1,13 @@
 import { useState, memo, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat, ArrowUp, RotateCcw } from 'lucide-react';
+import { Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat, ArrowUp, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
-import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
 import { isTaskOverdue } from '../../utils/taskHelpers';
 import { createNextRecurrence } from '../../utils/recurringTaskService';
 import { parseLocalDateAtNoon } from '../../utils/dateHelpers';
 import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
+import { getStatusIcon, getStatusLabel, getCardGlow, getCheckboxClass } from '../../utils/taskUIHelpers';
 import TaskForm from './TaskForm';
 
 // Memoized single task card for performance
@@ -76,53 +76,10 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
     setDragOverAttachmentIndex(null);
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'complete':
-        return <Check size={20} className="text-green-glow" />;
-      case 'in-progress':
-        return <Clock size={20} className="text-yellow-500" />;
-      default:
-        return <Circle size={20} className="text-white/40" />;
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'complete':
-        return 'Complete';
-      case 'in-progress':
-        return 'In Progress';
-      default:
-        return 'Not Started';
-    }
-  };
-
-  const getCardGlow = (task, isOverdue) => {
-    if (isOverdue) return 'task-glow-overdue';
-    switch (task.status) {
-      case 'complete':
-        return 'task-glow-complete';
-      case 'in-progress':
-        return 'task-glow-in-progress';
-      default:
-        return 'task-glow-not-started';
-    }
-  };
-
-
-
   const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
-
-  // Determine checkbox class based on status
-  const getCheckboxClass = () => {
-    if (taskIsOverdue) return 'checkbox-overdue';
-    if (task.status === 'complete') return 'checkbox-complete';
-    if (task.status === 'in-progress') return 'checkbox-in-progress';
-    return 'checkbox-not-started';
-  };
+  const checkboxClass = getCheckboxClass(task, taskIsOverdue);
 
   // File attachment handlers for edit mode
   const handleEditAttachFilesClick = async () => {
@@ -346,7 +303,7 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
           {/* Status Button */}
           <motion.button
             onClick={() => onStatusChange(task.id)}
-            className={`mt-1 relative flex-shrink-0 ${getCheckboxClass()}`}
+            className={`mt-1 relative flex-shrink-0 ${checkboxClass}`}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             title={`Click to change status (currently: ${getStatusLabel(task.status)})`}

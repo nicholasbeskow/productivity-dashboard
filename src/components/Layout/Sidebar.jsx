@@ -1,4 +1,4 @@
-import { Home, CheckSquare, BarChart3, Settings, BookOpen } from 'lucide-react';
+import { Home, CheckSquare, BarChart3, Settings, BookOpen, Sparkles } from 'lucide-react';
 import logo from '../../logo.png';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -51,13 +51,12 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         </ul>
       </nav>
 
-      {/* Footer */}
       <div className="p-4 border-t border-white/10">
         <p className="text-xs text-white/40 text-center">
           Made with ♥ by Nick
         </p>
       </div>
-    </aside>
+    </aside >
   );
 };
 

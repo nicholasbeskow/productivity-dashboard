@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import backupManager from './utils/backupManager';
-import { getLocalISOString } from './utils/dateHelpers';
+
 import { TaskProvider } from './context/TaskContext';
 
 // Error Boundary to catch errors in lazy-loaded components
@@ -61,6 +61,7 @@ const SettingsTab = lazy(() => import('./components/Settings/SettingsTab').catch
   console.error('Failed to load SettingsTab:', err);
   return { default: () => <div className="text-white p-8">Error loading Settings</div> };
 }));
+
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');

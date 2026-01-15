@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo, useRef, useMemo, useCallback, Suspense } from 'react';
-import { Check, Circle, Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
+import { Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import CircularProgress from './CircularProgress';
@@ -8,49 +8,20 @@ import MoodTracker from './MoodTracker';
 import SleepTracker from './SleepTracker';
 import TaskForm from '../Tasks/TaskForm';
 import backupManager from '../../utils/backupManager';
-import { dateToLocalISO, isoToDisplay, parseSmartDate, parseLocalDateAtNoon, getLocalISOString } from '../../utils/dateHelpers';
-import { calculateNextDueDate } from '../../utils/recurrenceHelpers';
+import { dateToLocalISO, parseLocalDateAtNoon, getLocalISOString } from '../../utils/dateHelpers';
+
 import { isTaskOverdue } from '../../utils/taskHelpers';
 import { createNextRecurrence } from '../../utils/recurringTaskService';
 import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
 import { useTasks } from '../../context/TaskContext';
-import { Moon } from 'lucide-react';
+import { getStatusIcon, getCardGlow, getCheckboxClass } from '../../utils/taskUIHelpers';
 
 const SemesterCompleteModal = React.lazy(() => import('./SemesterCompleteModal'));
 
 
-// ===== UTILITY FUNCTIONS (extracted for performance) =====
-const getStatusIcon = (status) => {
-  switch (status) {
-    case 'complete':
-      return <Check size={18} className="text-green-glow" />;
-    case 'in-progress':
-      return <Clock size={18} className="text-yellow-500" />;
-    default:
-      return <Circle size={18} className="text-white/40" />;
-  }
-};
-
-const getCardGlow = (task, isOverdue) => {
-  if (isOverdue) return 'task-glow-overdue';
-  switch (task.status) {
-    case 'complete': return 'task-glow-complete';
-    case 'in-progress': return 'task-glow-in-progress';
-    default: return 'task-glow-not-started';
-  }
-};
-
-
-
-const getCheckboxClass = (task, taskIsOverdue) => {
-  if (taskIsOverdue) return 'checkbox-overdue';
-  if (task.status === 'complete') return 'checkbox-complete';
-  if (task.status === 'in-progress') return 'checkbox-in-progress';
-  return 'checkbox-not-started';
-};
 
 // ===== TASK CARD COMPONENT =====
-const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }) => {
+const TaskCard = memo(React.forwardRef(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }, ref) => {
   const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
@@ -112,6 +83,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
 
   return (
     <motion.div
+      ref={ref}
       layout={!isJustCompleted}
       initial={{ opacity: 0, y: -10 }}
       animate={{
@@ -308,7 +280,7 @@ const TaskCard = memo(({ task, justCompletedId, onViewDetails, onStatusChange, o
       </div>
     </motion.div>
   );
-});
+}));
 
 TaskCard.displayName = 'TaskCard';
 
@@ -703,7 +675,7 @@ const Dashboard = ({ setActiveTab }) => {
     const visibleDropIndex = displayTasks.findIndex(t => t.id === dropTask.id);
 
     if (visibleDragIndex === -1 || visibleDropIndex === -1) {
-      console.warn('[Dashboard] Could not find dragged or drop task in visible list');
+
       handleDragEnd();
       return;
     }
@@ -740,7 +712,7 @@ const Dashboard = ({ setActiveTab }) => {
       newPriority = (beforePriority + dropTaskPriority) / 2;
     }
 
-    console.log('[Dashboard] handleDrop: Moving task', draggedTask.title, 'to priority', newPriority);
+
 
     // Update only the dragged task's priority in the full task list
     const updatedTasks = tasks.map(t => {

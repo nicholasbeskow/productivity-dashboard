@@ -28,6 +28,10 @@ export const STORAGE_KEYS = {
 
   // Sleep tracking
   SLEEP_LOG: 'sleepLog',
+
+  // AI Configuration
+  AI_API_KEY: 'aiApiKey',
+  AI_MODEL: 'aiModel',
 };
 
 // Event names for window.dispatchEvent

@@ -10,7 +10,8 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
   const [dueDate, setDueDate] = useState(''); // Internal ISO format: YYYY-MM-DD
   const [dateInput, setDateInput] = useState(''); // User input / Display format: MM-DD-YYYY
   const [time, setTime] = useState('');
-  const [taskType, setTaskType] = useState('academic');
+  const [taskType, setTaskType] = useState('academic'); // Academic/Personal
+  const [course, setCourse] = useState(''); // Course name
   const [status, setStatus] = useState('not-started');
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -48,6 +49,7 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
       setDateInput(isoToDisplay(initialData.dueDate || ''));
       setTime(initialData.time || '');
       setTaskType(initialData.taskType || 'academic');
+      setCourse(initialData.course || ''); // Load course
       setStatus(initialData.status || 'not-started');
       setAttachments(initialData.attachments || []);
 
@@ -126,6 +128,7 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
       setDateInput('');
       setTime('');
       setTaskType('academic');
+      setCourse('');
       setAttachments([]);
       setRecurrenceType('does-not-repeat');
       setWeeklyDays([]);
@@ -316,10 +319,11 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         dueDate: finalDueDate || null,
         time: time || null,
+        time: time || null,
         taskType: taskType,
+        course: course.trim() || null, // Add course
         status: status,
         attachments: attachments,
-        scope: editScope, // Include edit scope for parent to handle
       };
 
       if (isUpgradingToRecurring) {
@@ -375,7 +379,10 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
           description: description.trim(),
           url: url.trim() || null,
           time: time || null,
+          url: url.trim() || null,
+          time: time || null,
           taskType: taskType,
+          course: course.trim() || null, // Add course
           attachments: attachments,
           recurrence: newRecurrence,
           createdAt: new Date().toISOString(),
@@ -522,6 +529,10 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         time: time || null,
         taskType: taskType,
+        url: url.trim() || null,
+        time: time || null,
+        taskType: taskType,
+        course: course.trim() || null, // Add course
         attachments: attachments,
         recurrence: recurrence,
         createdAt: new Date().toISOString(),
@@ -619,8 +630,10 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         dueDate: finalDueDate || null,
         time: time || null,
+        time: time || null,
         status: 'not-started',
         taskType: taskType,
+        course: course.trim() || null, // Add course
         createdAt: new Date().toISOString(),
         completedAt: null,
         attachments: attachments,
@@ -637,7 +650,9 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
     setDueDate('');
     setDateInput('');
     setTime('');
+    setTime('');
     setTaskType('academic');
+    setCourse('');
     setAttachments([]);
     setRecurrenceType('does-not-repeat');
     setWeeklyDays([]);
@@ -718,6 +733,22 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
             rows={3}
             className="w-full liquid-bubble-filled rounded-xl p-4 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none resize-none transition-colors"
           />
+        </div>
+
+        {/* Course Inputs */}
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-sm text-white/50 mb-2">
+              Course (Optional)
+            </label>
+            <input
+              type="text"
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              placeholder="e.g. CS 101"
+              className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+            />
+          </div>
         </div>
 
         {/* Due Date and Time Row - Show for non-weekly tasks OR when editing (even weekly tasks need dates when editing) */}
