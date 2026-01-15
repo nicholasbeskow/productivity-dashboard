@@ -82,7 +82,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
       // Check if this is a recurring task (has recurrence or templateId)
       const isRecurring = !!(recurrence || initialData.templateId);
       setIsRecurringEdit(isRecurring);
-      setIsRecurringEdit(isRecurring);
       setShowRecurrence(isRecurring); // Auto-expand recurrence if editing recurring task
 
       // Reset scope to 'instance' when opening a task, and notify parent
@@ -134,7 +133,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
       setWeeklyDays([]);
       setCustomInterval(1);
       setCustomUnit('days');
-      setIsRecurringEdit(false);
       setIsRecurringEdit(false);
       handleScopeChange('instance');
       setShowFiles(false);
@@ -319,7 +317,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         dueDate: finalDueDate || null,
         time: time || null,
-        time: time || null,
         taskType: taskType,
         course: course.trim() || null, // Add course
         status: status,
@@ -377,8 +374,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
           id: templateId,
           title: title.trim(),
           description: description.trim(),
-          url: url.trim() || null,
-          time: time || null,
           url: url.trim() || null,
           time: time || null,
           taskType: taskType,
@@ -529,9 +524,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         time: time || null,
         taskType: taskType,
-        url: url.trim() || null,
-        time: time || null,
-        taskType: taskType,
         course: course.trim() || null, // Add course
         attachments: attachments,
         recurrence: recurrence,
@@ -630,7 +622,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         url: url.trim() || null,
         dueDate: finalDueDate || null,
         time: time || null,
-        time: time || null,
         status: 'not-started',
         taskType: taskType,
         course: course.trim() || null, // Add course
@@ -649,7 +640,6 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
     setUrl('');
     setDueDate('');
     setDateInput('');
-    setTime('');
     setTime('');
     setTaskType('academic');
     setCourse('');
