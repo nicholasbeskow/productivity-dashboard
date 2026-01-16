@@ -1275,6 +1275,30 @@ const StatsTab = () => {
 
 
           </div>
+
+          {/* Wellness Doctor - Horizontal */}
+          <div className="max-w-4xl mx-auto mt-8">
+            <motion.button
+              onClick={() => setActiveSection('wellness-doctor')}
+              className="w-full glass-panel p-8 relative border border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/5 group flex flex-col md:flex-row items-center gap-8 transition-all duration-300"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <div className="w-20 h-20 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors duration-300">
+                <BrainCircuit className="text-blue-400" size={40} />
+              </div>
+              <div className="text-center md:text-left flex-1">
+                <h3 className="text-2xl font-bold text-text-primary mb-2">Wellness Doctor</h3>
+                <p className="text-text-secondary">
+                  AI-powered health & productivity insights
+                </p>
+              </div>
+              <div className="hidden md:block px-6 py-2 rounded-full bg-blue-500/10 border border-blue-500/30">
+                <span className="text-blue-400 font-semibold">View Insights →</span>
+              </div>
+            </motion.button>
+          </div>
         </div>
       </div>
     );
@@ -1353,30 +1377,6 @@ const StatsTab = () => {
               </div>
             </motion.button>
           </div>
-
-          {/* Wellness Doctor - Horizontal (Now Clickable!) */}
-          <div className="max-w-5xl mx-auto">
-            <motion.button
-              onClick={() => setActiveSection('wellness-doctor')}
-              className="w-full glass-panel p-8 relative border border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/5 group flex flex-col md:flex-row items-center gap-8 transition-all duration-300"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              style={{ WebkitAppRegion: 'no-drag' }}
-            >
-              <div className="w-20 h-20 shrink-0 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors duration-300">
-                <BrainCircuit className="text-blue-400" size={40} />
-              </div>
-              <div className="text-center md:text-left flex-1">
-                <h3 className="text-2xl font-bold text-text-primary mb-2">Wellness Doctor</h3>
-                <p className="text-text-secondary">
-                  AI-powered health & productivity insights
-                </p>
-              </div>
-              <div className="hidden md:block px-6 py-2 rounded-full bg-blue-500/10 border border-blue-500/30">
-                <span className="text-blue-400 font-semibold">View Insights →</span>
-              </div>
-            </motion.button>
-          </div>
         </div>
       </div>
     );
@@ -1384,7 +1384,7 @@ const StatsTab = () => {
 
   // WELLNESS DOCTOR SECTION
   if (activeSection === 'wellness-doctor') {
-    return <WellnessDoctor onBack={() => setActiveSection('wellbeing')} />;
+    return <WellnessDoctor onBack={() => setActiveSection('main')} />;
   }
 
   // PRODUCTIVITY SECTION

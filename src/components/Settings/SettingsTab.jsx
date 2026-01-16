@@ -28,12 +28,21 @@ const RecentCompletedTasks = ({ onUpdate }) => {
   };
 
   const handleDateChange = (taskId, newDate) => {
+    // Only process complete, valid dates (YYYY-MM-DD format)
+    if (!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      return; // Ignore incomplete/invalid dates
+    }
+
+    const dateObj = new Date(newDate + 'T12:00:00');
+    if (isNaN(dateObj.getTime())) {
+      return; // Ignore invalid date values
+    }
+
     // Update in localStorage
     const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
     const updatedTasks = stored.map(task => {
       if (task.id === taskId) {
         // Create a date at noon local time to avoid timezone issues
-        const dateObj = new Date(newDate + 'T12:00:00');
         return { ...task, completedAt: dateObj.toISOString() };
       }
       return task;
