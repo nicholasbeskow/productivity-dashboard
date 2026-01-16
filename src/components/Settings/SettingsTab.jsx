@@ -1,8 +1,97 @@
 import { useState, useEffect } from 'react';
-import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { aiService } from '../../services/aiService';
 import backupManager from '../../utils/backupManager';
+
+// Component for managing recent completed tasks
+const RecentCompletedTasks = ({ onUpdate }) => {
+  const [completedTasks, setCompletedTasks] = useState([]);
+
+  useEffect(() => {
+    loadRecentTasks();
+  }, []);
+
+  const loadRecentTasks = () => {
+    const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Filter to tasks completed in the last 7 days
+    const recent = stored.filter(task => {
+      if (!task.completedAt) return false;
+      const completedDate = new Date(task.completedAt);
+      return completedDate >= sevenDaysAgo;
+    }).sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+    setCompletedTasks(recent);
+  };
+
+  const handleDateChange = (taskId, newDate) => {
+    // Update in localStorage
+    const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+    const updatedTasks = stored.map(task => {
+      if (task.id === taskId) {
+        // Create a date at noon local time to avoid timezone issues
+        const dateObj = new Date(newDate + 'T12:00:00');
+        return { ...task, completedAt: dateObj.toISOString() };
+      }
+      return task;
+    });
+    localStorage.setItem('completedTasks', JSON.stringify(updatedTasks));
+
+    // Update local state
+    loadRecentTasks();
+
+    // Notify parent
+    if (onUpdate) onUpdate();
+  };
+
+  const formatDate = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD format for input
+  };
+
+  const formatDisplayDate = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  if (completedTasks.length === 0) {
+    return (
+      <div className="text-center py-6 text-white/40">
+        <Calendar size={32} className="mx-auto mb-2 opacity-50" />
+        <p>No completed tasks in the past 7 days</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto">
+      {completedTasks.map(task => (
+        <div
+          key={task.id}
+          className="flex items-center justify-between gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium truncate">{task.title}</div>
+            <div className="text-xs text-white/40">{formatDisplayDate(task.completedAt)}</div>
+          </div>
+          <div className="shrink-0">
+            <input
+              type="date"
+              value={formatDate(task.completedAt)}
+              onChange={(e) => handleDateChange(task.id, e.target.value)}
+              className="bg-transparent border border-white/20 rounded px-2 py-1 text-sm text-white focus:border-green-glow/50 focus:outline-none"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const SettingsTab = () => {
   const [userName, setUserName] = useState('');
@@ -647,31 +736,39 @@ const SettingsTab = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Groq API Key
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm text-white/70">
+                    Groq API Keys
+                  </label>
+                  {aiApiKey && (
+                    <span className="text-xs text-white/40">
+                      {aiApiKey.split(/[\n,\s]+/).filter(k => k.startsWith('gsk_')).length} key(s)
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
-                  <input
-                    type="password"
+                  <textarea
                     value={aiApiKey}
                     onChange={handleAiApiKeyChange}
-                    placeholder="gsk_..."
-                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 pr-28 text-white placeholder-white/30 focus:border-orange-400/50 focus:outline-none transition-colors"
+                    placeholder="gsk_xxxxxxxxxxxx&#10;gsk_yyyyyyyyyyyy&#10;(one per line, comma, or space separated)"
+                    rows={3}
+                    spellCheck={false}
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-3 pr-24 text-white placeholder-white/30 focus:border-orange-400/50 focus:outline-none transition-colors resize-none font-mono text-xs leading-relaxed"
                   />
-                  <div className="absolute right-1 top-1 bottom-1">
+                  <div className="absolute right-2 bottom-2">
                     <button
                       onClick={testAiConnection}
                       disabled={!aiApiKey || aiStatus === 'testing'}
-                      className={`h-full px-3 rounded text-xs font-semibold transition-all ${aiStatus === 'testing' ? 'bg-white/10 text-white/50 cursor-wait' :
+                      className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${aiStatus === 'testing' ? 'bg-white/10 text-white/50 cursor-wait' :
                         aiStatus === 'success' ? 'bg-green-500/20 text-green-400' :
                           aiStatus === 'error' ? 'bg-red-500/20 text-red-400' :
                             'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30'
                         }`}
                     >
-                      {aiStatus === 'testing' ? 'Testing...' :
-                        aiStatus === 'success' ? 'Connected' :
-                          aiStatus === 'error' ? 'Failed' :
-                            'Test Key'}
+                      {aiStatus === 'testing' ? 'Validating...' :
+                        aiStatus === 'success' ? 'Valid ✓' :
+                          aiStatus === 'error' ? 'Failed ✗' :
+                            'Validate'}
                     </button>
                   </div>
                 </div>
@@ -686,7 +783,7 @@ const SettingsTab = () => {
                   </p>
                 )}
                 <p className="text-xs text-white/40 mt-2">
-                  Required for Syllabus Importer. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get a free key here</a>.
+                  Add multiple keys to auto-rotate when rate limits are hit. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get free keys →</a>
                 </p>
               </div>
 
@@ -853,6 +950,19 @@ const SettingsTab = () => {
             </div>
           </div>
 
+          {/* Recent Completed Tasks - Backdate Completion */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Recent Completed Tasks
+            </h3>
+            <p className="text-sm text-white/50 mb-4">
+              Change completion dates for tasks completed in the past 7 days
+            </p>
+            <RecentCompletedTasks onUpdate={() => {
+              backupManager.saveAutoBackup();
+              window.dispatchEvent(new Event('storage'));
+            }} />
+          </div>
           {/* Canvas Integration */}
           <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
             <h3 className="text-lg font-semibold text-white mb-4">

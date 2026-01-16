@@ -139,27 +139,37 @@ const TasksTab = () => {
         }
 
         if (timeFilter === 'month') {
-          // Show Overdue + Due within current month
+          // Show Overdue + Due within next 31 days (Rolling Window)
           if (isOverdue) return true;
           if (!task.dueDate) return false;
 
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const thirtyOneDaysFromNow = new Date(today);
+          thirtyOneDaysFromNow.setDate(thirtyOneDaysFromNow.getDate() + 31);
+
           const taskDate = parseLocalDate(task.dueDate);
 
-          // Check if same month and year
-          return taskDate.getMonth() === today.getMonth() && taskDate.getFullYear() === today.getFullYear();
+          // Check if between today and 31 days from now
+          return taskDate >= today && taskDate <= thirtyOneDaysFromNow;
         }
 
         if (timeFilter === 'later') {
-          // Show Due after this month OR No Due Date (if not overdue)
+          // Show Due after 31 days OR No Due Date (if not overdue)
           if (isOverdue) return false; // Overdue belongs to Today/Week/Month
           if (!task.dueDate) return true; // No date = Later
 
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const thirtyOneDaysFromNow = new Date(today);
+          thirtyOneDaysFromNow.setDate(thirtyOneDaysFromNow.getDate() + 31);
+
           const taskDate = parseLocalDate(task.dueDate);
 
-          // Return true if future month or future year
-          return taskDate.getMonth() > today.getMonth() || taskDate.getFullYear() > today.getFullYear();
+          // Return true if after 31 days
+          return taskDate > thirtyOneDaysFromNow;
         }
 
         return true;
@@ -170,8 +180,26 @@ const TasksTab = () => {
 
         const titleMatch = task.title.toLowerCase().includes(lowerCaseSearch);
         const descMatch = (task.description || '').toLowerCase().includes(lowerCaseSearch);
+        const courseMatch = (task.course || '').toLowerCase().includes(lowerCaseSearch);
 
-        return titleMatch || descMatch;
+        let dateMatch = false;
+        if (task.dueDate) {
+          // Search by ISO format (2025-01-15), month names (jan, january), or MM/DD
+          const isoMatch = task.dueDate.toLowerCase().includes(lowerCaseSearch);
+
+          // Format dueDate for additional matching (e.g., "Jan 15", "January 15")
+          try {
+            const d = parseLocalDate(task.dueDate);
+            const shortMonth = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase();
+            const longMonth = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toLowerCase();
+            const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+            dateMatch = isoMatch || shortMonth.includes(lowerCaseSearch) || longMonth.includes(lowerCaseSearch) || mmdd.includes(lowerCaseSearch);
+          } catch {
+            dateMatch = isoMatch;
+          }
+        }
+
+        return titleMatch || descMatch || courseMatch || dateMatch;
       })
       .sort((a, b) => {
         // 1. Primary Split: Overdue tasks always at the top

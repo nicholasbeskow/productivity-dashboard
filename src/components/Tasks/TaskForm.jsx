@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, FileText, UploadCloud, X, Repeat, Link as LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, FileText, UploadCloud, X, Repeat, Link as LinkIcon, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import backupManager from '../../utils/backupManager';
 import { getToday, getTomorrow, isoToDisplay, parseSmartDate } from '../../utils/dateHelpers';
 
 const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
+  const datePickerRef = useRef(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -321,6 +322,7 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
         course: course.trim() || null, // Add course
         status: status,
         attachments: attachments,
+        scope: editScope, // Pass scope so parent can route to series vs instance edit logic
       };
 
       if (isUpgradingToRecurring) {
@@ -747,7 +749,7 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
             <div>
               <label className="flex justify-between items-center text-sm text-white/50 mb-2">
                 <span>Due Date</span>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <button
                     type="button"
                     onClick={setDueToday}
@@ -762,6 +764,38 @@ const TaskForm = ({ onTaskCreate, initialData = null, onScopeChange }) => {
                   >
                     Tomorrow
                   </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (datePickerRef.current?.showPicker) {
+                          datePickerRef.current.showPicker();
+                        } else {
+                          datePickerRef.current?.focus();
+                          datePickerRef.current?.click();
+                        }
+                      }}
+                      className="p-1 rounded text-white/40 hover:text-green-glow hover:bg-white/5 transition-colors"
+                      title="Open calendar"
+                    >
+                      <Calendar size={14} />
+                    </button>
+                    <input
+                      ref={datePickerRef}
+                      type="date"
+                      value={dueDate}
+                      className="absolute top-0 left-0 opacity-0 w-full h-full cursor-pointer"
+                      style={{ pointerEvents: 'none' }}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        if (newDate) {
+                          setDueDate(newDate);
+                          setDateInput(isoToDisplay(newDate));
+                        }
+                      }}
+                      tabIndex={-1}
+                    />
+                  </div>
                 </div>
               </label>
               <input

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo, useRef, useMemo, useCallback, Suspense } from 'react';
-import { Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat } from 'lucide-react';
+import { Clock, AlertCircle, Sparkles, ExternalLink, GripVertical, X, ArrowLeft, Pencil, Save, Trash2, FileText, Folder, Repeat, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import CircularProgress from './CircularProgress';
@@ -187,6 +187,12 @@ const TaskCard = memo(React.forwardRef(({ task, justCompletedId, onViewDetails, 
                   OVERDUE
                 </span>
               )}
+              {task.course && (
+                <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5 flex-shrink-0 max-w-[100px]" title={task.course}>
+                  <BookOpen size={8} className="flex-shrink-0" />
+                  <span className="truncate">{task.course}</span>
+                </span>
+              )}
             </div>
             {task.dueDate && (
               <p className={`text-xs flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
@@ -306,6 +312,7 @@ const Dashboard = ({ setActiveTab }) => {
     time: '',
     status: 'not-started',
     taskType: 'academic',
+    course: '',
     attachments: []
   });
   // Edit scope ref for recurring tasks (synced with TaskForm)
@@ -743,6 +750,7 @@ const Dashboard = ({ setActiveTab }) => {
       time: task.time || '',
       status: task.status,
       taskType: task.taskType || 'academic',
+      course: task.course || '',
       attachments: task.attachments || []
     });
   };
@@ -758,6 +766,7 @@ const Dashboard = ({ setActiveTab }) => {
       time: '',
       status: 'not-started',
       taskType: 'academic',
+      course: '',
       attachments: []
     });
     // Scroll to top when returning to main dashboard
@@ -999,6 +1008,7 @@ const Dashboard = ({ setActiveTab }) => {
               url: editForm.url.trim() || null,
               time: editForm.time || null,
               taskType: editForm.taskType,
+              course: editForm.course?.trim() || null,
               attachments: editForm.attachments || []
             };
           }
@@ -1018,6 +1028,7 @@ const Dashboard = ({ setActiveTab }) => {
               url: editForm.url.trim() || null,
               time: editForm.time || null,
               taskType: editForm.taskType,
+              course: editForm.course?.trim() || null,
               attachments: editForm.attachments || [],
               // Keep instance-specific fields unchanged
             };
@@ -1038,6 +1049,7 @@ const Dashboard = ({ setActiveTab }) => {
               url: editForm.url.trim() || null,
               time: editForm.time || null,
               taskType: editForm.taskType,
+              course: editForm.course?.trim() || null,
               attachments: editForm.attachments || [],
               // Keep instance-specific fields unchanged
             };
@@ -1387,6 +1399,7 @@ const Dashboard = ({ setActiveTab }) => {
                                             url: updatedFields.url || null,
                                             time: updatedFields.time || null,
                                             taskType: updatedFields.taskType || 'academic',
+                                            course: updatedFields.course || null,
                                             attachments: updatedFields.attachments || [],
                                             recurrence: updatedFields.recurrence,
                                             createdAt: new Date().toISOString()
@@ -1403,6 +1416,7 @@ const Dashboard = ({ setActiveTab }) => {
                                             dueDate: instanceDueDate,
                                             time: updatedFields.time || null,
                                             taskType: updatedFields.taskType || 'academic',
+                                            course: updatedFields.course || null,
                                             attachments: updatedFields.attachments || [],
                                             templateId: newTemplateId,
                                             recurrenceAnchor: instanceDueDate,

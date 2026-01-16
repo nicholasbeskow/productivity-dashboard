@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink, Sparkles, Wand2, Link } from 'lucide-react';
+import { BookOpen, Check, X, RefreshCw, Clock, ExternalLink, Sparkles, Wand2, Link, AlertTriangle } from 'lucide-react';
 import { useTasks } from '../../context/TaskContext';
 import backupManager from '../../utils/backupManager';
 import { aiService } from '../../services/aiService';
+
 const CanvasTab = () => {
   const { tasks, createTask, updateTask } = useTasks();
 
@@ -16,6 +17,8 @@ const CanvasTab = () => {
   const [refinementText, setRefinementText] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
+  // Custom confirmation modal state
+  const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm, onCancel }
 
   // Helper functions for managing processed IDs
   const getProcessedIds = () => {
@@ -234,10 +237,11 @@ const CanvasTab = () => {
     try {
       // 1. Check for existing merge candidate first
       if (mergeCandidates[assignment.id]) {
-        const confirmMerge = window.confirm(
-          `We found a matching task: "${mergeCandidates[assignment.id].taskTitle}".\n\nDo you want to MERGE this assignment into it instead of creating a duplicate?`
+        const shouldMerge = await showConfirm(
+          'Matching Task Found',
+          `We found a matching task: "${mergeCandidates[assignment.id].taskTitle}".\n\nMerge this assignment into it instead of creating a duplicate?`
         );
-        if (confirmMerge) {
+        if (shouldMerge) {
           handleOpenMerge(assignment);
           return;
         }
@@ -261,18 +265,23 @@ const CanvasTab = () => {
         });
 
         if (potentialMatches.length > 0) {
-          const confirmCheck = window.confirm(
-            `There are existing tasks on the same day or with similar names (e.g. "${potentialMatches[0].title}").\n\nDo you want to check for a match to avoid duplicates?`
+          const shouldCheck = await showConfirm(
+            'Similar Tasks Exist',
+            `There are existing tasks on the same day or with similar names (e.g. "${potentialMatches[0].title}").\n\nCheck for duplicates before adding?`
           );
 
-          if (confirmCheck) {
+          if (shouldCheck) {
             setIsMatching(true);
             const aiResult = await aiService.matchCanvasToTasks(assignment, potentialMatches);
             setIsMatching(false);
 
             if (aiResult.matchId) {
               const matchTitle = tasks.find(t => t.id === aiResult.matchId)?.title;
-              if (window.confirm(`Found a match: "${matchTitle}". Open merge preview?`)) {
+              const openMerge = await showConfirm(
+                'Match Found',
+                `Found a match: "${matchTitle}".\n\nOpen merge preview?`
+              );
+              if (openMerge) {
                 // Update state manually so handleMerge works
                 const newCandidates = {
                   ...mergeCandidates,
@@ -355,6 +364,18 @@ const CanvasTab = () => {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
+  };
+
+  // Custom confirm dialog helper
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      setConfirmModal({
+        title,
+        message,
+        onConfirm: () => { setConfirmModal(null); resolve(true); },
+        onCancel: () => { setConfirmModal(null); resolve(false); }
+      });
+    });
   };
 
   // Load assignments on mount
@@ -642,7 +663,7 @@ const CanvasTab = () => {
                 onClick={() => setExaminingMerge(null)}
                 className="px-6 py-2 rounded-lg font-medium text-white/60 hover:text-white hover:bg-white/5 transition-all"
               >
-                Cancel
+                No
               </button>
               <button
                 onClick={confirmMerge}
@@ -654,6 +675,42 @@ const CanvasTab = () => {
             </div>
           </div>
         </div >
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={confirmModal.onCancel}>
+          <div className="w-full max-w-md bg-[#0a0e14] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b border-white/10 bg-white/5 flex items-center gap-3">
+              <div className="p-2 rounded-full bg-yellow-500/20">
+                <AlertTriangle className="text-yellow-400" size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-white">{confirmModal.title}</h3>
+            </div>
+
+            {/* Body */}
+            <div className="p-5">
+              <p className="text-white/80 whitespace-pre-wrap">{confirmModal.message}</p>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end gap-3">
+              <button
+                onClick={confirmModal.onCancel}
+                className="px-5 py-2 rounded-lg font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+              >
+                No
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="px-5 py-2 rounded-lg font-bold text-white bg-green-600 hover:bg-green-500 transition-all"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div >
   );

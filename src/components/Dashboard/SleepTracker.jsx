@@ -317,11 +317,10 @@ const SleepTracker = () => {
           key={day}
           onClick={() => handleDayClick(date)}
           disabled={isFuture}
-          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${
-            isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
-            sleepEntry ? 'liquid-bubble-filled' :
-            isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
-          }`}
+          className={`h-12 flex flex-col items-center justify-center rounded-xl transition-all relative focus:outline-none focus-visible:outline-none outline-none border-0 group ${isFuture ? 'opacity-30 cursor-not-allowed bg-zinc-800/30' :
+              sleepEntry ? 'liquid-bubble-filled' :
+                isToday ? 'liquid-bubble-today' : 'liquid-bubble-empty hover:liquid-bubble-hover'
+            }`}
           style={{ border: 'none', outline: 'none' }}
           whileHover={!isFuture ? { scale: 1.05, y: -1 } : {}}
           whileTap={!isFuture ? { scale: 0.95 } : {}}
@@ -364,11 +363,10 @@ const SleepTracker = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`mb-4 p-3 rounded-lg flex items-start gap-2 ${
-            sleepWarning.type === 'critical'
+          className={`mb-4 p-3 rounded-lg flex items-start gap-2 ${sleepWarning.type === 'critical'
               ? 'bg-red-500/10 border border-red-500/30'
               : 'bg-orange-500/10 border border-orange-500/30'
-          }`}
+            }`}
         >
           <AlertTriangle
             size={18}
@@ -390,11 +388,10 @@ const SleepTracker = () => {
           </div>
           <div className="liquid-bubble-filled rounded-lg p-3">
             <p className="text-xs text-white/50 mb-1">Weekly Sleep Debt</p>
-            <p className={`text-lg font-bold ${
-              parseFloat(sleepDebt.debt) === 0 ? 'text-green-glow' :
-              parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
-              'text-orange-500'
-            }`}>
+            <p className={`text-lg font-bold ${parseFloat(sleepDebt.debt) === 0 ? 'text-green-glow' :
+                parseFloat(sleepDebt.debt) > 5 ? 'text-red-500' :
+                  'text-orange-500'
+              }`}>
               {sleepDebt.debt}h
             </p>
             <p className="text-[10px] text-white/40">vs {sleepDebt.targetPerNight}h/night target</p>
@@ -461,7 +458,7 @@ const SleepTracker = () => {
                   type="range"
                   min="0"
                   max="12"
-                  step="0.5"
+                  step="0.25"
                   value={selectedHours}
                   onChange={(e) => setSelectedHours(parseFloat(e.target.value))}
                   className="w-full h-3 rounded-lg appearance-none cursor-pointer"
@@ -545,11 +542,10 @@ const SleepTracker = () => {
                     <motion.button
                       key={quality.level}
                       onClick={() => setSelectedQuality(quality)}
-                      className={`px-4 py-2 rounded-xl transition-all ${
-                        isSelected
+                      className={`px-4 py-2 rounded-xl transition-all ${isSelected
                           ? `${quality.color} liquid-bubble-filled`
                           : 'liquid-bubble-empty text-white/60 hover:liquid-bubble-hover hover:text-white/80'
-                      }`}
+                        }`}
                       style={{
                         boxShadow: isSelected ? `0 0 8px ${quality.glowColor}` : 'none'
                       }}
@@ -579,11 +575,10 @@ const SleepTracker = () => {
               <button
                 onClick={handleSaveEntry}
                 disabled={!selectedQuality}
-                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
-                  selectedQuality
+                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${selectedQuality
                     ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-lg'
                     : 'bg-bg-tertiary text-text-tertiary cursor-not-allowed'
-                }`}
+                  }`}
               >
                 <Save size={18} />
                 Log Sleep

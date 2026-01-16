@@ -74,10 +74,8 @@ function createWindow() {
     if (process.platform === 'darwin' && !isQuitting) {
       event.preventDefault();
       mainWindow.hide();
-    } else {
-      mainWindow = null;
-      mainWindowRef = null;
     }
+    // When actually quitting, allow the window to close naturally
   });
 
   mainWindow.on('closed', () => {

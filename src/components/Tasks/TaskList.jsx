@@ -1,6 +1,6 @@
 import { useState, memo, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat, ArrowUp, RotateCcw } from 'lucide-react';
+import { Clock, ExternalLink, Sparkles, AlertCircle, GripVertical, Pencil, Save, X, MoreVertical, Copy, Trash2, FileText, Folder, Repeat, ArrowUp, RotateCcw, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import backupManager from '../../utils/backupManager';
 import { isTaskOverdue } from '../../utils/taskHelpers';
@@ -347,6 +347,12 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
                 <span className="bg-green-glow bg-opacity-20 text-green-glow text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 flex-shrink-0" title="This is a recurring task instance">
                   <Repeat size={10} />
                   RECURRING
+                </span>
+              )}
+              {task.course && (
+                <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 flex-shrink-0 max-w-[120px]" title={`Course: ${task.course}`}>
+                  <BookOpen size={10} className="flex-shrink-0" />
+                  <span className="truncate">{task.course}</span>
                 </span>
               )}
             </div>
@@ -862,6 +868,7 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
         url: updatedFields.url || null,
         time: updatedFields.time || null,
         taskType: updatedFields.taskType || 'academic',
+        course: updatedFields.course || null,
         attachments: updatedFields.attachments || [],
         recurrence: updatedFields.recurrence,
         createdAt: new Date().toISOString()
@@ -878,6 +885,7 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
         dueDate: instanceDueDate,
         time: updatedFields.time || null,
         taskType: updatedFields.taskType || 'academic',
+        course: updatedFields.course || null,
         attachments: updatedFields.attachments || [],
         templateId: newTemplateId,
         recurrenceAnchor: instanceDueDate,

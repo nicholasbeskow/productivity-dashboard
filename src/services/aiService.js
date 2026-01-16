@@ -2,101 +2,160 @@ import Groq from 'groq-sdk';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { getString } from '../utils/storageManager';
 
-const getApiKey = () => getString(STORAGE_KEYS.AI_API_KEY, '');
+// Split by comma or newline, trim, and filter empty
+const getApiKeys = () => {
+    const raw = getString(STORAGE_KEYS.AI_API_KEY, '');
+    return raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
+};
 const getModelName = () => getString(STORAGE_KEYS.AI_MODEL, 'llama-3.3-70b-versatile');
 
 class AIService {
     constructor() {
-        this.groq = null;
+        this.client = null;
+        this.currentKeyIndex = 0;
     }
 
-    _initClient() {
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            throw new Error('AI API Key not found. Please configure it in Settings.');
-        }
-        // Initialize Groq client
-        // dangerouslyAllowBrowser is required because we are running this in the Electron renderer process (React)
-        this.groq = new Groq({
-            apiKey: apiKey,
+    _getClient(key) {
+        return new Groq({
+            apiKey: key,
             dangerouslyAllowBrowser: true
         });
     }
 
-    async validateApiKey(apiKey) {
-        try {
-            const groq = new Groq({
-                apiKey: apiKey,
-                dangerouslyAllowBrowser: true
-            });
-
-            const completion = await groq.chat.completions.create({
-                messages: [{ role: 'user', content: 'Hello' }],
-                model: 'llama-3.1-8b-instant', // Use smallest model for quick validation
-            });
-
-            return {
-                success: true,
-                message: `Connected! Response: "${completion.choices[0]?.message?.content?.slice(0, 20)}..."`
-            };
-        } catch (error) {
-            console.error('API Key Validation Error:', error);
-            if (error.message.includes('401')) {
-                return { success: false, error: 'Invalid API Key (401).' };
-            }
-            return { success: false, error: error.message };
+    /**
+     * unified completion method that handles efficient key rotation
+     */
+    async createCompletion(params) {
+        const keys = getApiKeys();
+        if (keys.length === 0) {
+            throw new Error('AI API Key not found. Please configure it in Settings.');
         }
+
+        let lastError = null;
+
+        // Try each key starting from the current index to avoid wasting requests on exhausted keys
+        // If we circle back to the start, we've tried everyone
+        for (let i = 0; i < keys.length; i++) {
+            const index = (this.currentKeyIndex + i) % keys.length;
+            const apiKey = keys[index];
+            const client = this._getClient(apiKey);
+
+            try {
+                const completion = await client.chat.completions.create(params);
+
+                // If successful, normalize currentKeyIndex to this working key
+                this.currentKeyIndex = index;
+                return completion;
+
+            } catch (error) {
+                console.warn(`API Key ending in ...${apiKey.slice(-4)} failed:`, error.message);
+                lastError = error;
+
+                // If it's an auth error (401) or rate limit (429), try next key.
+                // Otherwise (e.g. 500, 400), it might be a real issue, but we'll try rotation for 429/401 specifically.
+                // For robustness, we'll rotate on any network-ish error, but maybe abort on 400 (Bad Request).
+                if (error.status === 400) {
+                    throw error; // Don't rotate on bad request (invalid prompt etc)
+                }
+            }
+        }
+
+        throw new Error(`All API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
+    }
+
+    async validateApiKey(apiKeyInput) {
+        // Handle input which might be multiple keys
+        const keys = apiKeyInput.split(/[\n,\s]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
+
+        if (keys.length === 0) {
+            return { success: false, error: 'No valid API keys found. Keys must start with "gsk_".' };
+        }
+
+        const report = {
+            valid: 0,
+            invalid: 0,
+            details: []
+        };
+
+        // Test all provided keys (in parallel for speed)
+        const results = await Promise.allSettled(
+            keys.map(async (key) => {
+                const groq = this._getClient(key);
+                await groq.chat.completions.create({
+                    messages: [{ role: 'user', content: 'test' }],
+                    model: 'llama-3.1-8b-instant',
+                    max_tokens: 5,
+                });
+                return key;
+            })
+        );
+
+        results.forEach((result, i) => {
+            const key = keys[i];
+            if (result.status === 'fulfilled') {
+                report.valid++;
+                report.details.push(`✓ ...${key.slice(-4)}`);
+            } else {
+                report.invalid++;
+                const errorCode = result.reason?.status || 'Error';
+                report.details.push(`✗ ...${key.slice(-4)} (${errorCode})`);
+            }
+        });
+
+        if (report.valid === 0) {
+            return {
+                success: false,
+                error: `All ${keys.length} key(s) failed validation.`,
+                details: report.details
+            };
+        }
+
+        return {
+            success: true,
+            message: `${report.valid}/${keys.length} key${keys.length > 1 ? 's' : ''} validated successfully.`,
+            details: report.details
+        };
     }
 
     async parseSyllabus(syllabusText) {
-        this._initClient();
         const modelName = getModelName();
-
         const prompt = `
       You are an expert academic assistant. I have pasted text that might be a SYLLABUS, a CANVAS GRADEBOOK, or a MESSY TASK LIST.
       Your goal is to extract every single assignment, exam, quiz, project, or reading that has a specific due date.
       
-      The text will be unstructured and messy.
-      
       Parsing Priorities:
       1. **Canvas Gradebook**:
-         - Often looks like: "Assignment Name Due: Jan 12 at 11:59pm Submitted: Jan 10 / 100 pts"
-         - **CRITICAL RULE**: If a line has both "Due:" and "Submitted:", YOU MUST USE THE "Due:" DATE. The "Submitted" date is irrelevant for planning.
-         - If a line ONLY has "Submitted:" and NO "Due:", ignore it (it's likely already done), UNLESS the user explicitly pasted a list of "Completed" items (unlikely). Assume "Submitted" only = DONE.
+         - "Assignment Name Due: Jan 12 at 11:59pm Submitted: Jan 10 / 100 pts"
+         - **CRITICAL**: Use "Due:" date. Ignore "Submitted:".
       2. **Syllabus**:
-         - Hunt for "Schedule" or "Calendar". Ignore policies.
+         - Hunt for "Schedule" or "Calendar".
       3. **Generic Lists**:
-         - "Read Chapter 5 by Friday" -> interpret "Friday" relative to Reference Date.
+         - "Read Chapter 5 by Friday" -> interpret date relative to Reference Date.
       
-      Output Format:
-      Return a STRICT JSON object with a single key "tasks":
+      Output Format (STRICT JSON):
       {
         "tasks": [
             {
                 "title": "Exact Name",
                 "dueDate": "YYYY-MM-DD", 
-                "time": "HH:MM (24-hour format) OR null",
-                "description": "Specific details or null"
+                "time": "HH:MM (24-hour style) OR null",
+                "description": "Details or null"
             }
         ]
       }
 
       Rules:
-      1. **Reference Date**: Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+      1. **Reference Date**: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
       2. **Implicit Year**: Calculate based on Reference Date.
-         - Canvas often hides the year. If today is Oct 2025 and Due is "Jan 12", it's Jan 12, 2026.
-      3. **Strict Date Parsing**: Convert to YYYY-MM-DD.
-      4. **No Hallucinations**: Do not invent tasks.
-      5. **Messy Text Handling**:
-         - "Fri\nFeb 9\nModule 1 Quiz" -> Date: Feb 9, Title: Module 1 Quiz
-         - "Essay 1 Due: Oct 15 Submitted: Oct 12" -> Date: Oct 15 (Ignore Oct 12)
+      3. **Strict Date Parsing**: YYYY-MM-DD.
+      4. **No Hallucinations**.
       
       Input Text:
       ${syllabusText}
     `;
 
         try {
-            const completion = await this.groq.chat.completions.create({
+            const completion = await this.createCompletion({
                 messages: [
                     { role: 'system', content: 'You are a JSON-only response bot. Output a JSON object with a "tasks" key.' },
                     { role: 'user', content: prompt }
@@ -107,23 +166,17 @@ class AIService {
             });
 
             const text = completion.choices[0]?.message?.content || '{}';
-
-
             let parsed = JSON.parse(text);
 
-            // Normalize: Ensure we have an array
             let tasks = [];
             if (Array.isArray(parsed)) {
                 tasks = parsed;
             } else if (parsed && Array.isArray(parsed.tasks)) {
                 tasks = parsed.tasks;
             } else {
-                // Try to find any array in the object
                 const values = Object.values(parsed);
                 const arrayCandidate = values.find(v => Array.isArray(v));
-                if (arrayCandidate) {
-                    tasks = arrayCandidate;
-                }
+                if (arrayCandidate) tasks = arrayCandidate;
             }
 
             return tasks;
@@ -135,35 +188,52 @@ class AIService {
     }
 
     async refineSyllabusTasks(currentTasks, instructions) {
-        this._initClient();
         const modelName = getModelName();
-
+        const referenceDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const prompt = `
-      I have a list of tasks extracted from a syllabus. The user wants to modify them based on specific instructions.
-      
-      Current Tasks:
-      ${JSON.stringify(currentTasks, null, 2)}
-      
-      User Instructions:
-      "${instructions}"
-      
-      Goal:
-      Return a STRICT JSON object with a single key "tasks" containing the updated list of tasks.
-      - If the user says "remove readings", filter them out.
-      - If the user says "change all dates to 2025", update them.
-      - Keep existing fields (id, title, dueDate, time, course) unless instructed otherwise.
-      - Do NOT add new tasks unless explicitly asked.
-      
-      Output Format:
-      {
-        "tasks": [ ... ]
-      }
-    `;
+You are a task refinement assistant. Modify the given tasks based on the user's instructions.
+
+**CRITICAL FORMAT RULES:**
+- dueDate MUST be in format: YYYY-MM-DD (e.g., "2026-01-20")
+- time MUST be in 24-hour format: HH:MM (e.g., "23:59" for 11:59 PM, "14:30" for 2:30 PM)
+- If no time is specified or should be removed, set time to null
+- Preserve task IDs exactly as given
+- Do NOT add new fields that don't exist in the original tasks
+
+**Reference Date (today):** ${referenceDate}
+Use this to interpret relative dates like "next week", "tomorrow", "Friday", etc.
+
+**Task Schema (each task must have these fields):**
+{
+  "id": "preserve-original-id",
+  "title": "string",
+  "dueDate": "YYYY-MM-DD or null",
+  "time": "HH:MM (24-hour) or null",
+  "description": "string or null",
+  "status": "not-started",
+  "course": "string or null"
+}
+
+**Common Operations Examples:**
+- "Set all times to 11:59 PM" → set time to "23:59"
+- "Remove readings" → filter out tasks with "reading" in title
+- "Push everything back one week" → add 7 days to each dueDate
+- "Set time to midnight" → set time to "00:00"
+
+**Current Tasks:**
+${JSON.stringify(currentTasks, null, 2)}
+
+**User Instructions:**
+"${instructions}"
+
+Apply the user's instructions precisely. Return ONLY valid JSON:
+{ "tasks": [ <modified tasks array> ] }
+`;
 
         try {
-            const completion = await this.groq.chat.completions.create({
+            const completion = await this.createCompletion({
                 messages: [
-                    { role: 'system', content: 'You are a JSON-only response bot. Output a JSON object with a "tasks" key.' },
+                    { role: 'system', content: 'You are a precise task modification assistant. You ONLY output valid JSON. You follow date/time format rules exactly: dueDate=YYYY-MM-DD, time=HH:MM (24-hour). You preserve task structure and IDs.' },
                     { role: 'user', content: prompt }
                 ],
                 model: modelName,
@@ -172,38 +242,26 @@ class AIService {
             });
 
             const text = completion.choices[0]?.message?.content || '{}';
-
-
             let parsed = JSON.parse(text);
-            let tasks = [];
 
-            if (Array.isArray(parsed)) {
-                tasks = parsed;
-            } else if (parsed && Array.isArray(parsed.tasks)) {
-                tasks = parsed.tasks;
-            }
-
-            return tasks;
+            return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
 
         } catch (error) {
             console.error('Syllabus Refinement Error:', error);
-            throw new Error('Failed to refine tasks. ' + error.message);
+            throw new Error('Refinement failed. ' + error.message);
         }
     }
 
     async matchCanvasToTasks(assignment, potentialMatches) {
-        this._initClient();
-        const modelName = getModelName();
-
         const prompt = `
-      I need to check if a new Canvas assignment matches any existing tasks in my database to avoid duplicates.
+      Check if new Canvas assignment matches existing tasks.
       
-      New Canvas Assignment:
+      New:
       Title: "${assignment.name}"
-      Due Date: "${assignment.due_at || 'No Match'}"
+      Due: "${assignment.due_at || 'No Match'}"
       Course: "${assignment.context_name || 'Unknown'}"
       
-      Existing Potential Matches:
+      Existing:
       ${JSON.stringify(potentialMatches.map(t => ({
             id: t.id,
             title: t.title,
@@ -211,36 +269,21 @@ class AIService {
             course: t.course
         })), null, 2)}
       
-      Task:
-      Analyze if the Canvas assignment is the SAME task as one of the potential matches.
-      
-      Matching Logic:
-      1. **Fuzzy Titles**: "Bio Quiz 1" == "Biology 101: Quiz #1". "Ch 5 Reading" == "Read Chapter 5".
-      2. **Flexible Dates**: 
-         - A Canvas due date (e.g. Jan 12 @ 11:59PM) might match a user-entered date of Jan 12 OR Jan 13 (if midnight).
-         - Allow for 1-2 day variance.
-      3. **Course Context**: If the course matches, be more confident in title matches.
-      
-      Constraint:
-      - If it seems like the SAME deliverable, return it as a match.
-      - If unsure, bias towards returning a match with lower confidence so the user can decide.
-      
-      Output:
-      Return a STRICT JSON object:
+      Output (JSON):
       {
-        "matchId": "id-of-matching-task" OR null,
+        "matchId": "id" OR null,
         "confidence": 0.0 to 1.0,
-        "reason": "Brief explanation"
+        "reason": "..."
       }
     `;
 
         try {
-            const completion = await this.groq.chat.completions.create({
+            const completion = await this.createCompletion({
                 messages: [
                     { role: 'system', content: 'You are a JSON-only comparison bot.' },
                     { role: 'user', content: prompt }
                 ],
-                model: 'llama-3.1-8b-instant', // Use fast model for matching
+                model: 'llama-3.1-8b-instant', // Fast model
                 temperature: 0.1,
                 response_format: { type: 'json_object' }
             });
@@ -249,53 +292,57 @@ class AIService {
             return JSON.parse(text);
 
         } catch (error) {
-
             return { matchId: null };
         }
     }
 
     async refineTaskMerge(currentProposedTask, canvasAssignment, instructions) {
-        this._initClient();
         const modelName = getModelName();
-
+        const referenceDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const prompt = `
-      I am refining a merged task based on user instructions.
-      
-      1. Current Proposed Task (Start from here):
-      ${JSON.stringify(currentProposedTask, null, 2)}
+You are refining a merged task that combines data from Canvas with an existing user task.
 
-      2. Canvas Assignment (Reference Data):
-      Title: "${canvasAssignment.name}"
-      Due: "${canvasAssignment.due_at}"
-      Description: "${canvasAssignment.description ? canvasAssignment.description.substring(0, 300) : 'None'}"
-      Link: "${canvasAssignment.html_url}"
+**CRITICAL FORMAT RULES:**
+- time MUST be in 24-hour format: HH:MM (e.g., "23:59" for 11:59 PM, "09:00" for 9 AM)
+- Do NOT use 12-hour format with AM/PM
+- Return ONLY the fields shown in the schema below
 
-      3. User Instructions:
-      "${instructions}"
+**Reference Date (today):** ${referenceDate}
 
-      Goal:
-      Return the FINAL updated task object (JSON).
-      - Start with the "Current Proposed Task" as the base.
-      - Apply the "User Instructions" intelligently.
-      - If the user asks to "reset" or "use canvas data", look at the Canvas Assignment section.
-      - Otherwise, preserve the fields from "Current Proposed Task" unless specifically asked to change them.
+**Output Schema (return exactly these fields):**
+{
+  "title": "string",
+  "time": "HH:MM (24-hour format)",
+  "url": "string or null",
+  "description": "string or null",
+  "course": "string or null"
+}
 
-      Output:
-      Strict JSON of the merged task:
-      {
-        "title": "...",
-        "dueDate": "...",
-        "time": "...",
-        "description": "...",
-        "course": "...",
-        "url": "..."
-      }
-    `;
+**Current Proposed Task:**
+${JSON.stringify(currentProposedTask, null, 2)}
+
+**Original Canvas Data:**
+Title: "${canvasAssignment.name}"
+Due: "${canvasAssignment.due_at}"
+Course: "${canvasAssignment.context_name || 'Unknown'}"
+URL: "${canvasAssignment.html_url || ''}"
+
+**User Instructions:**
+"${instructions}"
+
+**Common Operations:**
+- "Keep my description" → preserve the description from Proposed Task
+- "Use Canvas title" → use the title from Canvas Data
+- "Add [Canvas] prefix" → prepend "[Canvas] " to the title
+- "Set time to 11:59 PM" → set time to "23:59"
+
+Apply the user's instructions. Return ONLY the refined task object as valid JSON.
+`;
 
         try {
-            const completion = await this.groq.chat.completions.create({
+            const completion = await this.createCompletion({
                 messages: [
-                    { role: 'system', content: 'You are a JSON-only response bot.' },
+                    { role: 'system', content: 'You are a precise task merge assistant. You ONLY output valid JSON matching the exact schema provided. Time must be in HH:MM 24-hour format (e.g., "23:59" not "11:59 PM"). Follow user instructions exactly.' },
                     { role: 'user', content: prompt }
                 ],
                 model: modelName,
