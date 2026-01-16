@@ -4,6 +4,48 @@ import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { aiService } from '../../services/aiService';
 import backupManager from '../../utils/backupManager';
 
+// Sub-component to handle individual task date input state
+const TaskItem = ({ task, onDateChange, formatDisplayDate, formatDate }) => {
+  const [dateValue, setDateValue] = useState(formatDate(task.completedAt));
+
+  // Sync state if prop changes externally (e.g. initial load)
+  useEffect(() => {
+    setDateValue(formatDate(task.completedAt));
+  }, [task.completedAt]);
+
+  const handleCommit = () => {
+    // Only commit if value has changed and is valid
+    if (dateValue !== formatDate(task.completedAt)) {
+      onDateChange(task.id, dateValue);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur(); // Trigger blur to save
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="text-white font-medium truncate">{task.title}</div>
+        <div className="text-xs text-white/40">{formatDisplayDate(task.completedAt)}</div>
+      </div>
+      <div className="shrink-0">
+        <input
+          type="date"
+          value={dateValue}
+          onChange={(e) => setDateValue(e.target.value)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          className="bg-transparent border border-white/20 rounded px-2 py-1 text-sm text-white focus:border-green-glow/50 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+};
+
 // Component for managing recent completed tasks
 const RecentCompletedTasks = ({ onUpdate }) => {
   const [completedTasks, setCompletedTasks] = useState([]);
@@ -80,23 +122,13 @@ const RecentCompletedTasks = ({ onUpdate }) => {
   return (
     <div className="space-y-2 max-h-64 overflow-y-auto">
       {completedTasks.map(task => (
-        <div
+        <TaskItem
           key={task.id}
-          className="flex items-center justify-between gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-        >
-          <div className="flex-1 min-w-0">
-            <div className="text-white font-medium truncate">{task.title}</div>
-            <div className="text-xs text-white/40">{formatDisplayDate(task.completedAt)}</div>
-          </div>
-          <div className="shrink-0">
-            <input
-              type="date"
-              value={formatDate(task.completedAt)}
-              onChange={(e) => handleDateChange(task.id, e.target.value)}
-              className="bg-transparent border border-white/20 rounded px-2 py-1 text-sm text-white focus:border-green-glow/50 focus:outline-none"
-            />
-          </div>
-        </div>
+          task={task}
+          onDateChange={handleDateChange}
+          formatDisplayDate={formatDisplayDate}
+          formatDate={formatDate}
+        />
       ))}
     </div>
   );
