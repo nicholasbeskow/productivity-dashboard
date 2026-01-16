@@ -170,10 +170,11 @@ app.whenReady().then(() => {
       mainWindow.show();
     }
   });
+});
 
-  app.on('before-quit', () => {
-    isQuitting = true;
-  });
+// Must be registered at top level (outside whenReady) to catch quit events properly
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
