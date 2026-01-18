@@ -528,11 +528,20 @@ export const getWeeklyStats = (endDate = new Date()) => {
                 stats.sleep.entries = weeklySleep.length;
 
                 // Calculate sleep debt
+                // Calculate sleep debt (Chronological with repayment)
                 let debt = 0;
-                weeklySleep.forEach(s => {
+                // Sort by date to ensure we calculate debt accumulation/repayment in order
+                const sortedSleep = [...weeklySleep].sort((a, b) => a.date.localeCompare(b.date));
+
+                sortedSleep.forEach(s => {
                     const hours = s.totalSleep ?? s.hours;
                     if (hours < SLEEP_TARGET) {
+                        // Deficit: add to debt
                         debt += (SLEEP_TARGET - hours);
+                    } else {
+                        // Surplus: reduce debt (but don't go below 0)
+                        const surplus = hours - SLEEP_TARGET;
+                        debt = Math.max(0, debt - surplus);
                     }
                 });
                 stats.sleep.debt = debt.toFixed(1);

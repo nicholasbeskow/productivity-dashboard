@@ -60,42 +60,91 @@ export const saveTasks = (tasks) => {
  * Create a new task with correct priority based on neighbors
  */
 export const createTask = (tasks, newTask) => {
-    let insertIndex = tasks.length;
+    // 1. Sort current tasks by Priority (DESC) to match visual order in UI
+    const sortedTasks = [...tasks].sort((a, b) => {
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
 
-    // Find insertion point based on due date
-    if (newTask.dueDate) {
+        const pA = a.customPriority ?? 0;
+        const pB = b.customPriority ?? 0;
+        return pB - pA;
+    });
+
+    let newPriority;
+
+    if (isTaskOverdue(newTask)) {
+        // Overdue tasks go to the top
+        const firstOverdue = sortedTasks.find(t => isTaskOverdue(t));
+        const topPrio = firstOverdue ? (firstOverdue.customPriority ?? 0) : (sortedTasks[0]?.customPriority ?? 0);
+        newPriority = topPrio + 1;
+    } else if (!newTask.dueDate) {
+        // No due date - put at top of non-overdue section (Personal preference: High visibility)
+        const firstNonOverdue = sortedTasks.find(t => !isTaskOverdue(t));
+        if (firstNonOverdue) {
+            newPriority = (firstNonOverdue.customPriority ?? 0) + 1;
+        } else {
+            // No non-overdue tasks exists (or list empty)
+            const lastOverdue = sortedTasks[sortedTasks.length - 1]; // Last task in list
+            newPriority = lastOverdue ? (lastOverdue.customPriority ?? 0) - 1 : 100;
+        }
+    } else {
+        // Standard Date-Based Insertion
         const newDueDate = parseLocalDateAtNoon(newTask.dueDate);
 
-        for (let i = 0; i < tasks.length; i++) {
-            const task = tasks[i];
-            if (isTaskOverdue(task)) continue;
-            if (!task.dueDate || parseLocalDateAtNoon(task.dueDate) > newDueDate) {
-                insertIndex = i;
+        let targetPrev = null; // Task that should be visually ABOVE (Higher Priority)
+        let targetNext = null; // Task that should be visually BELOW (Lower Priority)
+
+        // Iterate through sorted tasks to find the chronological "slot"
+        // We look for the transition where tasks go from "Earlier" to "Later/Same"
+        // Since we iterate Priority High -> Low (Top -> Bottom):
+        // We expect to see Earliest Dates first (Top of List), then Later Dates (Bottom of List)
+
+        for (let i = 0; i < sortedTasks.length; i++) {
+            const t = sortedTasks[i];
+            if (isTaskOverdue(t)) continue; // Skip overdue
+            if (!t.dueDate) continue; // Skip no-date tasks (assume they are effectively "Later")
+
+            const tDate = parseLocalDateAtNoon(t.dueDate);
+
+            if (tDate < newDueDate) {
+                // Task is Earlier. It stays Above.
+                targetPrev = t;
+            } else {
+                // Task is Same or Later. We want to insert HERE (Before this task).
+                // This places us:
+                // 1. Above "Later" tasks (Good)
+                // 2. Above "Same Date" tasks (Top of the day group - Good default)
+                targetNext = t;
                 break;
+            }
+        }
+
+        // Calculate Priority
+        if (targetPrev && targetNext) {
+            newPriority = ((targetPrev.customPriority ?? 0) + (targetNext.customPriority ?? 0)) / 2;
+        } else if (targetPrev) {
+            // Only tasks before us. We are at the bottom of the known dated list.
+            newPriority = (targetPrev.customPriority ?? 0) - 1;
+        } else if (targetNext) {
+            // Only tasks after us (or same day). We are at the top of the non-overdue dated list.
+            newPriority = (targetNext.customPriority ?? 0) + 1;
+        } else {
+            // No formatted neighbors. Fallback relative to Overdue/List.
+            const firstNonOverdue = sortedTasks.find(t => !isTaskOverdue(t));
+            if (firstNonOverdue) {
+                // Should ideally not happen if loop ran, but if all non-overdues had no dates?
+                newPriority = (firstNonOverdue.customPriority ?? 0) + 1;
+            } else {
+                const lastOverdue = sortedTasks.findLast(t => isTaskOverdue(t));
+                newPriority = lastOverdue ? (lastOverdue.customPriority ?? 0) - 1 : 100;
             }
         }
     }
 
-    // Calculate priority based on neighbors (NOT recalculating all)
-    const taskBefore = tasks[insertIndex - 1];
-    const taskAfter = tasks[insertIndex];
-
-    let newPriority;
-    if (taskBefore && taskAfter) {
-        newPriority = ((taskBefore.customPriority ?? 0) + (taskAfter.customPriority ?? 0)) / 2;
-    } else if (taskBefore) {
-        newPriority = (taskBefore.customPriority ?? 0) - 1;
-    } else if (taskAfter) {
-        newPriority = (taskAfter.customPriority ?? 0) + 1;
-    } else {
-        newPriority = 1;
-    }
-
     const taskWithPriority = { ...newTask, customPriority: newPriority };
-    const updatedTasks = [...tasks];
-    updatedTasks.splice(insertIndex, 0, taskWithPriority);
-
-    return updatedTasks;
+    return [taskWithPriority, ...tasks];
 };
 
 /**
@@ -151,40 +200,11 @@ export const completeTask = (tasks, taskId, completedTask) => {
 
     // Handle recurring task
     if (completedTask.templateId) {
-        const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
+        const { nextTask } = createNextRecurrence(completedTask, activeTasks);
 
         if (nextTask) {
-            // Calculate priority for the new occurrence
-            const sameDateTasks = activeTasks.filter(t =>
-                t.dueDate === nextTask.dueDate && !isTaskOverdue(t)
-            );
-            const sameTimeTasks = nextTask.time
-                ? sameDateTasks.filter(t => t.time === nextTask.time)
-                : sameDateTasks;
-
-            let newPriority;
-            if (sameTimeTasks.length > 0) {
-                const avgPriority = sameTimeTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameTimeTasks.length;
-                newPriority = avgPriority - 0.01;
-            } else if (sameDateTasks.length > 0) {
-                const avgPriority = sameDateTasks.reduce((sum, t) => sum + (t.customPriority ?? 0), 0) / sameDateTasks.length;
-                newPriority = avgPriority - 0.01;
-            } else {
-                const beforeTask = activeTasks[insertIndex - 1];
-                const afterTask = activeTasks[insertIndex];
-                if (beforeTask && afterTask) {
-                    newPriority = ((beforeTask.customPriority ?? 0) + (afterTask.customPriority ?? 0)) / 2;
-                } else if (beforeTask) {
-                    newPriority = (beforeTask.customPriority ?? 0) - 1;
-                } else if (afterTask) {
-                    newPriority = (afterTask.customPriority ?? 0) + 1;
-                } else {
-                    newPriority = 1;
-                }
-            }
-
-            const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
-            activeTasks.splice(insertIndex, 0, newTaskWithPriority);
+            // Use smart insertion logic
+            activeTasks = createTask(activeTasks, nextTask);
         }
     }
 
@@ -212,16 +232,10 @@ export const deleteTask = (tasks, taskId, scope = 'instance') => {
 
     // Create next recurrence if this was a recurring task instance
     if (task.templateId) {
-        const { nextTask, insertIndex } = createNextRecurrence(task, updatedTasks);
+        const { nextTask } = createNextRecurrence(task, updatedTasks);
         if (nextTask) {
-            const prevTask = updatedTasks[insertIndex - 1];
-            const nextTaskObj = updatedTasks[insertIndex + 1];
-
-            const prevPriority = prevTask ? prevTask.customPriority : (nextTaskObj ? nextTaskObj.customPriority + 200000 : 200000);
-            const nextPriority = nextTaskObj ? nextTaskObj.customPriority : (prevTask ? prevTask.customPriority - 200000 : 0);
-
-            nextTask.customPriority = (prevPriority + nextPriority) / 2;
-            updatedTasks.splice(insertIndex, 0, nextTask);
+            // Use smart insertion logic
+            updatedTasks = createTask(updatedTasks, nextTask);
         }
     }
 

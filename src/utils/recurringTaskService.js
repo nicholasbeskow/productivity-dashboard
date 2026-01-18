@@ -106,27 +106,47 @@ const safeSaveLocalStorage = (key, value) => {
  * @returns {number} Number of new tasks generated
  */
 export const generateRecurringTasks = () => {
-  // Helper to insert task in date-sorted position
-  const insertTaskSorted = (taskArray, newTask) => {
-    let insertIdx = taskArray.length;
+  // Helper to calculate Smart Priority based on date
+  const calculateSmartPriority = (visualTasks, newTaskDateStr) => {
+    const newDueDate = parseLocalDateAtNoon(newTaskDateStr);
+    let targetPrev = null;
+    let targetNext = null;
 
-    // Parse new task date (default to far future if none)
-    const newTaskDate = newTask.dueDate ? parseLocalDateAtNoon(newTask.dueDate) : new Date(8640000000000000);
+    for (let i = 0; i < visualTasks.length; i++) {
+      const t = visualTasks[i];
+      if (isTaskOverdue(t)) continue;
+      if (!t.dueDate) continue;
 
-    for (let i = 0; i < taskArray.length; i++) {
-      const t = taskArray[i];
-      if (isTaskOverdue(t)) continue; // Skip overdue tasks (they stay at top)
+      const tDate = parseLocalDateAtNoon(t.dueDate);
 
-      const tDate = t.dueDate ? parseLocalDateAtNoon(t.dueDate) : new Date(8640000000000000);
-
-      // If current task is later than new task, insert here
-      if (tDate > newTaskDate) {
-        insertIdx = i;
+      // Since visualTasks is sorted High Priority -> Low Priority
+      // We expect Earlier Dates (High Prio) -> Later Dates (Low Prio)
+      if (tDate < newDueDate) {
+        targetPrev = t;
+      } else {
+        targetNext = t;
         break;
       }
     }
 
-    taskArray.splice(insertIdx, 0, newTask);
+    if (targetPrev && targetNext) {
+      return ((targetPrev.customPriority ?? 0) + (targetNext.customPriority ?? 0)) / 2;
+    } else if (targetPrev) {
+      return (targetPrev.customPriority ?? 0) - 1;
+    } else if (targetNext) {
+      return (targetNext.customPriority ?? 0) + 1;
+    } else {
+      // No valid neighbors found in non-overdue section
+      const firstNonOverdue = visualTasks.find(t => !isTaskOverdue(t));
+      if (firstNonOverdue) return (firstNonOverdue.customPriority ?? 0) + 1;
+
+      // Fallback relative to overdue or default
+      const lastOverdue = visualTasks[visualTasks.length - 1]; // visualTasks might include overdue at top?
+      // Is lastOverdue actually overdue?
+      // visualTasks sort: Overdue first? No, we need to sort it here.
+      const actualLastOverdue = visualTasks.findLast(t => isTaskOverdue(t));
+      return actualLastOverdue ? (actualLastOverdue.customPriority ?? 0) - 1 : 100;
+    }
   };
 
   try {
@@ -145,6 +165,19 @@ export const generateRecurringTasks = () => {
 
     // Combine all existing tasks to check for duplicates
     const allExistingTasks = [...tasks, ...completedTasks];
+
+    // Maintain a "Visual Sort" of tasks to calculate priorities against
+    // Sort by Priority DESC
+    let sortedTasks = [...tasks].sort((a, b) => {
+      const aOverdue = isTaskOverdue(a);
+      const bOverdue = isTaskOverdue(b);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+
+      const pA = a.customPriority ?? 0;
+      const pB = b.customPriority ?? 0;
+      return pB - pA;
+    });
 
     let newTasksGenerated = 0;
 
@@ -205,6 +238,9 @@ export const generateRecurringTasks = () => {
       }
 
       // Generate a new task instance
+      // Calculate Priority FIRST
+      const newPriority = calculateSmartPriority(sortedTasks, todayString);
+
       const newTask = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: template.title,
@@ -218,26 +254,32 @@ export const generateRecurringTasks = () => {
         createdAt: new Date().toISOString(),
         completedAt: null,
         attachments: template.attachments || [],
-        // Priority will be recalculated after insertion
-        customPriority: 0,
+        customPriority: newPriority,
         templateId: template.id,
       };
 
-      // Insert at correct position based on Date (Sorted Insert)
-      insertTaskSorted(tasks, newTask);
+      // Add to main list
+      tasks.push(newTask);
+
+      // Update sorted reference for next iteration (so next task slots correctly relative to this one)
+      sortedTasks.push(newTask);
+      // Re-sort to maintain integrity for next calculation
+      sortedTasks.sort((a, b) => {
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
+        const pA = a.customPriority ?? 0;
+        const pB = b.customPriority ?? 0;
+        return pB - pA;
+      });
+
       newTasksGenerated++;
     });
 
     if (newTasksGenerated > 0) {
-      // Recalculate priorities for ALL tasks to maintain order
-      // This ensures the new tasks get a priority relative to their position
-      const updatedTasks = tasks.map((t, index) => ({
-        ...t,
-        customPriority: tasks.length - index,
-      }));
-
       // Save updated tasks with error handling
-      const saveSuccess = safeSaveLocalStorage('tasks', updatedTasks);
+      const saveSuccess = safeSaveLocalStorage('tasks', tasks);
 
       if (!saveSuccess) {
         console.error('[RecurringTaskService] Failed to save generated tasks to localStorage');
