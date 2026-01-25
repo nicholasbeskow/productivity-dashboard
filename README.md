@@ -1,6 +1,6 @@
 # Pinnacle - Personal Productivity Dashboard
 
-**Version 2.2** | Built with React, Electron, and Tailwind CSS
+**Version 2.3.0** | Built with React, Electron, and Tailwind CSS
 
 A comprehensive productivity application designed for pre-med students to manage tasks, track wellness, and stay organized throughout the semester.
 
@@ -309,6 +309,12 @@ productivity-dashboard/
 
 ## 📝 Version History
 
+### v2.3.0 (January 2026) - Settings Overhaul
+- ✅ Completely redesigned Settings Tab with card-based navigation
+- ✅ Added smooth fade-in transitions for better UX
+- ✅ Refactored legacy code for improved maintainability
+- ✅ Cleaned up UI interactions
+
 ### v2.0.0 (January 2026) - Optimization Release
 - ✅ Fixed 7 critical bugs (data loss, crashes)
 - ✅ 60% performance improvement (bundle size reduction)
@@ -388,4 +394,4 @@ For issues or questions:
 
 ---
 
-**Pinnacle v2.1.2** - Built to help you reach your peak productivity 🏔️
+**Pinnacle v2.3.0** - Built to help you reach your peak productivity 🏔️

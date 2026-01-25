@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar, Clock, Trash2 } from 'lucide-react';
+import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar, Clock, Trash2, User, Sliders, Link, Database, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { aiService } from '../../services/aiService';
 import durationService from '../../services/durationService';
@@ -136,6 +137,7 @@ const RecentCompletedTasks = ({ onUpdate }) => {
 };
 
 const SettingsTab = () => {
+  const [activeSection, setActiveSection] = useState('main');
   const [userName, setUserName] = useState('');
   const [breakStartDate, setBreakStartDate] = useState('');
   const [semesterStartDate, setSemesterStartDate] = useState('');
@@ -746,702 +748,897 @@ const SettingsTab = () => {
     }
   };
 
-  return (
-    <div className="h-full p-8 overflow-y-auto" style={{ WebkitAppRegion: 'no-drag' }}>
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-center gap-3">
-            <Settings className="text-green-glow" size={32} />
-            Settings
-          </h2>
-          <p className="text-text-secondary">
-            Configure your dashboard preferences
-          </p>
-        </div>
-
-        <div className="space-y-6">
-          {/* Personal Information */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Personal Information
-            </h3>
+  // PROFILE SECTION
+  if (activeSection === 'profile') {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="h-full p-8 overflow-y-auto"
+        style={{ WebkitAppRegion: 'no-drag' }}
+      >
+        <div className="max-w-4xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="relative z-[51] no-drag p-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <ArrowLeft className="text-white/70 hover:text-white" size={24} />
+            </button>
             <div>
-              <label className="block text-sm text-white/70 mb-2">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={userName}
-                onChange={handleUserNameChange}
-                placeholder="Enter your name"
-                className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-              />
-              <p className="text-xs text-white/40 mt-2">
-                This will personalize your dashboard welcome message
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <User className="text-blue-400" size={32} />
+                Profile
+              </h2>
+              <p className="text-white/50">
+                Manage your personal details and semester dates
               </p>
             </div>
           </div>
 
-
-          {/* AI Configuration (Pinnacle AI) */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Sparkles className="text-purple-400" size={20} />
-                Pinnacle AI (Beta)
+          <div className="space-y-6">
+            {/* Personal Information */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Personal Information
               </h3>
-              <div className="bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded text-xs border border-orange-500/30">
-                Powered by Groq
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={handleUserNameChange}
+                  placeholder="Enter your name"
+                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+                />
+                <p className="text-xs text-white/40 mt-2">
+                  This will personalize your dashboard welcome message
+                </p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm text-white/70">
-                    Groq API Keys
+            {/* Semester Information */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Semester Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">
+                    Break Start Date <span className="text-white/40">(Optional)</span>
                   </label>
-                  {aiApiKey && (
-                    <span className="text-xs text-white/40">
-                      {aiApiKey.split(/[\n,\s]+/).filter(k => k.startsWith('gsk_')).length} key(s)
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <textarea
-                    value={aiApiKey}
-                    onChange={handleAiApiKeyChange}
-                    placeholder="gsk_xxxxxxxxxxxx&#10;gsk_yyyyyyyyyyyy&#10;(one per line, comma, or space separated)"
-                    rows={3}
-                    spellCheck={false}
-                    className="w-full liquid-bubble-filled rounded-lg px-4 py-3 pr-24 text-white placeholder-white/30 focus:border-orange-400/50 focus:outline-none transition-colors resize-none font-mono text-xs leading-relaxed"
+                  <input
+                    type="date"
+                    value={breakStartDate}
+                    onChange={handleBreakStartDateChange}
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
                   />
-                  <div className="absolute right-2 bottom-2">
-                    <button
-                      onClick={testAiConnection}
-                      disabled={!aiApiKey || aiStatus === 'testing'}
-                      className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${aiStatus === 'testing' ? 'bg-white/10 text-white/50 cursor-wait' :
-                        aiStatus === 'success' ? 'bg-green-500/20 text-green-400' :
-                          aiStatus === 'error' ? 'bg-red-500/20 text-red-400' :
-                            'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30'
-                        }`}
-                    >
-                      {aiStatus === 'testing' ? 'Validating...' :
-                        aiStatus === 'success' ? 'Valid ✓' :
-                          aiStatus === 'error' ? 'Failed ✗' :
-                            'Validate'}
-                    </button>
-                  </div>
+                  <p className="text-xs text-white/40 mt-1">
+                    Track break progress before semester starts
+                  </p>
                 </div>
-                {aiStatus === 'error' && (
-                  <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
-                    <AlertCircle size={12} /> {aiStatusMessage}
-                  </p>
-                )}
-                {aiStatus === 'success' && (
-                  <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> {aiStatusMessage}
-                  </p>
-                )}
-                <p className="text-xs text-white/40 mt-2">
-                  Add multiple keys to auto-rotate when rate limits are hit. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get free keys →</a>
-                </p>
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">
+                    Semester Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={semesterStartDate}
+                    onChange={handleStartDateChange}
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">
+                    Last Day of Classes
+                  </label>
+                  <input
+                    type="date"
+                    value={semesterEndDate}
+                    onChange={handleEndDateChange}
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
+                  />
+                </div>
               </div>
+              <p className="text-xs text-white/40 mt-3">
+                This will show a circular progress indicator on your dashboard
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
-
+  // FEATURES SECTION
+  if (activeSection === 'features') {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="h-full p-8 overflow-y-auto"
+        style={{ WebkitAppRegion: 'no-drag' }}
+      >
+        <div className="max-w-4xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="relative z-[51] no-drag p-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <ArrowLeft className="text-white/70 hover:text-white" size={24} />
+            </button>
+            <div>
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Sliders className="text-green-glow" size={32} />
+                Features
+              </h2>
+              <p className="text-white/50">
+                Configure tools and productivity features
+              </p>
             </div>
           </div>
 
-          {/* Duration Predictions */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Clock className="text-blue-400" size={20} />
-                Duration Predictions
-              </h3>
-              <div className="text-xs text-white/40">
-                {historyCount} task{historyCount !== 1 ? 's' : ''} logged
+          <div className="space-y-6">
+            {/* Duration Predictions */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Clock className="text-blue-400" size={20} />
+                  Duration Predictions
+                </h3>
+                <div className="text-xs text-white/40">
+                  {historyCount} task{historyCount !== 1 ? 's' : ''} logged
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Enable/Disable Toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-white/70">Enable duration predictions</div>
+                    <div className="text-xs text-white/40">Show estimated time on tasks and prompt for completion times</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={durationEnabled}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setDurationEnabled(enabled);
+                        durationService.setFeatureEnabled(enabled);
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500/50"></div>
+                  </label>
+                </div>
+
+                {/* Cooldown Period */}
+                <div className="pt-2 border-t border-white/5">
+                  <div className="text-sm text-white/70 mb-2">Cooldown period</div>
+                  <div className="text-xs text-white/40 mb-3">Temporarily stop asking for completion times</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={cooldownMinutes}
+                      onChange={(e) => setCooldownMinutes(e.target.value)}
+                      placeholder="Minutes"
+                      min="1"
+                      max="10080"
+                      className="w-24 liquid-bubble-filled rounded-lg px-3 py-2 text-white placeholder-white/30 focus:border-blue-400/50 focus:outline-none text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        const mins = parseInt(cooldownMinutes);
+                        if (mins > 0) {
+                          durationService.setCooldown(mins);
+                          updateCooldownDisplay();
+                          setCooldownMinutes('');
+                        }
+                      }}
+                      disabled={!cooldownMinutes || parseInt(cooldownMinutes) <= 0}
+                      className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Start Cooldown
+                    </button>
+                    {cooldownRemaining && (
+                      <>
+                        <span className="text-sm text-blue-300">{cooldownRemaining}</span>
+                        <button
+                          onClick={() => {
+                            durationService.clearCooldown();
+                            updateCooldownDisplay();
+                          }}
+                          className="text-xs text-white/40 hover:text-white/60 underline"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Clear History */}
+                <div className="pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-white/70">Clear duration history</div>
+                      <div className="text-xs text-white/40">Remove all logged completion times (predictions will reset)</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to clear all duration history? This will reset all predictions.')) {
+                          durationService.clearDurationHistory();
+                          setHistoryCount(0);
+                        }
+                      }}
+                      disabled={historyCount === 0}
+                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={14} />
+                      Clear History
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {/* Enable/Disable Toggle */}
-              <div className="flex items-center justify-between">
+            {/* Pomodoro Timer */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Pomodoro Timer
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-white/70">Enable duration predictions</div>
-                  <div className="text-xs text-white/40">Show estimated time on tasks and prompt for completion times</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={durationEnabled}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setDurationEnabled(enabled);
-                      durationService.setFeatureEnabled(enabled);
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500/50"></div>
-                </label>
-              </div>
-
-              {/* Cooldown Period */}
-              <div className="pt-2 border-t border-white/5">
-                <div className="text-sm text-white/70 mb-2">Cooldown period</div>
-                <div className="text-xs text-white/40 mb-3">Temporarily stop asking for completion times</div>
-                <div className="flex items-center gap-3">
+                  <label className="block text-sm text-white/70 mb-2">
+                    Work Duration (minutes)
+                  </label>
                   <input
                     type="number"
-                    value={cooldownMinutes}
-                    onChange={(e) => setCooldownMinutes(e.target.value)}
-                    placeholder="Minutes"
+                    value={pomodoroWorkDuration}
+                    onChange={handleWorkDurationChange}
                     min="1"
-                    max="10080"
-                    className="w-24 liquid-bubble-filled rounded-lg px-3 py-2 text-white placeholder-white/30 focus:border-blue-400/50 focus:outline-none text-sm"
+                    max="120"
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">
+                    Break Duration (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    value={pomodoroBreakDuration}
+                    onChange={handleBreakDurationChange}
+                    min="1"
+                    max="60"
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-white/40 mt-4">
+                Changes take effect immediately when you reset or start a new session
+              </p>
+            </div>
+
+            {/* Focus Mode (SelfControl) */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Focus Mode (SelfControl)
+              </h3>
+              <div className="space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={focusEnabled}
+                    onChange={handleFocusToggle}
+                    className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
+                  />
+                  <span className="text-white/70">Enable Focus Mode</span>
+                </label>
+
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">
+                    SelfControl Blocklist File
+                  </label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={blocklistPath}
+                      readOnly
+                      placeholder="No file selected"
+                      className="flex-1 liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30"
+                    />
+                    <button
+                      onClick={handleSelectBlocklist}
+                      className="px-4 py-2 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all"
+                    >
+                      Select File
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm">
+                  <p className="font-semibold mb-1">How to use:</p>
+                  <p>Open SelfControl, add your sites, go to File → Save Blocklist, and select that file here.</p>
+                </div>
+
+                <p className="text-xs text-white/40">
+                  When enabled, starting a Work session will automatically block distracting websites for the session duration.
+                </p>
+                <p className="text-xs text-white/40 mt-2">
+                  <strong>Note:</strong> Requires the{' '}
+                  <a
+                    href="https://selfcontrolapp.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white/70"
+                  >
+                    SelfControl app
+                  </a>{' '}
+                  installed in your Applications folder (macOS only).
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Completed Tasks - Backdate Completion */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Recent Completed Tasks
+              </h3>
+              <p className="text-sm text-white/50 mb-4">
+                Change completion dates for tasks completed in the past 7 days
+              </p>
+              <RecentCompletedTasks onUpdate={() => {
+                backupManager.saveAutoBackup();
+                window.dispatchEvent(new Event('storage'));
+              }} />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // INTEGRATIONS SECTION
+  if (activeSection === 'integrations') {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="h-full p-8 overflow-y-auto"
+        style={{ WebkitAppRegion: 'no-drag' }}
+      >
+        <div className="max-w-4xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="relative z-[51] no-drag p-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <ArrowLeft className="text-white/70 hover:text-white" size={24} />
+            </button>
+            <div>
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Link className="text-purple-400" size={32} />
+                Integrations
+              </h2>
+              <p className="text-white/50">
+                Connect with external services
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Canvas Integration */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">Canvas Integration</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Canvas URL</label>
+                  <input
+                    type="text"
+                    value={canvasUrl}
+                    onChange={(e) => setCanvasUrl(e.target.value)}
+                    placeholder="e.g., usf.instructure.com"
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+                  />
+                  <p className="text-xs text-white/40 mt-2">Enter your school's Canvas domain (without https://)</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Canvas API Token</label>
+                  <input
+                    type="password"
+                    value={apiToken}
+                    onChange={(e) => setApiToken(e.target.value)}
+                    placeholder="Paste your token here"
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
+                  />
+                  <p className="text-xs text-white/40 mt-2">Generate a token from your Canvas Profile → Settings → New Access Token</p>
+                </div>
+                <button
+                  onClick={handleSaveAndTest}
+                  disabled={!canvasUrl || !apiToken}
+                  className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${canvasUrl && apiToken ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30' : 'liquid-bubble-filled text-white/40 cursor-not-allowed'}`}
+                >
+                  Save & Test Connection
+                </button>
+                {connectionStatus && (
+                  <div className={`p-3 rounded-lg ${connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' : connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                    {connectionStatus.message}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* AI Configuration */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="text-purple-400" size={20} />
+                  Pinnacle AI (Beta)
+                </h3>
+                <div className="bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded text-xs border border-orange-500/30">
+                  Powered by Groq
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm text-white/70">Groq API Keys</label>
+                    {aiApiKey && (
+                      <span className="text-xs text-white/40">{aiApiKey.split(/[\n,\s]+/).filter(k => k.startsWith('gsk_')).length} key(s)</span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      value={aiApiKey}
+                      onChange={handleAiApiKeyChange}
+                      placeholder="gsk_xxxxxxxxxxxx&#10;gsk_yyyyyyyyyyyy&#10;(one per line, comma, or space separated)"
+                      rows={3}
+                      spellCheck={false}
+                      className="w-full liquid-bubble-filled rounded-lg px-4 py-3 pr-24 text-white placeholder-white/30 focus:border-orange-400/50 focus:outline-none transition-colors resize-none font-mono text-xs leading-relaxed"
+                    />
+                    <div className="absolute right-2 bottom-2">
+                      <button
+                        onClick={testAiConnection}
+                        disabled={!aiApiKey || aiStatus === 'testing'}
+                        className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${aiStatus === 'testing' ? 'bg-white/10 text-white/50 cursor-wait' : aiStatus === 'success' ? 'bg-green-500/20 text-green-400' : aiStatus === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30'}`}
+                      >
+                        {aiStatus === 'testing' ? 'Validating...' : aiStatus === 'success' ? 'Valid ✓' : aiStatus === 'error' ? 'Failed ✗' : 'Validate'}
+                      </button>
+                    </div>
+                  </div>
+                  {aiStatus === 'error' && (
+                    <p className="text-xs text-red-400 mt-2 flex items-center gap-1"><AlertCircle size={12} /> {aiStatusMessage}</p>
+                  )}
+                  {aiStatus === 'success' && (
+                    <p className="text-xs text-green-400 mt-2 flex items-center gap-1"><CheckCircle2 size={12} /> {aiStatusMessage}</p>
+                  )}
+                  <p className="text-xs text-white/40 mt-2">Add multiple keys to auto-rotate when rate limits are hit. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get free keys →</a></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // DATA SECTION
+  if (activeSection === 'data') {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="h-full p-8 overflow-y-auto"
+        style={{ WebkitAppRegion: 'no-drag' }}
+      >
+        <div className="max-w-4xl mx-auto">
+          {/* Header with Back Button */}
+          <div className="mb-8 flex items-center gap-4">
+            <button
+              onClick={() => setActiveSection('main')}
+              className="relative z-[51] no-drag p-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <ArrowLeft className="text-white/70 hover:text-white" size={24} />
+            </button>
+            <div>
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Database className="text-blue-500" size={32} />
+                Data & About
+              </h2>
+              <p className="text-white/50">
+                Manage your data and view app info
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Reset Statistics */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Reset Statistics
+              </h3>
+              <p className="text-sm text-white/70 mb-4">
+                Permanently delete specific data categories. This cannot be undone.
+              </p>
+              <div className="space-y-3">
+                {/* Reset Task Statistics */}
+                <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                  <div>
+                    <p className="text-white font-medium">Task Completion History</p>
+                    <p className="text-xs text-white/50 mt-1">Delete all completed tasks data</p>
+                  </div>
                   <button
                     onClick={() => {
-                      const mins = parseInt(cooldownMinutes);
-                      if (mins > 0) {
-                        durationService.setCooldown(mins);
-                        updateCooldownDisplay();
-                        setCooldownMinutes('');
+                      const confirmed = window.confirm(
+                        'Are you sure? This will permanently delete all task completion history. Active tasks will not be affected.'
+                      );
+                      if (confirmed) {
+                        localStorage.removeItem('completedTasks');
+                        backupManager.saveAutoBackup();
+                        window.dispatchEvent(new Event('statsReset'));
+                        window.dispatchEvent(new Event('storage'));
                       }
                     }}
-                    disabled={!cooldownMinutes || parseInt(cooldownMinutes) <= 0}
-                    className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
                   >
-                    Start Cooldown
+                    Reset Tasks
                   </button>
-                  {cooldownRemaining && (
-                    <>
-                      <span className="text-sm text-blue-300">{cooldownRemaining}</span>
+                </div>
+
+                {/* Reset Mood Data */}
+                <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                  <div>
+                    <p className="text-white font-medium">Mood Log</p>
+                    <p className="text-xs text-white/50 mt-1">Delete all mood entries and journal notes</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        'Are you sure? This will permanently delete all mood log entries and journal notes.'
+                      );
+                      if (confirmed) {
+                        localStorage.removeItem('moodLog');
+                        localStorage.removeItem('journalLog');
+                        backupManager.saveAutoBackup();
+                        window.dispatchEvent(new CustomEvent('moodDataUpdated'));
+                        window.dispatchEvent(new Event('storage'));
+                      }
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
+                  >
+                    Reset Mood
+                  </button>
+                </div>
+
+                {/* Reset Sleep Data */}
+                <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
+                  <div>
+                    <p className="text-white font-medium">Sleep Log</p>
+                    <p className="text-xs text-white/50 mt-1">Delete all sleep tracking data</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        'Are you sure? This will permanently delete all sleep log entries.'
+                      );
+                      if (confirmed) {
+                        localStorage.removeItem('sleepLog');
+                        backupManager.saveAutoBackup();
+                        window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
+                        window.dispatchEvent(new Event('storage'));
+                      }
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
+                  >
+                    Reset Sleep
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Backup & Recovery */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Backup & Recovery
+              </h3>
+
+              {/* Message Display */}
+              {backupMessage && (
+                <div className={`mb-4 p-3 rounded-lg ${backupMessage.type === 'success' ? 'bg-green-glow/20 text-green-glow' :
+                  backupMessage.type === 'error' ? 'bg-red-500/20 text-red-500' :
+                    'bg-blue-500/20 text-blue-500'
+                  }`}>
+                  {backupMessage.text}
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {/* Automatic Protection Info */}
+                <div>
+                  <p className="text-white/70 mb-2">
+                    <strong className="text-white">Automatic Protection:</strong>
+                  </p>
+                  <ul className="text-white/70 text-sm space-y-1 ml-4">
+                    <li>• Instant auto-save on every change</li>
+                    <li>• Daily backup at midnight</li>
+                    <li>• Backup on app launch</li>
+                  </ul>
+                  <p className="text-white/40 text-sm mt-3">
+                    Backups stored in: {'{'}userData{'}'}/backups/
+                  </p>
+                </div>
+
+                {/* Export/Import Section with Toggle */}
+                <div>
+                  {/* Mode Toggle */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-white font-semibold">Data Transfer</h4>
+                    <div className="flex items-center gap-2 liquid-bubble-filled rounded-lg p-1">
                       <button
-                        onClick={() => {
-                          durationService.clearCooldown();
-                          updateCooldownDisplay();
-                        }}
-                        className="text-xs text-white/40 hover:text-white/60 underline"
+                        onClick={() => setImportExportMode('export')}
+                        className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'export'
+                          ? 'bg-green-glow text-bg-primary'
+                          : 'text-white/70 hover:text-white'
+                          }`}
                       >
-                        Cancel
+                        Export
+                      </button>
+                      <button
+                        onClick={() => setImportExportMode('import')}
+                        className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'import'
+                          ? 'bg-blue-500 text-white'
+                          : 'text-white/70 hover:text-white'
+                          }`}
+                      >
+                        Import
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Complete Backup/Restore */}
+                  <div className="mb-6">
+                    <h5 className="text-white/80 text-sm font-medium mb-3">
+                      {importExportMode === 'export' ? 'Complete Backup' : 'Complete Restore'}
+                    </h5>
+                    <button
+                      onClick={importExportMode === 'export' ? handleExport : handleImport}
+                      className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${importExportMode === 'export'
+                        ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                        : 'bg-blue-500 bg-opacity-20 text-blue-500 hover:bg-opacity-30'
+                        }`}
+                    >
+                      {importExportMode === 'export' ? 'Export All Data' : 'Import All Data'}
+                    </button>
+                    <p className="text-xs text-white/40 mt-2">
+                      {importExportMode === 'export'
+                        ? 'Save a complete backup of all your data'
+                        : 'Restore all data from a backup file'}
+                    </p>
+                  </div>
+
+                  {/* By Category */}
+                  <div>
+                    <h5 className="text-white/80 text-sm font-medium mb-3">By Category</h5>
+                    {!window.require ? (
+                      <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                        <p className="text-yellow-500 text-sm">
+                          Category export/import requires the Electron desktop app.
+                          <br />
+                          Use "Complete Backup" above for web mode.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <button
+                            onClick={importExportMode === 'export' ? handleExportTasks : handleImportTasks}
+                            className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                          >
+                            {importExportMode === 'export' ? '📤' : '📥'} Tasks
+                          </button>
+
+                          <button
+                            onClick={importExportMode === 'export' ? handleExportMood : handleImportMood}
+                            className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                          >
+                            {importExportMode === 'export' ? '📤' : '📥'} Mood
+                          </button>
+
+                          <button
+                            onClick={importExportMode === 'export' ? handleExportSleep : handleImportSleep}
+                            className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
+                          >
+                            {importExportMode === 'export' ? '📤' : '📥'} Sleep
+                          </button>
+                        </div>
+                        <p className="text-xs text-white/40 mt-3">
+                          {importExportMode === 'export'
+                            ? 'Export individual data categories as JSON files'
+                            : 'Import data from category-specific JSON files'}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Restore from Backup Dropdown */}
+                <div className="border-t border-white/10 pt-6">
+                  <label className="block text-white font-semibold mb-3">
+                    Restore from Backup
+                  </label>
+
+                  {backups.length === 0 ? (
+                    <p className="text-white/70 text-sm">No backups available yet.</p>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedBackup}
+                        onChange={(e) => setSelectedBackup(e.target.value)}
+                        className="w-full liquid-bubble-filled text-white rounded-lg px-4 py-3 mb-3 focus:outline-none focus:border-green-glow/50"
+                      >
+                        <option value="">Select a backup to restore...</option>
+                        {backups.map((backup) => (
+                          <option key={backup.name} value={backup.name}>
+                            {backupManager.formatDate(backup.modified)} - {backupManager.formatFileSize(backup.size)}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        onClick={handleRestoreBackup}
+                        disabled={!selectedBackup}
+                        className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${selectedBackup
+                          ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
+                          : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
+                          }`}
+                      >
+                        Restore Selected Backup
                       </button>
                     </>
                   )}
                 </div>
               </div>
-
-              {/* Clear History */}
-              <div className="pt-2 border-t border-white/5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-white/70">Clear duration history</div>
-                    <div className="text-xs text-white/40">Remove all logged completion times (predictions will reset)</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to clear all duration history? This will reset all predictions.')) {
-                        durationService.clearDurationHistory();
-                        setHistoryCount(0);
-                      }
-                    }}
-                    disabled={historyCount === 0}
-                    className="px-4 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 size={14} />
-                    Clear History
-                  </button>
-                </div>
-              </div>
             </div>
-          </div>
 
-          {/* Semester Information */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Semester Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Break Start Date <span className="text-white/40">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={breakStartDate}
-                  onChange={handleBreakStartDateChange}
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
-                />
-                <p className="text-xs text-white/40 mt-1">
-                  Track break progress before semester starts
+            {/* About */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                About
+              </h3>
+              <div className="space-y-2 text-sm text-white/70">
+                <p><strong className="text-white">Version:</strong> 2.3.0</p>
+                <p><strong className="text-white">Status:</strong> Building</p>
+                <p className="text-white/40 pt-2">
+                  Built with React, Electron, and Tailwind CSS
                 </p>
               </div>
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Semester Start Date
-                </label>
-                <input
-                  type="date"
-                  value={semesterStartDate}
-                  onChange={handleStartDateChange}
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Last Day of Classes
-                </label>
-                <input
-                  type="date"
-                  value={semesterEndDate}
-                  onChange={handleEndDateChange}
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-white/40 mt-3">
-              This will show a circular progress indicator on your dashboard
-            </p>
-          </div>
-
-          {/* Pomodoro Timer */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Pomodoro Timer
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Work Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={pomodoroWorkDuration}
-                  onChange={handleWorkDurationChange}
-                  min="1"
-                  max="120"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Break Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={pomodoroBreakDuration}
-                  onChange={handleBreakDurationChange}
-                  min="1"
-                  max="60"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-white/40 mt-4">
-              Changes take effect immediately when you reset or start a new session
-            </p>
-          </div>
-
-          {/* Focus Mode (SelfControl) */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Focus Mode (SelfControl)
-            </h3>
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={focusEnabled}
-                  onChange={handleFocusToggle}
-                  className="w-5 h-5 rounded border-bg-primary bg-bg-tertiary accent-green-glow"
-                />
-                <span className="text-white/70">Enable Focus Mode</span>
-              </label>
-
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  SelfControl Blocklist File
-                </label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={blocklistPath}
-                    readOnly
-                    placeholder="No file selected"
-                    className="flex-1 liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30"
-                  />
-                  <button
-                    onClick={handleSelectBlocklist}
-                    className="px-4 py-2 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all"
-                  >
-                    Select File
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 text-sm">
-                <p className="font-semibold mb-1">How to use:</p>
-                <p>Open SelfControl, add your sites, go to File → Save Blocklist, and select that file here.</p>
-              </div>
-
-              <p className="text-xs text-white/40">
-                When enabled, starting a Work session will automatically block distracting websites for the session duration.
-              </p>
-              <p className="text-xs text-white/40 mt-2">
-                <strong>Note:</strong> Requires the{' '}
-                <a
-                  href="https://selfcontrolapp.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-white/70"
-                >
-                  SelfControl app
-                </a>{' '}
-                installed in your Applications folder (macOS only).
-              </p>
-            </div>
-          </div>
-
-          {/* Recent Completed Tasks - Backdate Completion */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Recent Completed Tasks
-            </h3>
-            <p className="text-sm text-white/50 mb-4">
-              Change completion dates for tasks completed in the past 7 days
-            </p>
-            <RecentCompletedTasks onUpdate={() => {
-              backupManager.saveAutoBackup();
-              window.dispatchEvent(new Event('storage'));
-            }} />
-          </div>
-          {/* Canvas Integration */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Canvas Integration
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Canvas URL
-                </label>
-                <input
-                  type="text"
-                  value={canvasUrl}
-                  onChange={(e) => setCanvasUrl(e.target.value)}
-                  placeholder="e.g., usf.instructure.com"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-                <p className="text-xs text-white/40 mt-2">
-                  Enter your school's Canvas domain (without https://)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  Canvas API Token
-                </label>
-                <input
-                  type="password"
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="Paste your token here"
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white placeholder-white/30 focus:border-green-glow/50 focus:outline-none transition-colors"
-                />
-                <p className="text-xs text-white/40 mt-2">
-                  Generate a token from your Canvas Profile → Settings → New Access Token
-                </p>
-              </div>
-
-              <button
-                onClick={handleSaveAndTest}
-                disabled={!canvasUrl || !apiToken}
-                className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${canvasUrl && apiToken
-                  ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                  : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
-                  }`}
-              >
-                Save & Test Connection
-              </button>
-
-              {/* Connection Status Feedback */}
-              {connectionStatus && (
-                <div className={`p-3 rounded-lg ${connectionStatus.status === 'success' ? 'bg-green-glow/20 text-green-glow' :
-                  connectionStatus.status === 'error' ? 'bg-red-500/20 text-red-500' :
-                    'bg-blue-500/20 text-blue-500'
-                  }`}>
-                  {connectionStatus.message}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Statistics */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Reset Statistics
-            </h3>
-            <p className="text-sm text-white/70 mb-4">
-              Permanently delete specific data categories. This cannot be undone.
-            </p>
-            <div className="space-y-3">
-              {/* Reset Task Statistics */}
-              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
-                <div>
-                  <p className="text-white font-medium">Task Completion History</p>
-                  <p className="text-xs text-white/50 mt-1">Delete all completed tasks data</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const confirmed = window.confirm(
-                      'Are you sure? This will permanently delete all task completion history. Active tasks will not be affected.'
-                    );
-                    if (confirmed) {
-                      localStorage.removeItem('completedTasks');
-                      backupManager.saveAutoBackup();
-                      window.dispatchEvent(new Event('statsReset'));
-                      window.dispatchEvent(new Event('storage'));
-                    }
-                  }}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
-                >
-                  Reset Tasks
-                </button>
-              </div>
-
-              {/* Reset Mood Data */}
-              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
-                <div>
-                  <p className="text-white font-medium">Mood Log</p>
-                  <p className="text-xs text-white/50 mt-1">Delete all mood entries and journal notes</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const confirmed = window.confirm(
-                      'Are you sure? This will permanently delete all mood log entries and journal notes.'
-                    );
-                    if (confirmed) {
-                      localStorage.removeItem('moodLog');
-                      localStorage.removeItem('journalLog');
-                      backupManager.saveAutoBackup();
-                      window.dispatchEvent(new CustomEvent('moodDataUpdated'));
-                      window.dispatchEvent(new Event('storage'));
-                    }
-                  }}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
-                >
-                  Reset Mood
-                </button>
-              </div>
-
-              {/* Reset Sleep Data */}
-              <div className="flex items-center justify-between p-3 liquid-bubble-filled rounded-lg">
-                <div>
-                  <p className="text-white font-medium">Sleep Log</p>
-                  <p className="text-xs text-white/50 mt-1">Delete all sleep tracking data</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const confirmed = window.confirm(
-                      'Are you sure? This will permanently delete all sleep log entries.'
-                    );
-                    if (confirmed) {
-                      localStorage.removeItem('sleepLog');
-                      backupManager.saveAutoBackup();
-                      window.dispatchEvent(new CustomEvent('sleepDataUpdated'));
-                      window.dispatchEvent(new Event('storage'));
-                    }
-                  }}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex-shrink-0"
-                >
-                  Reset Sleep
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Backup & Recovery */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Backup & Recovery
-            </h3>
-
-            {/* Message Display */}
-            {backupMessage && (
-              <div className={`mb-4 p-3 rounded-lg ${backupMessage.type === 'success' ? 'bg-green-glow/20 text-green-glow' :
-                backupMessage.type === 'error' ? 'bg-red-500/20 text-red-500' :
-                  'bg-blue-500/20 text-blue-500'
-                }`}>
-                {backupMessage.text}
-              </div>
-            )}
-
-            <div className="space-y-6">
-              {/* Automatic Protection Info */}
-              <div>
-                <p className="text-white/70 mb-2">
-                  <strong className="text-white">Automatic Protection:</strong>
-                </p>
-                <ul className="text-white/70 text-sm space-y-1 ml-4">
-                  <li>• Instant auto-save on every change</li>
-                  <li>• Daily backup at midnight</li>
-                  <li>• Backup on app launch</li>
-                </ul>
-                <p className="text-white/40 text-sm mt-3">
-                  Backups stored in: {'{'}userData{'}'}/backups/
-                </p>
-              </div>
-
-              {/* Export/Import Section with Toggle */}
-              <div>
-                {/* Mode Toggle */}
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-white font-semibold">Data Transfer</h4>
-                  <div className="flex items-center gap-2 liquid-bubble-filled rounded-lg p-1">
-                    <button
-                      onClick={() => setImportExportMode('export')}
-                      className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'export'
-                        ? 'bg-green-glow text-bg-primary'
-                        : 'text-white/70 hover:text-white'
-                        }`}
-                    >
-                      Export
-                    </button>
-                    <button
-                      onClick={() => setImportExportMode('import')}
-                      className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${importExportMode === 'import'
-                        ? 'bg-blue-500 text-white'
-                        : 'text-white/70 hover:text-white'
-                        }`}
-                    >
-                      Import
-                    </button>
-                  </div>
-                </div>
-
-                {/* Complete Backup/Restore */}
-                <div className="mb-6">
-                  <h5 className="text-white/80 text-sm font-medium mb-3">
-                    {importExportMode === 'export' ? 'Complete Backup' : 'Complete Restore'}
-                  </h5>
-                  <button
-                    onClick={importExportMode === 'export' ? handleExport : handleImport}
-                    className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${importExportMode === 'export'
-                      ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                      : 'bg-blue-500 bg-opacity-20 text-blue-500 hover:bg-opacity-30'
-                      }`}
-                  >
-                    {importExportMode === 'export' ? 'Export All Data' : 'Import All Data'}
-                  </button>
-                  <p className="text-xs text-white/40 mt-2">
-                    {importExportMode === 'export'
-                      ? 'Save a complete backup of all your data'
-                      : 'Restore all data from a backup file'}
-                  </p>
-                </div>
-
-                {/* By Category */}
-                <div>
-                  <h5 className="text-white/80 text-sm font-medium mb-3">By Category</h5>
-                  {!window.require ? (
-                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <p className="text-yellow-500 text-sm">
-                        Category export/import requires the Electron desktop app.
-                        <br />
-                        Use "Complete Backup" above for web mode.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <button
-                          onClick={importExportMode === 'export' ? handleExportTasks : handleImportTasks}
-                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                        >
-                          {importExportMode === 'export' ? '📤' : '📥'} Tasks
-                        </button>
-
-                        <button
-                          onClick={importExportMode === 'export' ? handleExportMood : handleImportMood}
-                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                        >
-                          {importExportMode === 'export' ? '📤' : '📥'} Mood
-                        </button>
-
-                        <button
-                          onClick={importExportMode === 'export' ? handleExportSleep : handleImportSleep}
-                          className="px-4 py-3 liquid-bubble-filled text-white rounded-lg hover:bg-white/10 transition-all font-medium text-sm"
-                        >
-                          {importExportMode === 'export' ? '📤' : '📥'} Sleep
-                        </button>
-                      </div>
-                      <p className="text-xs text-white/40 mt-3">
-                        {importExportMode === 'export'
-                          ? 'Export individual data categories as JSON files'
-                          : 'Import data from category-specific JSON files'}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Restore from Backup Dropdown */}
-              <div className="border-t border-white/10 pt-6">
-                <label className="block text-white font-semibold mb-3">
-                  Restore from Backup
-                </label>
-
-                {backups.length === 0 ? (
-                  <p className="text-white/70 text-sm">No backups available yet.</p>
-                ) : (
-                  <>
-                    <select
-                      value={selectedBackup}
-                      onChange={(e) => setSelectedBackup(e.target.value)}
-                      className="w-full liquid-bubble-filled text-white rounded-lg px-4 py-3 mb-3 focus:outline-none focus:border-green-glow/50"
-                    >
-                      <option value="">Select a backup to restore...</option>
-                      {backups.map((backup) => (
-                        <option key={backup.name} value={backup.name}>
-                          {backupManager.formatDate(backup.modified)} - {backupManager.formatFileSize(backup.size)}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      onClick={handleRestoreBackup}
-                      disabled={!selectedBackup}
-                      className={`w-full px-6 py-3 rounded-lg font-semibold transition-all ${selectedBackup
-                        ? 'bg-green-glow bg-opacity-20 text-green-glow hover:bg-opacity-30'
-                        : 'liquid-bubble-filled text-white/40 cursor-not-allowed'
-                        }`}
-                    >
-                      Restore Selected Backup
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* About */}
-          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              About
-            </h3>
-            <div className="space-y-2 text-sm text-white/70">
-              <p><strong className="text-white">Version:</strong> 2.2.0</p>
-              <p><strong className="text-white">Status:</strong> Building</p>
-              <p className="text-white/40 pt-2">
-                Built with React, Electron, and Tailwind CSS
-              </p>
             </div>
           </div>
         </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="h-full p-8 overflow-y-auto"
+      style={{ WebkitAppRegion: 'no-drag' }}
+    >
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold text-text-primary mb-3 flex items-center gap-3">
+            <Settings className="text-green-glow" size={40} />
+            Settings
+          </h2>
+          <p className="text-text-secondary text-lg">
+            Manage your application preferences and data
+          </p>
+        </div>
+
+        {/* Category Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Profile Card */}
+          <motion.button
+            onClick={() => setActiveSection('profile')}
+            className="glass-panel p-10 hover:bg-glass-overlay transition-all duration-300 group text-left"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex flex-col items-start gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors duration-300">
+                <User className="text-blue-500" size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Profile</h3>
+                <p className="text-white/60">Personal details and semester information</p>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Features Card */}
+          <motion.button
+            onClick={() => setActiveSection('features')}
+            className="glass-panel p-10 hover:bg-glass-overlay transition-all duration-300 group text-left"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex flex-col items-start gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-green-glow/10 flex items-center justify-center group-hover:bg-green-glow/20 transition-colors duration-300">
+                <Sliders className="text-green-glow" size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Features</h3>
+                <p className="text-white/60">Productivity tools, focus mode, and predictions</p>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Integrations Card */}
+          <motion.button
+            onClick={() => setActiveSection('integrations')}
+            className="glass-panel p-10 hover:bg-glass-overlay transition-all duration-300 group text-left"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex flex-col items-start gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors duration-300">
+                <Link className="text-purple-500" size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Integrations</h3>
+                <p className="text-white/60">Connect with Canvas and AI services</p>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Data Card */}
+          <motion.button
+            onClick={() => setActiveSection('data')}
+            className="glass-panel p-10 hover:bg-glass-overlay transition-all duration-300 group text-left"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex flex-col items-start gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors duration-300">
+                <Database className="text-orange-500" size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-2">Data & About</h3>
+                <p className="text-white/60">Backup, restore, and reset your data</p>
+              </div>
+            </div>
+          </motion.button>
+
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
+
+
 };
 
 export default SettingsTab;
