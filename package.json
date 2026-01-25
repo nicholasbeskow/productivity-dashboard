@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5555 && electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "electron:build:fast": "vite build && electron-builder --dir"
   },
   "keywords": [
     "productivity",

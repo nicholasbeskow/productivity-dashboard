@@ -73,7 +73,16 @@ function createWindow() {
   mainWindow.on('close', (event) => {
     if (process.platform === 'darwin' && !isQuitting) {
       event.preventDefault();
-      mainWindow.hide();
+
+      // Fix for black screen issues: Exit fullscreen before hiding
+      if (mainWindow.isFullScreen()) {
+        mainWindow.setFullScreen(false);
+        mainWindow.once('leave-full-screen', () => {
+          mainWindow.hide();
+        });
+      } else {
+        mainWindow.hide();
+      }
     }
     // When actually quitting, allow the window to close naturally
   });

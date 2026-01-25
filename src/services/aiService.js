@@ -7,7 +7,7 @@ const getApiKeys = () => {
     const raw = getString(STORAGE_KEYS.AI_API_KEY, '');
     return raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
 };
-const getModelName = () => getString(STORAGE_KEYS.AI_MODEL, 'llama-3.3-70b-versatile');
+const getModelName = () => 'openai/gpt-oss-120b';
 
 class AIService {
     constructor() {

@@ -157,7 +157,7 @@ const SettingsTab = () => {
 
   // AI Configuration State
   const [aiApiKey, setAiApiKey] = useState('');
-  const [aiModel, setAiModel] = useState('llama-3.3-70b-versatile');
+
   const [aiStatus, setAiStatus] = useState('idle'); // idle, testing, success, error
   const [aiStatusMessage, setAiStatusMessage] = useState('');
 
@@ -181,7 +181,7 @@ const SettingsTab = () => {
 
     // Load AI Settings
     setAiApiKey(localStorage.getItem(STORAGE_KEYS.AI_API_KEY) || '');
-    setAiModel(localStorage.getItem(STORAGE_KEYS.AI_MODEL) || 'llama-3.3-70b-versatile');
+
   }, []);
 
   const loadBackupList = async () => {
@@ -204,11 +204,7 @@ const SettingsTab = () => {
     setAiStatus('idle'); // Reset status on change
   };
 
-  const handleAiModelChange = (e) => {
-    const newModel = e.target.value;
-    setAiModel(newModel);
-    localStorage.setItem(STORAGE_KEYS.AI_MODEL, newModel);
-  };
+
 
   const testAiConnection = async () => {
     if (!aiApiKey) {
@@ -828,20 +824,7 @@ const SettingsTab = () => {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm text-white/70 mb-2">
-                  AI Model
-                </label>
-                <select
-                  value={aiModel}
-                  onChange={handleAiModelChange}
-                  className="w-full liquid-bubble-filled rounded-lg px-4 py-2 text-white bg-[#0a0e14] focus:border-orange-400/50 focus:outline-none"
-                >
-                  <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Smart & Fast)</option>
-                  <option value="llama-3.1-8b-instant">Llama 3.1 8B (Super Fast)</option>
-                  <option value="mixtral-8x7b-32768">Mixtral 8x7B (High Context)</option>
-                </select>
-              </div>
+
             </div>
           </div>
 
