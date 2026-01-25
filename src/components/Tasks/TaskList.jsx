@@ -9,9 +9,12 @@ import { parseLocalDateAtNoon } from '../../utils/dateHelpers';
 import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
 import { getStatusIcon, getStatusLabel, getCardGlow, getCheckboxClass } from '../../utils/taskUIHelpers';
 import TaskForm from './TaskForm';
+import DurationInputModal from './DurationInputModal';
+import DurationBadge from './DurationBadge';
+import durationService from '../../services/durationService';
 
 // Memoized single task card for performance
-const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask, editScope, onScopeChange }, ref) => {
+const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onStatusChange, onOpenUrl, isEditing, editForm, onStartEdit, onSaveEdit, onCancelEdit, onEditFormChange, onDuplicate, isMenuOpen, onMenuToggle, isEditingTemplate, onDeleteTask, editScope, onScopeChange, onEditDuration }, ref) => {
   // State for attachment drag-and-drop
   const [draggedAttachmentIndex, setDraggedAttachmentIndex] = useState(null);
   const [dragOverAttachmentIndex, setDragOverAttachmentIndex] = useState(null);
@@ -383,6 +386,12 @@ const TaskCard = memo(forwardRef(({ task, justCompletedId, draggedTask, dragOver
                   )}
                 </span>
               )}
+              <DurationBadge
+                predictedMinutes={task.predictedDuration}
+                confidencePercent={task.predictionConfidence || 50}
+                sampleCount={task.predictionSampleCount || 1}
+                onEdit={() => onEditDuration && onEditDuration(task)}
+              />
               <motion.span
                 className={`px-2 py-1 rounded transition-all ${task.status === 'complete'
                   ? 'bg-green-muted text-green-glow'
@@ -491,6 +500,11 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
   });
   // State for edit scope of recurring tasks (synced from TaskForm)
   const [editScope, setEditScope] = useState('instance');
+
+  // State for duration input modal
+  const [durationModalOpen, setDurationModalOpen] = useState(false);
+  const [isDurationEditMode, setIsDurationEditMode] = useState(false);
+  const [pendingDurationTask, setPendingDurationTask] = useState(null);
 
   // Menu position state
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -655,6 +669,13 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
             const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
 
             if (nextTask) {
+              // Calculate prediction from template history
+              const templateHistory = durationService.getHistoryForTemplate(completedTask.templateId);
+              let prediction = null;
+              if (templateHistory.length > 0) {
+                prediction = durationService.calculatePrediction(templateHistory);
+              }
+
               // Find tasks with the SAME due date (and optionally time) to place near them
               const sameDateTasks = activeTasks.filter(t =>
                 t.dueDate === nextTask.dueDate && !isTaskOverdue(t)
@@ -692,7 +713,16 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
                 }
               }
 
-              const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
+              const newTaskWithPriority = {
+                ...nextTask,
+                customPriority: newPriority,
+                // Add prediction if available
+                ...(prediction && {
+                  predictedDuration: prediction.predictedMinutes,
+                  predictionConfidence: prediction.confidencePercent,
+                  predictionSampleCount: prediction.sampleCount,
+                }),
+              };
               activeTasks.splice(insertIndex, 0, newTaskWithPriority);
             }
           }
@@ -702,6 +732,21 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
 
         // Clean up map
         completionTimeoutsRef.current.delete(taskId);
+
+        // Show duration input modal (if feature enabled and not in cooldown)
+        if (durationService.isFeatureEnabled() && !durationService.isCooldownActive()) {
+          // For recurring tasks with high confidence, auto-log instead of showing modal
+          // BUT if the user manually estimated it logic (isUserEstimate), always ask them to confirm
+          if (completedTask.templateId && completedTask.predictionConfidence >= 85 && !completedTask.isUserEstimate) {
+            // Auto-log the predicted duration
+            durationService.saveDuration(completedTask, completedTask.predictedDuration);
+          } else {
+            // Show modal for regular tasks or low-confidence recurring tasks
+            setPendingDurationTask(completedTask);
+            setIsDurationEditMode(false);
+            setDurationModalOpen(true);
+          }
+        }
       }, 700); // Wait for animation
 
       completionTimeoutsRef.current.set(taskId, timeoutId);
@@ -1343,6 +1388,11 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
               onDeleteTask={handleDeleteFromEdit}
               editScope={editScope}
               onScopeChange={setEditScope}
+              onEditDuration={(task) => {
+                setPendingDurationTask(task);
+                setIsDurationEditMode(true);
+                setDurationModalOpen(true);
+              }}
             />
           ))}
         </AnimatePresence>
@@ -1437,6 +1487,54 @@ const TaskList = ({ tasks, allTasks = [], setTasks, openMenuTaskId, setOpenMenuT
         </AnimatePresence>,
         document.body
       )}
+
+      {/* Duration Input Modal */}
+      <DurationInputModal
+        task={pendingDurationTask}
+        isOpen={durationModalOpen}
+        isEditMode={isDurationEditMode}
+        onClose={() => {
+          setDurationModalOpen(false);
+          setPendingDurationTask(null);
+          setIsDurationEditMode(false);
+        }}
+        onSave={(minutes, wasEditMode) => {
+          if (wasEditMode && pendingDurationTask) {
+            // Edit mode - update task's prediction display (not history)
+            const taskId = pendingDurationTask.id;
+            setTasks(prev => prev.map(t => {
+              if (t.id === taskId) {
+                return {
+                  ...t,
+                  predictedDuration: minutes,
+                  predictionConfidence: 100, // User-set estimates are 100% confident
+                  predictionSampleCount: (t.predictionSampleCount || 0) + 1,
+                  isUserEstimate: true, // Flag to prevent auto-logging on completion
+                };
+              }
+              return t;
+            }));
+          } else if (pendingDurationTask?.templateId) {
+            // Completion mode for recurring task - update any existing sibling tasks
+            const templateId = pendingDurationTask.templateId;
+            const templateHistory = durationService.getHistoryForTemplate(templateId);
+            if (templateHistory.length > 0) {
+              const prediction = durationService.calculatePrediction(templateHistory);
+              setTasks(prev => prev.map(t => {
+                if (t.templateId === templateId) {
+                  return {
+                    ...t,
+                    predictedDuration: prediction.predictedMinutes,
+                    predictionConfidence: prediction.confidencePercent,
+                    predictionSampleCount: prediction.sampleCount,
+                  };
+                }
+                return t;
+              }));
+            }
+          }
+        }}
+      />
     </>
   );
 };

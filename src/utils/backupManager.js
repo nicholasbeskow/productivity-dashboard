@@ -36,6 +36,7 @@ class BackupManager {
       moodLog: getItem(STORAGE_KEYS.MOOD_LOG, []),
       journalLog: getItem(STORAGE_KEYS.JOURNAL_LOG, []),
       sleepLog: getItem(STORAGE_KEYS.SLEEP_LOG, []),
+      taskDurationHistory: getItem(STORAGE_KEYS.TASK_DURATION_HISTORY, []),
       userName: getString(STORAGE_KEYS.USER_NAME, ''),
       breakStartDate: getString(STORAGE_KEYS.BREAK_START_DATE, ''),
       semesterStartDate: getString(STORAGE_KEYS.SEMESTER_START_DATE, ''),
@@ -82,6 +83,7 @@ class BackupManager {
       if (data.moodLog) setItem(STORAGE_KEYS.MOOD_LOG, data.moodLog);
       if (data.journalLog) setItem(STORAGE_KEYS.JOURNAL_LOG, data.journalLog);
       if (data.sleepLog) setItem(STORAGE_KEYS.SLEEP_LOG, data.sleepLog);
+      if (data.taskDurationHistory) setItem(STORAGE_KEYS.TASK_DURATION_HISTORY, data.taskDurationHistory);
       if (data.userName) setString(STORAGE_KEYS.USER_NAME, data.userName);
       if (data.breakStartDate) setString(STORAGE_KEYS.BREAK_START_DATE, data.breakStartDate);
       if (data.semesterStartDate) setString(STORAGE_KEYS.SEMESTER_START_DATE, data.semesterStartDate);

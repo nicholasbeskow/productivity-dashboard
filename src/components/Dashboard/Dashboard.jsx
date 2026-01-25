@@ -15,13 +15,16 @@ import { createNextRecurrence } from '../../utils/recurringTaskService';
 import { formatDateTimeDisplay, formatTime12Hour, getTimeRemaining, formatDate } from '../../utils/dateFormatting';
 import { useTasks } from '../../context/TaskContext';
 import { getStatusIcon, getCardGlow, getCheckboxClass } from '../../utils/taskUIHelpers';
+import DurationInputModal from '../Tasks/DurationInputModal';
+import DurationBadge from '../Tasks/DurationBadge';
+import durationService from '../../services/durationService';
 
 const SemesterCompleteModal = React.lazy(() => import('./SemesterCompleteModal'));
 
 
 
 // ===== TASK CARD COMPONENT =====
-const TaskCard = memo(React.forwardRef(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd }, ref) => {
+const TaskCard = memo(React.forwardRef(({ task, justCompletedId, onViewDetails, onStatusChange, onStartEdit, draggedTask, dragOverTask, onDragStart, onDragOver, onDrop, onDragEnd, onEditDuration }, ref) => {
   const taskIsOverdue = isTaskOverdue(task);
   const isJustCompleted = justCompletedId === task.id;
   const glowClass = getCardGlow(task, taskIsOverdue);
@@ -193,6 +196,12 @@ const TaskCard = memo(React.forwardRef(({ task, justCompletedId, onViewDetails, 
                   <span className="truncate">{task.course}</span>
                 </span>
               )}
+              <DurationBadge
+                predictedMinutes={task.predictedDuration}
+                confidencePercent={task.predictionConfidence || 50}
+                sampleCount={task.predictionSampleCount || 1}
+                onEdit={() => onEditDuration && onEditDuration(task)}
+              />
             </div>
             {task.dueDate && (
               <p className={`text-xs flex items-center gap-1 ${taskIsOverdue ? 'text-red-500 font-semibold' : 'text-white/40'
@@ -330,6 +339,11 @@ const Dashboard = ({ setActiveTab }) => {
   // Semester End Modal state
   const [showSemesterEndModal, setShowSemesterEndModal] = useState(false);
   const [nextBreakStartDefault, setNextBreakStartDefault] = useState('');
+
+  // Duration Input Modal state
+  const [durationModalOpen, setDurationModalOpen] = useState(false);
+  const [pendingDurationTask, setPendingDurationTask] = useState(null);
+  const [isDurationEditMode, setIsDurationEditMode] = useState(false);
 
   // Check for semester end on mount
   useEffect(() => {
@@ -522,6 +536,13 @@ const Dashboard = ({ setActiveTab }) => {
         if (completedTask.templateId) {
           const { nextTask, insertIndex } = createNextRecurrence(completedTask, activeTasks);
           if (nextTask) {
+            // Calculate prediction from template history
+            const templateHistory = durationService.getHistoryForTemplate(completedTask.templateId);
+            let prediction = null;
+            if (templateHistory.length > 0) {
+              prediction = durationService.calculatePrediction(templateHistory);
+            }
+
             // Find tasks with the SAME due date (and optionally time) to place near them
             const sameDateTasks = activeTasks.filter(t =>
               t.dueDate === nextTask.dueDate && !isTaskOverdue(t)
@@ -559,7 +580,16 @@ const Dashboard = ({ setActiveTab }) => {
               }
             }
 
-            const newTaskWithPriority = { ...nextTask, customPriority: newPriority };
+            const newTaskWithPriority = {
+              ...nextTask,
+              customPriority: newPriority,
+              // Add prediction if available
+              ...(prediction && {
+                predictedDuration: prediction.predictedMinutes,
+                predictionConfidence: prediction.confidencePercent,
+                predictionSampleCount: prediction.sampleCount,
+              }),
+            };
             activeTasks.splice(insertIndex, 0, newTaskWithPriority);
           }
         }
@@ -572,6 +602,18 @@ const Dashboard = ({ setActiveTab }) => {
 
         // Clean up map
         completionTimeoutsRef.current.delete(taskId);
+
+        // Show duration input modal (if feature enabled and not in cooldown)
+        if (durationService.isFeatureEnabled() && !durationService.isCooldownActive()) {
+          // For recurring tasks with high confidence, auto-log instead of showing modal
+          // BUT if the user manually estimated it logic (isUserEstimate), always ask them to confirm
+          if (completedTask.templateId && completedTask.predictionConfidence >= 85 && !completedTask.isUserEstimate) {
+            durationService.saveDuration(completedTask, completedTask.predictedDuration);
+          } else {
+            setPendingDurationTask(completedTask);
+            setDurationModalOpen(true);
+          }
+        }
       }, 700);
 
       completionTimeoutsRef.current.set(taskId, timeoutId);
@@ -1257,6 +1299,11 @@ const Dashboard = ({ setActiveTab }) => {
                               onDragOver={handleDragOver}
                               onDrop={handleDrop}
                               onDragEnd={handleDragEnd}
+                              onEditDuration={(task) => {
+                                setPendingDurationTask(task);
+                                setIsDurationEditMode(true);
+                                setDurationModalOpen(true);
+                              }}
                             />
                           ))}
                         </AnimatePresence>
@@ -1650,6 +1697,54 @@ const Dashboard = ({ setActiveTab }) => {
           </Suspense>
         )}
       </AnimatePresence>
+
+      {/* Duration Input Modal */}
+      <DurationInputModal
+        task={pendingDurationTask}
+        isOpen={durationModalOpen}
+        isEditMode={isDurationEditMode}
+        onClose={() => {
+          setDurationModalOpen(false);
+          setPendingDurationTask(null);
+          setIsDurationEditMode(false);
+        }}
+        onSave={(minutes, wasEditMode) => {
+          if (wasEditMode && pendingDurationTask) {
+            // Edit mode - update task's prediction display (not history)
+            const taskId = pendingDurationTask.id;
+            setTasks(prev => prev.map(t => {
+              if (t.id === taskId) {
+                return {
+                  ...t,
+                  predictedDuration: minutes,
+                  predictionConfidence: 100, // User-set estimates are 100% confident
+                  predictionSampleCount: (t.predictionSampleCount || 0) + 1,
+                  isUserEstimate: true, // Flag to prevent auto-logging on completion
+                };
+              }
+              return t;
+            }));
+          } else if (pendingDurationTask?.templateId) {
+            // Completion mode for recurring task - update any existing sibling tasks
+            const templateId = pendingDurationTask.templateId;
+            const templateHistory = durationService.getHistoryForTemplate(templateId);
+            if (templateHistory.length > 0) {
+              const prediction = durationService.calculatePrediction(templateHistory);
+              setTasks(prev => prev.map(t => {
+                if (t.templateId === templateId) {
+                  return {
+                    ...t,
+                    predictedDuration: prediction.predictedMinutes,
+                    predictionConfidence: prediction.confidencePercent,
+                    predictionSampleCount: prediction.sampleCount,
+                  };
+                }
+                return t;
+              }));
+            }
+          }
+        }}
+      />
     </>
   );
 };

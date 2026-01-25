@@ -358,6 +358,138 @@ Apply the user's instructions. Return ONLY the refined task object as valid JSON
             throw new Error('Failed to refine merge.');
         }
     }
+
+    /**
+     * Predict task duration based on historical data using AI semantic matching
+     * @param {Object} task - The task to predict duration for
+     * @param {Array} historicalData - Array of past completion entries
+     * @returns {Object} { predictedMinutes, confidencePercent, sampleCount }
+     */
+    async predictTaskDuration(task, historicalData) {
+        if (!historicalData || historicalData.length === 0) {
+            return null;
+        }
+
+        const modelName = getModelName();
+        const prompt = `
+You are analyzing task similarity to predict how long a task will take.
+
+**Target Task:**
+- Title: "${task.title}"
+- Course: "${task.course || 'None'}"
+- Category: "${task.taskType || 'personal'}"
+- Description: "${task.description || 'None'}"
+
+**Historical Completion Data (most recent first):**
+${JSON.stringify(historicalData.slice(0, 30).map(h => ({
+            title: h.title,
+            course: h.course,
+            category: h.category,
+            durationMinutes: h.durationMinutes
+        })), null, 2)}
+
+**Your Task:**
+1. Find the most similar past tasks based on semantic meaning (not just keywords)
+2. Consider: same course, similar title patterns, same task category
+3. Calculate a predicted duration based on similar tasks
+4. Be more confident if multiple similar tasks exist
+
+**Output (JSON only):**
+{
+  "predictedMinutes": <number>,
+  "confidencePercent": <0-100>,
+  "similarTasksFound": <number>,
+  "reasoning": "<brief explanation>"
+}
+
+Rules:
+- If no similar tasks found, return null for all fields
+- Round minutes to nearest 5
+- Confidence: 1 similar task = 30-50%, 3+ = 60-80%, 5+ = 80-95%
+`;
+
+        // Retry with exponential backoff
+        const delays = [1000, 2000, 4000];
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= delays.length; attempt++) {
+            try {
+                const completion = await this.createCompletion({
+                    messages: [
+                        { role: 'system', content: 'You are a task duration prediction assistant. Output only valid JSON.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    model: modelName,
+                    temperature: 0.1,
+                    response_format: { type: 'json_object' }
+                });
+
+                const text = completion.choices[0]?.message?.content || '{}';
+                const result = JSON.parse(text);
+
+                if (result.predictedMinutes) {
+                    console.log('[AIService] Duration prediction:', result);
+                    return {
+                        predictedMinutes: result.predictedMinutes,
+                        confidencePercent: result.confidencePercent || 50,
+                        sampleCount: result.similarTasksFound || 1
+                    };
+                }
+                return null;
+
+            } catch (error) {
+                lastError = error;
+                console.warn(`[AIService] Duration prediction attempt ${attempt + 1} failed:`, error.message);
+
+                if (attempt < delays.length) {
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+        }
+
+        console.error('[AIService] Duration prediction failed after retries:', lastError?.message);
+        return null;
+    }
+
+    /**
+     * Generate a fun congratulatory message for task completion
+     * @param {Object} task - The completed task
+     * @returns {string} Congratulatory message
+     */
+    async generateCongratMessage(task) {
+        const fallbackMessages = [
+            `Nice work finishing "${task.title}"! 🎉`,
+            `"${task.title}" is done! You're crushing it! 💪`,
+            `Another one bites the dust! "${task.title}" complete! ✨`,
+            `Boom! "${task.title}" is off your plate! 🚀`,
+            `"${task.title}"? Done and dusted! 🏆`
+        ];
+
+        try {
+            const completion = await this.createCompletion({
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You generate short, fun, encouraging congratulatory messages for task completion. Be playful but professional. Use 1-2 emojis. Keep it under 15 words. Output just the message text, no quotes.'
+                    },
+                    {
+                        role: 'user',
+                        content: `Generate a congratulatory message for completing this task: "${task.title}"${task.course ? ` (for ${task.course})` : ''}`
+                    }
+                ],
+                model: 'llama-3.1-8b-instant', // Fast model for quick response
+                temperature: 0.9, // Higher creativity
+                max_tokens: 50
+            });
+
+            const message = completion.choices[0]?.message?.content?.trim();
+            return message || fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
+
+        } catch (error) {
+            console.warn('[AIService] Congrat message generation failed, using fallback');
+            return fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
+        }
+    }
 }
 
 export const aiService = new AIService();

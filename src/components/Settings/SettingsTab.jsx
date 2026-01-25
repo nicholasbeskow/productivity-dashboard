@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar, Clock, Trash2 } from 'lucide-react';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { aiService } from '../../services/aiService';
+import durationService from '../../services/durationService';
 import backupManager from '../../utils/backupManager';
 
 // Sub-component to handle individual task date input state
@@ -161,6 +162,12 @@ const SettingsTab = () => {
   const [aiStatus, setAiStatus] = useState('idle'); // idle, testing, success, error
   const [aiStatusMessage, setAiStatusMessage] = useState('');
 
+  // Duration Prediction state
+  const [durationEnabled, setDurationEnabled] = useState(true);
+  const [cooldownMinutes, setCooldownMinutes] = useState('');
+  const [cooldownRemaining, setCooldownRemaining] = useState('');
+  const [historyCount, setHistoryCount] = useState(0);
+
   useEffect(() => {
     // Load data from localStorage on mount
     setUserName(localStorage.getItem('userName') || '');
@@ -182,7 +189,25 @@ const SettingsTab = () => {
     // Load AI Settings
     setAiApiKey(localStorage.getItem(STORAGE_KEYS.AI_API_KEY) || '');
 
+    // Load Duration Prediction settings
+    setDurationEnabled(durationService.isFeatureEnabled());
+    setHistoryCount(durationService.getDurationHistory().length);
+    updateCooldownDisplay();
+
   }, []);
+
+  // Update cooldown display every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      updateCooldownDisplay();
+    }, 60000); // Every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateCooldownDisplay = () => {
+    const remaining = durationService.formatRemainingCooldown();
+    setCooldownRemaining(remaining);
+  };
 
   const loadBackupList = async () => {
     const result = await backupManager.listBackups();
@@ -825,6 +850,110 @@ const SettingsTab = () => {
               </div>
 
 
+            </div>
+          </div>
+
+          {/* Duration Predictions */}
+          <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Clock className="text-blue-400" size={20} />
+                Duration Predictions
+              </h3>
+              <div className="text-xs text-white/40">
+                {historyCount} task{historyCount !== 1 ? 's' : ''} logged
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Enable/Disable Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-white/70">Enable duration predictions</div>
+                  <div className="text-xs text-white/40">Show estimated time on tasks and prompt for completion times</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={durationEnabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setDurationEnabled(enabled);
+                      durationService.setFeatureEnabled(enabled);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500/50"></div>
+                </label>
+              </div>
+
+              {/* Cooldown Period */}
+              <div className="pt-2 border-t border-white/5">
+                <div className="text-sm text-white/70 mb-2">Cooldown period</div>
+                <div className="text-xs text-white/40 mb-3">Temporarily stop asking for completion times</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={cooldownMinutes}
+                    onChange={(e) => setCooldownMinutes(e.target.value)}
+                    placeholder="Minutes"
+                    min="1"
+                    max="10080"
+                    className="w-24 liquid-bubble-filled rounded-lg px-3 py-2 text-white placeholder-white/30 focus:border-blue-400/50 focus:outline-none text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      const mins = parseInt(cooldownMinutes);
+                      if (mins > 0) {
+                        durationService.setCooldown(mins);
+                        updateCooldownDisplay();
+                        setCooldownMinutes('');
+                      }
+                    }}
+                    disabled={!cooldownMinutes || parseInt(cooldownMinutes) <= 0}
+                    className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Start Cooldown
+                  </button>
+                  {cooldownRemaining && (
+                    <>
+                      <span className="text-sm text-blue-300">{cooldownRemaining}</span>
+                      <button
+                        onClick={() => {
+                          durationService.clearCooldown();
+                          updateCooldownDisplay();
+                        }}
+                        className="text-xs text-white/40 hover:text-white/60 underline"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Clear History */}
+              <div className="pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-white/70">Clear duration history</div>
+                    <div className="text-xs text-white/40">Remove all logged completion times (predictions will reset)</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to clear all duration history? This will reset all predictions.')) {
+                        durationService.clearDurationHistory();
+                        setHistoryCount(0);
+                      }
+                    }}
+                    disabled={historyCount === 0}
+                    className="px-4 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={14} />
+                    Clear History
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

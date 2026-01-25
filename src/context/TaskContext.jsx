@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import taskService from '../services/taskService';
 import { isTaskOverdue } from '../utils/taskHelpers';
+import { aiService } from '../services/aiService';
+import durationService from '../services/durationService';
 
 /**
  * TaskContext - Single source of truth for task state
@@ -65,8 +67,50 @@ export const TaskProvider = ({ children }) => {
 
     // ============= TASK OPERATIONS =============
 
-    const createTask = useCallback((newTask) => {
+    const createTask = useCallback(async (newTask) => {
+        // First, create the task immediately (no delay for user)
         setTasks(prev => taskService.createTask(prev, newTask));
+
+        // Then, fetch prediction in background if feature enabled
+        if (durationService.isFeatureEnabled()) {
+            try {
+                let prediction = null;
+
+                // For recurring tasks, check for inherited history first
+                if (newTask.templateId) {
+                    const templateHistory = durationService.getHistoryForTemplate(newTask.templateId);
+                    if (templateHistory.length > 0) {
+                        prediction = durationService.calculatePrediction(templateHistory);
+                    }
+                }
+
+                // If no inherited prediction, try AI prediction
+                if (!prediction) {
+                    const history = durationService.getDurationHistory();
+                    if (history.length > 0) {
+                        prediction = await aiService.predictTaskDuration(newTask, history);
+                    }
+                }
+
+                // Update task with prediction if we got one
+                if (prediction) {
+                    setTasks(prev => prev.map(t => {
+                        if (t.id === newTask.id) {
+                            return {
+                                ...t,
+                                predictedDuration: prediction.predictedMinutes,
+                                predictionConfidence: prediction.confidencePercent,
+                                predictionSampleCount: prediction.sampleCount || 1,
+                            };
+                        }
+                        return t;
+                    }));
+                }
+            } catch (error) {
+                console.warn('[TaskContext] Failed to fetch prediction:', error.message);
+                // Silently fail - prediction is optional enhancement
+            }
+        }
     }, []);
 
     const updateTask = useCallback((taskId, updates) => {

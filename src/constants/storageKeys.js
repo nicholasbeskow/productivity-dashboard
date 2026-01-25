@@ -32,6 +32,11 @@ export const STORAGE_KEYS = {
   // AI Configuration
   AI_API_KEY: 'aiApiKey',
   AI_MODEL: 'aiModel',
+
+  // Duration Prediction
+  TASK_DURATION_HISTORY: 'taskDurationHistory',
+  DURATION_COOLDOWN_UNTIL: 'durationCooldownUntil',
+  DURATION_FEATURE_ENABLED: 'durationFeatureEnabled',
 };
 
 // Event names for window.dispatchEvent

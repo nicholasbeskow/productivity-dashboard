@@ -349,6 +349,7 @@ const CanvasTab = () => {
         createdAt: new Date().toISOString(),
         completedAt: null,
         attachments: [],
+        course: assignment.context_name, // Important for AI duration prediction matching
       };
 
       createTask(newTask);
