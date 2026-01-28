@@ -728,18 +728,18 @@ export const generateDayPrediction = () => {
         energyEmoji = '😴';
     }
 
-    // Generate insight message
+    // Generate insight message (Wellness Focused)
     let insight = '';
     if (sleepHours >= 7 && sleepQuality >= 4) {
-        insight = `Excellent rest! ${sleepHours}h with great quality sets you up for success.`;
+        insight = `Excellent rest! ${sleepHours}h with great quality gives you a strong foundation for wellbeing today.`;
     } else if (sleepHours >= 7) {
-        insight = `Good sleep duration (${sleepHours}h), but quality was ${sleepQuality}/5.`;
+        insight = `Good quantity (${sleepHours}h), but quality was ${sleepQuality}/5. Prioritize gentle movement to wake up the body.`;
     } else if (sleepQuality >= 4) {
-        insight = `Quality sleep (${sleepQuality}/5) but only ${sleepHours}h. Watch for afternoon fatigue.`;
+        insight = `Quality sleep (${sleepQuality}/5) but short duration (${sleepHours}h). Listen to your body and rest if needed.`;
     } else if (sleepHours >= 6) {
-        insight = `Decent rest at ${sleepHours}h. Consider lighter tasks if you feel tired.`;
+        insight = `Moderate rest (${sleepHours}h). Be kind to yourself today and avoid overexertion.`;
     } else {
-        insight = `Only ${sleepHours}h of sleep. Take it easy and prioritize essential tasks.`;
+        insight = `Only ${sleepHours}h sleep. Your health comes first—focus on recovery and an early bedtime tonight.`;
     }
 
     // Add day-of-week context
@@ -802,8 +802,8 @@ export const getRecommendations = () => {
         recommendations.push({
             type: 'productivity',
             priority: 'medium',
-            title: 'Productivity Dip Detected',
-            description: `Your output is ${Math.abs(burnout.productivityChange)}% lower than last week. Consider breaking tasks into smaller pieces.`,
+            title: 'Energy Lull Detected',
+            description: `Output is lower than usual. This might be your body asking for a break, not a push.`,
             icon: 'TrendingDown'
         });
     }
@@ -816,8 +816,8 @@ export const getRecommendations = () => {
             recommendations.push({
                 type: 'schedule',
                 priority: 'low',
-                title: `${dayPatterns.worstDay} Strategy`,
-                description: `This is typically your least productive day. Keep expectations reasonable.`,
+                title: `${dayPatterns.worstDay} Rhythms`,
+                description: `This is typically a slower energy day for you. It's okay to take it easy matches your natural rhythm.`,
                 icon: 'Calendar'
             });
         }
@@ -849,8 +849,8 @@ export const getRecommendations = () => {
         recommendations.push({
             type: 'productivity',
             priority: 'positive',
-            title: 'Productivity Trending Up! 📈',
-            description: `${weeklyStats.tasks.changePercent}% more tasks than last week. Great momentum!`,
+            title: 'Healthy Flow State! 🌊',
+            description: `You're getting a lot done! Remember to hydrate and take micro-breaks to sustain this healthy energy.`,
             icon: 'TrendingUp'
         });
     }

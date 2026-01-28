@@ -31,6 +31,7 @@ export const STORAGE_KEYS = {
 
   // AI Configuration
   AI_API_KEY: 'aiApiKey',
+  CEREBRAS_API_KEY: 'cerebrasApiKey',
   AI_MODEL: 'aiModel',
 
   // Duration Prediction

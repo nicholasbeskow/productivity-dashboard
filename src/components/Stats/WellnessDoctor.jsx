@@ -16,8 +16,12 @@ import {
     CheckCircle2,
     Trophy,
     Flame,
-    Lightbulb
+
+    Lightbulb,
+    Loader
 } from 'lucide-react';
+import { aiService } from '../../services/aiService';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 import {
     generateDayPrediction,
     getWeeklyStats,
@@ -37,7 +41,10 @@ const WellnessDoctor = ({ onBack }) => {
     const [dayPatterns, setDayPatterns] = useState(null);
     const [recommendations, setRecommendations] = useState([]);
 
-    // Load data on mount
+    // AI Analysis State
+    const [aiAnalysis, setAiAnalysis] = useState(null);
+    const [isLoadingAi, setIsLoadingAi] = useState(false);
+
     useEffect(() => {
         setDayPrediction(generateDayPrediction());
         setWeeklyStats(getWeeklyStats());
@@ -45,7 +52,70 @@ const WellnessDoctor = ({ onBack }) => {
         setStreaks(getStreaks());
         setDayPatterns(getDayOfWeekPatterns());
         setRecommendations(getRecommendations());
+
+        // Fetch AI Analysis if Cerebras Key exists
+        const cerebrasKey = localStorage.getItem(STORAGE_KEYS.CEREBRAS_API_KEY);
+        if (cerebrasKey) {
+            fetchAiAnalysis();
+        }
     }, []);
+
+    const fetchAiAnalysis = async () => {
+        setIsLoadingAi(true);
+        try {
+            // Get comprehensive data
+            const tasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+            const completedTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMPLETED_TASKS) || '[]');
+            const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+
+            // Calculate Health Habits (Last 7 Days)
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            const healthKeywords = ['breakfast', 'lunch', 'dinner', 'gym', 'workout', 'run', 'exercise', 'walk'];
+            const recentHealthTasks = completedTasks.filter(t => {
+                const completedDate = new Date(t.completedAt);
+                return completedDate >= sevenDaysAgo && healthKeywords.some(k => t.title.toLowerCase().includes(k));
+            });
+
+            // Group health habits for AI context
+            const healthHabits = recentHealthTasks.reduce((acc, t) => {
+                const title = t.title.toLowerCase();
+                if (['gym', 'workout', 'run', 'exercise', 'walk'].some(k => title.includes(k))) {
+                    acc.exercise = (acc.exercise || 0) + 1;
+                } else {
+                    acc.meals = (acc.meals || 0) + 1;
+                }
+                return acc;
+            }, { exercise: 0, meals: 0, details: recentHealthTasks.map(t => t.title).slice(0, 10) });
+
+            const data = {
+                recentSleep: JSON.parse(localStorage.getItem(STORAGE_KEYS.SLEEP_LOG) || '[]').slice(-7),
+                streaks: getStreaks(),
+                riskIndicators: getBurnoutIndicators(),
+                recentMoods: JSON.parse(localStorage.getItem(STORAGE_KEYS.MOOD_LOG) || '[]').slice(-7),
+                // Fix: Only count STRICTLY overdue tasks (before today)
+                overdueTasks: tasks.filter(t => t.dueDate && t.dueDate < todayStr && t.status !== 'completed').length,
+                upcomingTasks: tasks.filter(t => {
+                    const due = new Date(t.dueDate);
+                    const now = new Date();
+                    const diff = (due - now) / (1000 * 60 * 60);
+                    return diff > 0 && diff <= 48 && t.status !== 'completed';
+                }).length,
+                productivityTrend: getWeeklyStats().tasks.trend,
+                healthHabits
+            };
+
+            const prediction = await aiService.generateWellnessPrediction(data);
+            if (prediction) {
+                setAiAnalysis(prediction);
+            }
+        } catch (error) {
+            console.error("AI Analysis failed", error);
+        } finally {
+            setIsLoadingAi(false);
+        }
+    };
 
     // Tab configuration
     const tabs = [
@@ -433,28 +503,86 @@ const WellnessDoctor = ({ onBack }) => {
 
         return (
             <div className="space-y-6">
-                {/* Risk Score Card */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-panel p-8 border-2 ${getRiskColor()}`}>
-                    <div className="flex items-center gap-6">
-                        {getRiskIcon()}
-                        <div className="flex-1">
-                            <h3 className="text-2xl font-bold text-text-primary mb-2 capitalize">
-                                {burnoutIndicators.riskLevel === 'healthy' && '✅ You\'re Doing Great!'}
-                                {burnoutIndicators.riskLevel === 'caution' && '⚠️ Caution Zone'}
-                                {burnoutIndicators.riskLevel === 'high' && '🚨 High Burnout Risk'}
+                {/* Combined AI Analysis & Status Card */}
+                {isLoadingAi ? (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-8 border border-blue-500/30 bg-blue-500/5 flex items-center justify-center gap-4">
+                        <Loader className="animate-spin text-blue-400" size={24} />
+                        <span className="text-text-primary font-medium">Dr. AI is analyzing your vitals...</span>
+                    </motion.div>
+                ) : aiAnalysis ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`glass-panel p-8 border-l-4 ${aiAnalysis.riskLevel === 'high' ? 'border-l-red-500 bg-red-500/10' :
+                            aiAnalysis.riskLevel === 'caution' ? 'border-l-yellow-500 bg-yellow-500/10' :
+                                'border-l-green-glow bg-green-500/10'
+                            }`}
+                    >
+                        <div className="flex justify-between items-start mb-6">
+                            <h3 className="text-2xl font-bold text-text-primary flex items-center gap-3">
+                                <BrainCircuit className={
+                                    aiAnalysis.riskLevel === 'high' ? 'text-red-500' :
+                                        aiAnalysis.riskLevel === 'caution' ? 'text-yellow-500' :
+                                            'text-green-glow'
+                                } size={32} />
+                                {aiAnalysis.title || "Health Analysis"}
                             </h3>
-                            <p className="text-text-secondary text-lg">
-                                {burnoutIndicators.riskLevel === 'healthy' && 'Your wellness indicators look good. Keep up the healthy habits!'}
-                                {burnoutIndicators.riskLevel === 'caution' && 'Some warning signs detected. Consider taking preventive action.'}
-                                {burnoutIndicators.riskLevel === 'high' && 'Multiple burnout indicators detected. Please prioritize self-care.'}
+                            <div className="text-right">
+                                <div className="text-3xl font-bold text-text-primary">{aiAnalysis.riskScore || burnoutIndicators.riskScore}</div>
+                                <div className="text-xs text-text-tertiary uppercase tracking-wider">Risk Score</div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <p className="text-text-primary text-lg leading-relaxed">
+                                {aiAnalysis.analysis}
                             </p>
+
+                            <div className="p-5 rounded-xl bg-black/20 border border-white/5 flex gap-4">
+                                <div className="shrink-0 mt-1">
+                                    <Target className="text-blue-400" size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-blue-400 mb-1 uppercase tracking-wider">
+                                        Doctor's Orders
+                                    </h4>
+                                    <p className="text-white font-medium text-lg">
+                                        {aiAnalysis.recommendation}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-white/30 border border-white/5">
+                                    CEREBRAS-QWEN
+                                </span>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <div className="text-5xl font-bold text-text-primary">{burnoutIndicators.riskScore}</div>
-                            <div className="text-sm text-text-tertiary">Risk Score</div>
+                    </motion.div>
+                ) : (
+                    /* Fallback to Standard Card if no AI analysis available */
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`glass-panel p-8 border-2 ${getRiskColor()}`}>
+                        <div className="flex items-center gap-6">
+                            {getRiskIcon()}
+                            <div className="flex-1">
+                                <h3 className="text-2xl font-bold text-text-primary mb-2 capitalize">
+                                    {burnoutIndicators.riskLevel === 'healthy' && '✅ You\'re Doing Great!'}
+                                    {burnoutIndicators.riskLevel === 'caution' && '⚠️ Caution Zone'}
+                                    {burnoutIndicators.riskLevel === 'high' && '🚨 High Burnout Risk'}
+                                </h3>
+                                <p className="text-text-secondary text-lg">
+                                    {burnoutIndicators.riskLevel === 'healthy' && 'Your wellness indicators look good. Keep up the healthy habits!'}
+                                    {burnoutIndicators.riskLevel === 'caution' && 'Some warning signs detected. Consider taking preventive action.'}
+                                    {burnoutIndicators.riskLevel === 'high' && 'Multiple burnout indicators detected. Please prioritize self-care.'}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-5xl font-bold text-text-primary">{burnoutIndicators.riskScore}</div>
+                                <div className="text-sm text-text-tertiary">Risk Score</div>
+                            </div>
                         </div>
-                    </div>
-                </motion.div>
+                    </motion.div>
+                )}
 
                 {/* Indicators */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

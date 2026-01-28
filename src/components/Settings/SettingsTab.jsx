@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar, Clock, Trash2, User, Sliders, Link, Database, ArrowLeft } from 'lucide-react';
+import { Settings, Bot, Sparkles, CheckCircle2, AlertCircle, Calendar, Clock, Trash2, User, Sliders, Link, Database, ArrowLeft, BrainCircuit } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { aiService } from '../../services/aiService';
@@ -160,6 +160,7 @@ const SettingsTab = () => {
 
   // AI Configuration State
   const [aiApiKey, setAiApiKey] = useState('');
+  const [cerebrasApiKey, setCerebrasApiKey] = useState('');
 
   const [aiStatus, setAiStatus] = useState('idle'); // idle, testing, success, error
   const [aiStatusMessage, setAiStatusMessage] = useState('');
@@ -190,6 +191,7 @@ const SettingsTab = () => {
 
     // Load AI Settings
     setAiApiKey(localStorage.getItem(STORAGE_KEYS.AI_API_KEY) || '');
+    setCerebrasApiKey(localStorage.getItem(STORAGE_KEYS.CEREBRAS_API_KEY) || '');
 
     // Load Duration Prediction settings
     setDurationEnabled(durationService.isFeatureEnabled());
@@ -229,6 +231,12 @@ const SettingsTab = () => {
     setAiApiKey(newKey);
     localStorage.setItem(STORAGE_KEYS.AI_API_KEY, newKey);
     setAiStatus('idle'); // Reset status on change
+  };
+
+  const handleCerebrasApiKeyChange = (e) => {
+    const newKey = e.target.value;
+    setCerebrasApiKey(newKey);
+    localStorage.setItem(STORAGE_KEYS.CEREBRAS_API_KEY, newKey);
   };
 
 
@@ -1229,6 +1237,36 @@ const SettingsTab = () => {
                     <p className="text-xs text-green-400 mt-2 flex items-center gap-1"><CheckCircle2 size={12} /> {aiStatusMessage}</p>
                   )}
                   <p className="text-xs text-white/40 mt-2">Add multiple keys to auto-rotate when rate limits are hit. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-orange-400 hover:text-orange-300 underline">Get free keys →</a></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Wellness AI (Cerebras) */}
+            <div className="glass-panel p-6" style={{ backdropFilter: 'blur(12px) saturate(180%)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <BrainCircuit className="text-blue-400" size={20} />
+                  Wellness AI
+                </h3>
+                <div className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded text-xs border border-blue-500/30">
+                  Powered by Cerebras
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Cerebras API Keys</label>
+                  <textarea
+                    value={cerebrasApiKey}
+                    onChange={handleCerebrasApiKeyChange}
+                    placeholder="csk-xxxxxxxxxxxx&#10;csk-yyyyyyyyyyyy&#10;(one per line, comma, or space separated)"
+                    rows={3}
+                    spellCheck={false}
+                    className="w-full liquid-bubble-filled rounded-lg px-4 py-3 text-white placeholder-white/30 focus:border-blue-500/50 focus:outline-none transition-colors resize-none font-mono text-xs leading-relaxed"
+                  />
+                  <p className="text-xs text-white/40 mt-2">
+                    Used for advanced Wellness Doctor predictions (Qwen models).
+                    <a href="https://cloud.cerebras.ai/" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline ml-1">Get a key →</a>
+                  </p>
                 </div>
               </div>
             </div>

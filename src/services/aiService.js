@@ -7,12 +7,17 @@ const getApiKeys = () => {
     const raw = getString(STORAGE_KEYS.AI_API_KEY, '');
     return raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
 };
+const getCerebrasApiKeys = () => {
+    const raw = getString(STORAGE_KEYS.CEREBRAS_API_KEY, '');
+    return raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
+};
 const getModelName = () => 'openai/gpt-oss-120b';
 
 class AIService {
     constructor() {
         this.client = null;
         this.currentKeyIndex = 0;
+        this.currentCerebrasKeyIndex = 0;
     }
 
     _getClient(key) {
@@ -21,6 +26,8 @@ class AIService {
             dangerouslyAllowBrowser: true
         });
     }
+
+    // _getCerebrasClient removed as we use native fetch for Cerebras to control the URL path
 
     /**
      * unified completion method that handles efficient key rotation
@@ -61,6 +68,68 @@ class AIService {
         }
 
         throw new Error(`All API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
+    }
+
+    /**
+     * Dedicated completion method for Cerebras/Wellness integration including key rotation
+     */
+    async createCerebrasCompletion(params) {
+        const keys = getCerebrasApiKeys();
+        if (keys.length === 0) {
+            throw new Error('Cerebras API Key not found. Please configure it in Settings -> Wellness AI.');
+        }
+
+        let lastError = null;
+
+        for (let i = 0; i < keys.length; i++) {
+            const index = (this.currentCerebrasKeyIndex + i) % keys.length;
+            const apiKey = keys[index];
+
+            try {
+                // Use native fetch to avoid SDK appending /openai/v1 which causes 404s on Cerebras
+                const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify(params)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMsg = errorJson.error?.message || errorJson.detail || errorText;
+                    } catch (e) {
+                        errorMsg = errorText;
+                    }
+
+                    const error = new Error(errorMsg);
+                    error.status = response.status;
+                    throw error;
+                }
+
+                const completion = await response.json();
+
+                // If successful, normalize currentCerebrasKeyIndex to this working key
+                this.currentCerebrasKeyIndex = index;
+                return completion;
+
+            } catch (error) {
+                console.warn(`Cerebras Key ending in ...${apiKey.slice(-4)} failed:`, error.message);
+                lastError = error;
+
+                // Rotate on 401 (Auth) or 429 (Rate Limit)
+                // Don't rotate on 400 (Bad Request) as it's likely a prompt issue
+                if (error.status === 400) {
+                    throw error;
+                }
+            }
+        }
+
+        throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
     }
 
     async validateApiKey(apiKeyInput) {
@@ -484,6 +553,95 @@ Apply the user's instructions. Return ONLY the refined task object as valid JSON
             return fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
         }
     }
+
+    /**
+     * Generate a strict, comprehensive wellness prediction using Cerebras (Qwen)
+     * @param {Object} data - Comprehensive user data (sleep, mood, tasks, streaks)
+     * @returns {Object} { riskLevel, riskScore, analysis, recommendation }
+     */
+    async generateWellnessPrediction(data) {
+        const prompt = `
+        You are an UNCOMPROMISING WELLNESS DOCTOR.
+        Your goal is to detect burnout risks with HIGH SENSITIVITY.
+        Users often underestimate their stress. You must validate their reality against the data.
+
+        DATA CONTEXT:
+        - Recent Sleep: ${JSON.stringify(data.recentSleep)} (Target: 7.5h+)
+        - Sleep Debt: ${data.sleepDebt}h
+        - Recent Moods: ${JSON.stringify(data.recentMoods)} (1-5 scale)
+        - Current Streaks: ${JSON.stringify(data.streaks)}
+        - Health Habits (Last 7 Days): ${JSON.stringify(data.healthHabits)} (Meals/Exercise logged)
+        - Task Load: ${data.overdueTasks} overdue, ${data.upcomingTasks} upcoming in next 48h.
+        - Productivity Trend: ${data.productivityTrend}
+
+        CRITERIA FOR "HIGH RISK" (Red Flag):
+        - Any sleep debt > 5 hours
+        - Multiple consecutive days < 6h sleep
+        - "Grindset" behavior: High task completion but low mood/sleep
+        - >5 Overdue tasks accumulating
+        - Consistent low mood (avg < 3.0)
+
+        INSTRUCTIONS:
+        1. Analyze the data strictly. Do not sugarcoat.
+        2. If they are doing too much (high tasks, low sleep/mood), CALL IT OUT.
+        3. If they are slipping (accumulating overdue tasks, no logging), WARN THEM.
+        4. Output JSON only.
+
+        OUTPUT FORMAT (JSON):
+        {
+            "riskLevel": "healthy" | "caution" | "high",
+            "riskScore": 0-100,
+            "title": "Short punchy status (e.g., 'Approaching Burnout', 'Sustainable Pace')",
+            "analysis": "2-3 sentences max. Direct and evidence-based. E.g., 'You are ignoring sleep limits to chase task completions. This is unsustainable.'",
+            "recommendation": "One specific, actionable hard limit. E.g., 'Stop working at 10 PM. No exceptions.'"
+        }
+        `;
+
+        try {
+            // Primary model: Qwen (User requested)
+            const primaryModel = 'qwen-3-235b-a22b-instruct-2507';
+            const fallbackModel = 'llama-3.3-70b';
+
+            let completion;
+            try {
+                completion = await this.createCerebrasCompletion({
+                    messages: [
+                        { role: 'system', content: 'You are a strict, data-driven wellness analyst. Output JSON only.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    model: primaryModel,
+                    temperature: 0.2,
+                    max_tokens: 300,
+                    response_format: { type: 'json_object' }
+                });
+            } catch (error) {
+                // If the specific Qwen model fails (e.g. 404/not found), try the fallback Llama model
+                if (error.message.includes('model_not_found') || error.status === 404 || error.message.includes('does not exist')) {
+                    console.warn(`[AIService] Primary model ${primaryModel} failed, trying fallback ${fallbackModel}`);
+                    completion = await this.createCerebrasCompletion({
+                        messages: [
+                            { role: 'system', content: 'You are a strict, data-driven wellness analyst. Output JSON only.' },
+                            { role: 'user', content: prompt }
+                        ],
+                        model: fallbackModel,
+                        temperature: 0.2,
+                        max_tokens: 300,
+                        response_format: { type: 'json_object' }
+                    });
+                } else {
+                    throw error;
+                }
+            }
+
+            const text = completion.choices[0]?.message?.content || '{}';
+            return JSON.parse(text);
+
+        } catch (error) {
+            console.error('[AIService] Wellness prediction failed:', error);
+            return null;
+        }
+    }
+
 }
 
 export const aiService = new AIService();
