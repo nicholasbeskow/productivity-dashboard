@@ -371,42 +371,36 @@ Apply the user's instructions. Return ONLY the refined task object as valid JSON
         }
 
         const modelName = getModelName();
-        const prompt = `
-You are analyzing task similarity to predict how long a task will take.
+        const prompt = `Predict task duration. Be LIBERAL—provide a prediction if any reasonable match exists.
 
-**Target Task:**
-- Title: "${task.title}"
-- Course: "${task.course || 'None'}"
-- Category: "${task.taskType || 'personal'}"
-- Description: "${task.description || 'None'}"
+    TARGET: "${task.title}" | Course: "${task.course || 'NONE'}" | Category: ${task.taskType || 'personal'}
 
-**Historical Completion Data (most recent first):**
-${JSON.stringify(historicalData.slice(0, 30).map(h => ({
-            title: h.title,
-            course: h.course,
-            category: h.category,
-            durationMinutes: h.durationMinutes
-        })), null, 2)}
+    HISTORY (recent first):
+    ${JSON.stringify(historicalData.slice(0, 20).map((h, i) => ({
+            t: h.title, c: h.course || '-', m: h.durationMinutes, r: i < 8 ? 'R' : 'O'
+        })))}
 
-**Your Task:**
-1. Find the most similar past tasks based on semantic meaning (not just keywords)
-2. Consider: same course, similar title patterns, same task category
-3. Calculate a predicted duration based on similar tasks
-4. Be more confident if multiple similar tasks exist
+    STEP 1 — EXTRACT TYPE FROM TITLE (case-insensitive):
+    hw/homework/pset→HOMEWORK | quiz→QUIZ | exam/midterm/final/test→EXAM | read/reading/chapter→READING
+    study/review for→STUDY | project/paper/essay/report→PROJECT | lab→LAB | discussion/post/forum→DISCUSSION
+    worksheet/exercise→WORKSHEET | lecture/notes→REVIEW | meeting/call/appt→MEETING | else→GENERAL
 
-**Output (JSON only):**
-{
-  "predictedMinutes": <number>,
-  "confidencePercent": <0-100>,
-  "similarTasksFound": <number>,
-  "reasoning": "<brief explanation>"
-}
+    STEP 2 — TIERED MATCHING (use best available):
+    TIER 1 (60-90%): Same type + same course. "HW 5"(CS101)↔"HW 3"(CS101)✓
+    TIER 2 (40-65%): Same type, different course. "HW 5"(CS101)↔"HW 2"(MATH200)✓
+    TIER 3 (25-45%): Semantically similar. "Grocery shopping"↔"Buy groceries"✓
+    Never match: Academic↔Personal, or different types (HW↔Quiz↔Exam). Ignore numbers in titles.
 
-Rules:
-- If no similar tasks found, return null for all fields
-- Round minutes to nearest 5
-- Confidence: 1 similar task = 30-50%, 3+ = 60-80%, 5+ = 80-95%
-`;
+    STEP 3 — CALCULATE:
+    • Weight R (recent) 2x more than O (older)
+    • If 4+ matches: exclude outliers >2x or <0.5x median
+    • Boost +5% if category matches, -5% if differs
+    • High variance (3x+ spread): reduce confidence 10-15%
+    • Min prediction: 5 minutes
+
+    CONFIDENCE: T1+3recent=80-90% | T1+1-2=60-75% | T2+2=50-65% | T2+1=40-55% | T3=25-45max | NoMatch=null
+
+    OUTPUT JSON: {"predictedMinutes":<num|null>,"confidencePercent":<0-100>,"similarTasksFound":<count>,"reasoning":"<brief>"}`;
 
         // Retry with exponential backoff
         const delays = [1000, 2000, 4000];
@@ -416,7 +410,7 @@ Rules:
             try {
                 const completion = await this.createCompletion({
                     messages: [
-                        { role: 'system', content: 'You are a task duration prediction assistant. Output only valid JSON.' },
+                        { role: 'system', content: 'You are a task duration prediction engine. Your job is to find the most relevant historical tasks and provide an accurate time estimate. Be liberal - provide a prediction if any reasonable match exists. Weight recent data more heavily. Output only valid JSON matching the exact schema provided.' },
                         { role: 'user', content: prompt }
                     ],
                     model: modelName,

@@ -1525,7 +1525,7 @@ const SettingsTab = () => {
                 About
               </h3>
               <div className="space-y-2 text-sm text-white/70">
-                <p><strong className="text-white">Version:</strong> 2.3.0</p>
+                <p><strong className="text-white">Version:</strong> 2.3.1</p>
                 <p><strong className="text-white">Status:</strong> Building</p>
                 <p className="text-white/40 pt-2">
                   Built with React, Electron, and Tailwind CSS

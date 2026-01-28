@@ -144,8 +144,8 @@ function App() {
   };
 
   return (
-    <ErrorBoundary>
-      <TaskProvider>
+    <TaskProvider>
+      <ErrorBoundary>
         <div className="flex h-screen bg-bg-primary overflow-hidden relative">
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -175,8 +175,8 @@ function App() {
           {/* DRAG BAR: Height h-8 (32px) */}
           <div className="fixed top-0 left-0 right-0 h-8 z-50 drag-region" />
         </div>
-      </TaskProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </TaskProvider>
   );
 }
 

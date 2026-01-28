@@ -268,6 +268,8 @@ const TasksTab = () => {
     setShowSmartImport(false);
   };
 
+
+
   return (
     <div className="h-full p-8 overflow-y-auto" style={{ WebkitAppRegion: 'no-drag' }}>
       {/* Global Backdrop - closes task menu when clicking away */}
@@ -505,6 +507,8 @@ const TasksTab = () => {
               >
                 <Clock size={18} />
               </button>
+
+
             </div>
 
             {/* Task List with Fade Animation on Filter Change */}

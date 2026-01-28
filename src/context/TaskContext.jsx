@@ -65,6 +65,68 @@ export const TaskProvider = ({ children }) => {
         };
     }, []);
 
+    // ============= PREDICTION RETRY QUEUE =============
+    // Queue for failed predictions that will be retried after a delay
+    const predictionQueueRef = useRef([]);
+    const retryTimeoutRef = useRef(null);
+
+    // Process the prediction retry queue
+    const processPredictionQueue = useCallback(async () => {
+        if (predictionQueueRef.current.length === 0) return;
+
+        const queue = [...predictionQueueRef.current];
+        predictionQueueRef.current = []; // Clear queue before processing
+
+        console.log(`[TaskContext] Retrying ${queue.length} failed predictions...`);
+
+        const history = durationService.getDurationHistory();
+        if (history.length === 0) return;
+
+        for (const task of queue) {
+            try {
+                const prediction = await aiService.predictTaskDuration(task, history);
+
+                if (prediction) {
+                    setTasks(prev => prev.map(t => {
+                        if (t.id === task.id && !t.predictedDuration) {
+                            console.log(`[TaskContext] Retry succeeded for task: ${task.title}`);
+                            return {
+                                ...t,
+                                predictedDuration: prediction.predictedMinutes,
+                                predictionConfidence: prediction.confidencePercent,
+                                predictionSampleCount: prediction.sampleCount || 1,
+                            };
+                        }
+                        return t;
+                    }));
+                }
+            } catch (error) {
+                console.warn(`[TaskContext] Retry failed for task ${task.id}:`, error.message);
+                // Re-queue for another retry later
+                predictionQueueRef.current.push(task);
+            }
+
+            // Wait between retries to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+
+        // If there are still failed predictions, schedule another retry
+        if (predictionQueueRef.current.length > 0) {
+            retryTimeoutRef.current = setTimeout(() => {
+                processPredictionQueue();
+            }, 60000); // Retry again in 1 minute
+        }
+    }, []);
+
+    // Cleanup retry timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current);
+            }
+        };
+    }, []);
+
     // ============= TASK OPERATIONS =============
 
     const createTask = useCallback(async (newTask) => {
@@ -108,10 +170,21 @@ export const TaskProvider = ({ children }) => {
                 }
             } catch (error) {
                 console.warn('[TaskContext] Failed to fetch prediction:', error.message);
-                // Silently fail - prediction is optional enhancement
+
+                // Queue failed prediction for retry (likely rate limited)
+                predictionQueueRef.current.push(newTask);
+
+                // Schedule retry if not already scheduled
+                if (!retryTimeoutRef.current) {
+                    console.log('[TaskContext] Scheduling prediction retry in 30 seconds...');
+                    retryTimeoutRef.current = setTimeout(() => {
+                        retryTimeoutRef.current = null;
+                        processPredictionQueue();
+                    }, 30000); // Retry after 30 seconds
+                }
             }
         }
-    }, []);
+    }, [processPredictionQueue]);
 
     const updateTask = useCallback((taskId, updates) => {
         setTasks(prev => taskService.updateTask(prev, taskId, updates));
@@ -194,6 +267,70 @@ export const TaskProvider = ({ children }) => {
         setTasks(prev => taskService.smartReset(prev));
     }, []);
 
+    /**
+     * Refresh predictions for incomplete tasks
+     * Only refreshes tasks that don't have predictions or have low confidence
+     */
+    const refreshPredictions = useCallback(async () => {
+        if (!durationService.isFeatureEnabled()) {
+            return { refreshed: 0, total: 0 };
+        }
+
+        const history = durationService.getDurationHistory();
+        if (history.length === 0) {
+            return { refreshed: 0, total: 0 };
+        }
+
+        // Get incomplete tasks that could benefit from a refresh
+        const incompleteTasks = tasks.filter(t =>
+            t.status !== 'complete' &&
+            (!t.predictedDuration || (t.predictionConfidence && t.predictionConfidence < 50))
+        );
+
+        if (incompleteTasks.length === 0) {
+            return { refreshed: 0, total: 0 };
+        }
+
+        let refreshedCount = 0;
+
+        // Process sequentially with delay to respect rate limits
+        // Each prediction uses ~3100 tokens, limit is 8000 TPM, so we need ~25s between requests
+        // With key rotation, we can go faster but still need meaningful delays
+        for (let i = 0; i < incompleteTasks.length; i++) {
+            const task = incompleteTasks[i];
+
+            try {
+                const prediction = await aiService.predictTaskDuration(task, history);
+
+                if (prediction) {
+                    refreshedCount++;
+                    setTasks(prev => prev.map(t => {
+                        if (t.id === task.id) {
+                            return {
+                                ...t,
+                                predictedDuration: prediction.predictedMinutes,
+                                predictionConfidence: prediction.confidencePercent,
+                                predictionSampleCount: prediction.sampleCount || 1,
+                            };
+                        }
+                        return t;
+                    }));
+                }
+            } catch (error) {
+                console.warn(`[TaskContext] Failed to predict for task ${task.id}:`, error.message);
+            }
+
+            // Wait 25 seconds between requests to respect rate limits
+            // (8000 TPM / 3100 tokens = ~2.5 requests per minute per key)
+            // This is slow but guarantees no rate limit errors
+            if (i < incompleteTasks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 25000));
+            }
+        }
+
+        return { refreshed: refreshedCount, total: incompleteTasks.length };
+    }, [tasks]);
+
     const reorderTask = useCallback((visibleTasks, draggedTaskId, dropTaskId) => {
         setTasks(prev => taskService.reorderTask(prev, visibleTasks, draggedTaskId, dropTaskId));
     }, []);
@@ -214,6 +351,7 @@ export const TaskProvider = ({ children }) => {
         duplicateTask,
         smartReset,
         reorderTask,
+        refreshPredictions,
 
         // Direct setter for advanced use cases
         setTasks,
